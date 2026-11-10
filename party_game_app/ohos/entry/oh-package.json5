@@ -1,0 +1,11 @@
+{
+  "name": "entry",
+  "version": "1.0.56",
+  "description": "PartyGame Club Entry Ability for HarmonyOS Next",
+  "main": "",
+  "author": "fwpt",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@ohos/flutter_ohos": "3.27.0"
+  }
+}

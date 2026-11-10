@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  party-game-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: party-game-server
+    restart: always
+    environment:
+      - PORT=9001
+      - TZ=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD:-CHANGE_ME}
+      - JPA_DDL_AUTO=update
+    ports:
+      - "9001:9001"
+    volumes:
+      - /opt/party_game_server/uploads:/app/uploads
+    networks:
+      - default
+      - seahorse-network
+
+networks:
+  default:
+    driver: bridge
+  seahorse-network:
+    name: seahorse_seahorse-network
+    external: true

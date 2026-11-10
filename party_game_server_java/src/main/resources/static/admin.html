@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聚会桌游 · 系统开发商数据大盘与运营中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        apple: {
+                            blue: '#0071E3',
+                            blueHover: '#0077ED',
+                            green: '#34C759',
+                            orange: '#FF9500',
+                            red: '#FF3B30',
+                            purple: '#AF52DE',
+                            bgLight: '#F5F5F7',
+                            cardLight: '#FFFFFF',
+                            textPrimary: '#1D1D1F',
+                            textSecondary: '#86868B',
+                            borderLight: 'rgba(0, 0, 0, 0.08)',
+                            bgDark: '#161618',
+                            cardDark: '#1F1F24',
+                            borderDark: 'rgba(255, 255, 255, 0.08)'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Segoe UI", sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            letter-spacing: -0.011em;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .apple-frosted {
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+        }
+        .apple-card-shadow {
+            box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+        }
+        .apple-tab-active {
+            background-color: #FFFFFF;
+            color: #1D1D1F;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+            font-weight: 600;
+        }
+        .dark .apple-tab-active {
+            background-color: #2C2C2E;
+            color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        /* 自定义微细滚动条 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 9999px; }
+        .dark ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); }
+    </style>
+</head>
+<body class="min-h-screen bg-apple-bgLight dark:bg-apple-bgDark text-apple-textPrimary dark:text-[#F5F5F7]">
+
+    <!-- 全局提示 Toast -->
+    <div id="appleToast" class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-2xl apple-frosted bg-white/90 dark:bg-[#1E1E22]/90 border border-black/10 dark:border-white/10 shadow-2xl text-sm font-semibold flex items-center gap-2 transform -translate-y-16 opacity-0 transition-all duration-300 pointer-events-none">
+        <span id="toastIcon">✅</span>
+        <span id="toastText">操作成功</span>
+    </div>
+
+    <!-- 登录遮罩弹层 (Apple Sheet Design) -->
+    <div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/60 apple-frosted transition-opacity duration-300">
+        <div class="bg-white dark:bg-apple-cardDark p-8 rounded-3xl w-full max-w-md border border-black/5 dark:border-white/10 apple-card-shadow transform transition-all">
+            <div class="flex items-center gap-3.5 mb-6">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-indigo-500 flex items-center justify-center text-2xl shadow-lg shadow-indigo-500/20">
+                    🎲
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold tracking-tight">系统开发商运维中心</h2>
+                    <p class="text-xs text-apple-textSecondary">Party Game · Developer Management</p>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-apple-textSecondary mb-1.5 ml-0.5">开发者账号</label>
+                    <input id="adminUser" type="text" value="" placeholder="输入管理员或 FWPT 通行证账号" class="w-full px-3.5 py-2.5 bg-[#EBEBEF] dark:bg-[#2C2C2E] border border-transparent focus:border-apple-blue rounded-xl text-sm outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-apple-textSecondary mb-1.5 ml-0.5">管理凭据密码</label>
+                    <input id="adminPwd" type="password" value="" placeholder="输入管理凭据密码" class="w-full px-3.5 py-2.5 bg-[#EBEBEF] dark:bg-[#2C2C2E] border border-transparent focus:border-apple-blue rounded-xl text-sm outline-none transition">
+                </div>
+                <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
+                    💡 请输入已授权的管理账号或 FWPT 统一通行证凭证
+                </div>
+                <button onclick="doLogin()" class="w-full py-3 bg-apple-blue hover:bg-apple-blueHover text-white font-semibold rounded-xl text-sm shadow-md shadow-apple-blue/20 transition-all active:scale-[0.98]">
+                    验证并进入主控制台
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 顶部半透明磨砂导航栏 (Apple Vibrancy Bar) -->
+    <header class="sticky top-0 z-40 apple-frosted bg-[#F5F5F7]/85 dark:bg-[#161618]/85 border-b border-black/5 dark:border-white/10 px-6 py-3.5 flex flex-wrap justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 to-indigo-500 flex items-center justify-center text-lg shadow-sm">
+                🎲
+            </div>
+            <div>
+                <h1 class="text-base font-bold tracking-tight flex items-center gap-2">
+                    聚会桌游 · 系统开发商数据大盘与运营中心
+                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium">● 9001 在线</span>
+                </h1>
+                <p class="text-[11px] text-apple-textSecondary">Apple HIG 护眼美学设计 · 实时高峰研判 · 玩家分页检索 · 短信与营销下发</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2.5">
+            <!-- 护眼模式切换按钮 -->
+            <button onclick="toggleEyeCareMode()" id="eyeCareBtn" class="px-3 py-1.5 rounded-xl bg-white dark:bg-[#2C2C2E] border border-black/5 dark:border-white/10 text-xs font-semibold shadow-sm hover:scale-[1.02] active:scale-95 transition flex items-center gap-1.5">
+                <span id="eyeCareIcon">🌙</span>
+                <span id="eyeCareLabel">深空夜览</span>
+            </button>
+            <button onclick="refreshActiveData()" class="px-3 py-1.5 rounded-xl bg-white dark:bg-[#2C2C2E] border border-black/5 dark:border-white/10 text-xs font-semibold shadow-sm hover:scale-[1.02] active:scale-95 transition flex items-center gap-1">
+                <span>🔄 刷新</span>
+            </button>
+            <div id="liveClock" class="text-xs text-apple-textSecondary font-mono px-2 hidden sm:block"></div>
+            <button onclick="logout()" class="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold transition active:scale-95">
+                登出
+            </button>
+        </div>
+    </header>
+
+    <!-- 主控台容器 -->
+    <main class="max-w-7xl mx-auto p-6 space-y-6">
+
+        <!-- 苹果分段胶囊导航条 (Segmented Control) -->
+        <div class="bg-[#E5E5EA] dark:bg-[#242428] p-1.5 rounded-2xl inline-flex flex-wrap gap-1 shadow-inner border border-black/5 dark:border-white/5">
+            <button onclick="switchTab('analytics')" id="tabBtn-analytics" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold apple-tab-active transition-all">
+                📊 实时大盘与高峰分析
+            </button>
+            <button onclick="switchTab('users')" id="tabBtn-users" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
+                👥 玩家档案与分页检索
+            </button>
+            <button onclick="switchTab('sms')" id="tabBtn-sms" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
+                📱 阿里云/腾讯云短信网关
+            </button>
+            <button onclick="switchTab('marketing')" id="tabBtn-marketing" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
+                🎨 营销活动与横幅管理
+            </button>
+            <button onclick="switchTab('rules')" id="tabBtn-rules" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
+                ⚖️ 会员体系与充值汇率规则
+            </button>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 1. 数据大盘与高峰研判 PANEL -->
+        <!-- ========================================== -->
+        <div id="tab-analytics" class="space-y-6">
+            <!-- 核心 KPI 4联卡片 -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-2xl border border-black/5 dark:border-white/10 apple-card-shadow">
+                    <div class="flex items-center justify-between text-xs text-apple-textSecondary">
+                        <span>总注册玩家数</span>
+                        <span class="text-base">👥</span>
+                    </div>
+                    <div id="kpi-totalUsers" class="text-3xl font-extrabold tracking-tight mt-1.5">--</div>
+                    <div class="text-[11px] text-apple-textSecondary mt-2 flex gap-3">
+                        <span>正式: <b id="kpi-officialUsers" class="text-apple-blue font-bold">--</b></span>
+                        <span>试玩: <b id="kpi-guestUsers" class="text-amber-500 font-bold">--</b></span>
+                    </div>
+                </div>
+
+                <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-2xl border border-black/5 dark:border-white/10 apple-card-shadow">
+                    <div class="flex items-center justify-between text-xs text-apple-textSecondary">
+                        <span>今日活跃用户 (DAU)</span>
+                        <span class="text-base">⚡</span>
+                    </div>
+                    <div id="kpi-todayDau" class="text-3xl font-extrabold tracking-tight text-emerald-500 mt-1.5">--</div>
+                    <div class="text-[11px] text-apple-textSecondary mt-2">
+                        今日新增注册: <b id="kpi-todayNew" class="text-emerald-600 dark:text-emerald-400 font-bold">--</b> 人
+                    </div>
+                </div>
+
+                <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-2xl border border-black/5 dark:border-white/10 apple-card-shadow">
+                    <div class="flex items-center justify-between text-xs text-apple-textSecondary">
+                        <span>累计充值流水 (人民币)</span>
+                        <span class="text-base">💰</span>
+                    </div>
+                    <div id="kpi-totalRecharge" class="text-3xl font-extrabold tracking-tight text-amber-500 mt-1.5">¥0</div>
+                    <div class="text-[11px] text-apple-textSecondary mt-2">
+                        换算钻石池: <b id="kpi-totalDiamonds" class="text-cyan-500 font-bold">0</b> 钻 (1:10)
+                    </div>
+                </div>
+
+                <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-2xl border border-black/5 dark:border-white/10 apple-card-shadow">
+                    <div class="flex items-center justify-between text-xs text-apple-textSecondary">
+                        <span>累计对局局数</span>
+                        <span class="text-base">🎲</span>
+                    </div>
+                    <div id="kpi-totalBattles" class="text-3xl font-extrabold tracking-tight text-purple-500 mt-1.5">--</div>
+                    <div class="text-[11px] text-apple-textSecondary mt-2">
+                        今日对局: <b id="kpi-todayBattles" class="text-purple-600 dark:text-purple-400 font-bold">--</b> 场
+                    </div>
+                </div>
+            </div>
+
+            <!-- 24小时高峰期与时段分析图表 (Apple Style) -->
+            <div class="bg-apple-cardLight dark:bg-apple-cardDark p-6 rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow">
+                <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+                    <div>
+                        <h3 class="text-base font-bold tracking-tight flex items-center gap-2">
+                            <span>🕒 24小时玩家活跃时段分布与高峰期智能研判</span>
+                            <span class="text-xs px-2.5 py-0.5 rounded-full bg-apple-blue/10 text-apple-blue font-semibold">运营决策大盘</span>
+                        </h3>
+                        <p class="text-xs text-apple-textSecondary mt-1">
+                            推荐在 <b class="text-red-500">20:00~23:00 黄金晚间高峰</b> 安排双倍活动与全服跑马灯，在 <b class="text-blue-500">01:00~06:00</b> 安排热更新维护。
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <span class="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 font-medium">🔥 晚间黄金档 (20:00-23:00)</span>
+                        <span class="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-medium">☀️ 午休闲暇 (12:00-14:00)</span>
+                        <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-medium">🌙 低谷维护期 (01:00-06:00)</span>
+                    </div>
+                </div>
+                <div class="h-64 w-full">
+                    <canvas id="peakHourChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 趋势与热度两列图表 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow">
+                    <h3 class="text-sm font-bold tracking-tight mb-3">📈 近 7 日新增注册与活跃 (DAU) 走势</h3>
+                    <div class="h-56">
+                        <canvas id="weeklyChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow">
+                    <h3 class="text-sm font-bold tracking-tight mb-3">🎲 各玩法对战热度分布</h3>
+                    <div class="h-56">
+                        <canvas id="gameTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 2. 玩家档案与分页检索 PANEL (高级苹果分页管理) -->
+        <!-- ========================================== -->
+        <div id="tab-users" class="space-y-4 hidden">
+            <!-- 搜索过滤控制面板 (Apple Filter Header) -->
+            <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-3">
+                    <div>
+                        <h3 class="text-base font-bold tracking-tight flex items-center gap-2">
+                            <span>👥 玩家全维度档案与资产特权管理</span>
+                            <span id="userTotalBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-apple-blue/10 text-apple-blue font-semibold">载入中...</span>
+                        </h3>
+                        <p class="text-xs text-apple-textSecondary mt-0.5">支持跨页海量检索、快捷赠送金币/钻石、特权VIP升级与多维排序</p>
+                    </div>
+
+                    <!-- 搜索输入框 -->
+                    <div class="relative w-full sm:w-80">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-apple-textSecondary text-sm">
+                            🔍
+                        </span>
+                        <input id="userSearchKw" type="text" placeholder="输入玩家ID、昵称、手机号或账号..."
+                            onkeydown="if(event.key==='Enter') searchUsers(1)"
+                            class="w-full pl-9 pr-8 py-2 bg-[#EFEFF2] dark:bg-[#2C2C2E] border border-transparent focus:border-apple-blue rounded-xl text-xs outline-none transition">
+                        <button onclick="clearSearch()" id="clearSearchBtn" class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-apple-textSecondary hover:text-apple-textPrimary hidden">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 快捷筛选胶囊组与排序器 -->
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-black/5 dark:border-white/5">
+                    <!-- 过滤类型胶囊 -->
+                    <div class="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span class="text-apple-textSecondary mr-1 font-medium">筛选:</span>
+                        <button onclick="setFilterType('ALL')" id="filterBtn-ALL" class="px-3 py-1 rounded-lg font-semibold bg-apple-blue text-white shadow-sm transition">全部玩家</button>
+                        <button onclick="setFilterType('OFFICIAL')" id="filterBtn-OFFICIAL" class="px-3 py-1 rounded-lg font-medium bg-[#EAEAEA] dark:bg-[#2C2C2E] text-apple-textSecondary hover:text-apple-textPrimary transition">正式注册用户</button>
+                        <button onclick="setFilterType('GUEST')" id="filterBtn-GUEST" class="px-3 py-1 rounded-lg font-medium bg-[#EAEAEA] dark:bg-[#2C2C2E] text-apple-textSecondary hover:text-apple-textPrimary transition">试玩客官</button>
+                        <button onclick="setFilterType('VIP')" id="filterBtn-VIP" class="px-3 py-1 rounded-lg font-medium bg-[#EAEAEA] dark:bg-[#2C2C2E] text-apple-textSecondary hover:text-apple-textPrimary transition">👑 VIP会员</button>
+                        <button onclick="setFilterType('RECHARGED')" id="filterBtn-RECHARGED" class="px-3 py-1 rounded-lg font-medium bg-[#EAEAEA] dark:bg-[#2C2C2E] text-apple-textSecondary hover:text-apple-textPrimary transition">💎 充值玩家</button>
+                    </div>
+
+                    <!-- 排序与分页大小控制 -->
+                    <div class="flex flex-wrap items-center gap-2.5 text-xs">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-apple-textSecondary font-medium">排序:</span>
+                            <select id="userSortBy" onchange="searchUsers(1)" class="bg-[#EFEFF2] dark:bg-[#2C2C2E] px-2.5 py-1.5 rounded-lg border-none outline-none font-medium text-xs">
+                                <option value="lastLoginAt">按最后登录时间</option>
+                                <option value="createdAt">按账号注册时间</option>
+                                <option value="recharge">按累计充值总额</option>
+                                <option value="coins">按金币持有量</option>
+                                <option value="diamonds">按钻石持有量</option>
+                                <option value="vipLevel">按VIP特权等级</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-apple-textSecondary font-medium">每页:</span>
+                            <select id="userPageSize" onchange="searchUsers(1)" class="bg-[#EFEFF2] dark:bg-[#2C2C2E] px-2 py-1.5 rounded-lg border-none outline-none font-medium text-xs">
+                                <option value="10">10条</option>
+                                <option value="15" selected>15条</option>
+                                <option value="30">30条</option>
+                                <option value="50">50条</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据表格 (Apple Clean Table) -->
+            <div class="bg-apple-cardLight dark:bg-apple-cardDark rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-[#FAFAFC] dark:bg-[#26262B] text-apple-textSecondary font-semibold border-b border-black/5 dark:border-white/5">
+                            <tr>
+                                <th class="p-3.5 pl-5">玩家身份 / 昵称</th>
+                                <th class="p-3.5">玩家ID</th>
+                                <th class="p-3.5">手机号码</th>
+                                <th class="p-3.5">身份类别</th>
+                                <th class="p-3.5">VIP特权</th>
+                                <th class="p-3.5">持有金币</th>
+                                <th class="p-3.5">持有钻石</th>
+                                <th class="p-3.5">累计流水</th>
+                                <th class="p-3.5">最后活跃时间</th>
+                                <th class="p-3.5 pr-5 text-right">操作管理</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody" class="divide-y divide-black/5 dark:divide-white/5">
+                            <!-- JS 动态渲染 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 苹果胶囊分页控制条 (Apple Pagination Bar) -->
+                <div class="p-4 border-t border-black/5 dark:border-white/5 flex flex-wrap justify-between items-center gap-3">
+                    <div id="paginationSummary" class="text-xs text-apple-textSecondary font-medium">
+                        共 0 位玩家 · 第 1/1 页
+                    </div>
+
+                    <!-- 动态页码按钮容器 -->
+                    <div class="flex items-center gap-1.5" id="paginationControls">
+                        <!-- JS 动态注入 Prev, Pages, Next -->
+                    </div>
+
+                    <!-- 快速跳页 -->
+                    <div class="flex items-center gap-1.5 text-xs text-apple-textSecondary">
+                        <span>跳至</span>
+                        <input id="jumpPageInput" type="number" min="1" class="w-12 px-2 py-1 bg-[#EFEFF2] dark:bg-[#2C2C2E] text-center rounded-lg border-none outline-none font-semibold">
+                        <span>页</span>
+                        <button onclick="jumpToPage()" class="px-2.5 py-1 bg-apple-blue/10 hover:bg-apple-blue/20 text-apple-blue font-semibold rounded-lg transition active:scale-95">前往</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 3. 短信配置 PANEL -->
+        <!-- ========================================== -->
+        <div id="tab-sms" class="space-y-6 hidden">
+            <div class="bg-apple-cardLight dark:bg-apple-cardDark p-6 rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h3 class="text-base font-bold tracking-tight">📱 短信验证码服务网关配置 (阿里云 / 腾讯云)</h3>
+                        <p class="text-xs text-apple-textSecondary mt-0.5">为用户提供手机免费试玩与正式注册的短信验证服务，可热切换真实短信与模拟模式</p>
+                    </div>
+                    <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">5分钟验证码有效机制</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-apple-textSecondary mb-1.5">当前短信发送服务商</label>
+                            <select id="smsProvider" onchange="onSmsProviderChange()" class="w-full px-3 py-2 bg-[#EFEFF2] dark:bg-[#2C2C2E] rounded-xl text-xs border-none outline-none font-semibold">
+                                <option value="MOCK">MOCK (本地安全开发模拟 - 验证码统一预填并控制台输出)</option>
+                                <option value="ALIYUN">ALIYUN (阿里云短信服务网关)</option>
+                                <option value="TENCENT">TENCENT (腾讯云短信服务网关)</option>
+                            </select>
+                        </div>
+
+                        <!-- 阿里云字段 -->
+                        <div id="aliyunFields" class="space-y-3 p-4 rounded-2xl bg-[#F0F0F3] dark:bg-[#26262B] border border-black/5 dark:border-white/5 hidden">
+                            <div class="text-xs font-bold text-apple-blue">☁️ 阿里云短信配置项</div>
+                            <div>
+                                <label class="block text-[11px] text-apple-textSecondary mb-1">AccessKey ID</label>
+                                <input id="aliyunAccessKeyId" type="text" class="w-full px-3 py-1.5 bg-white dark:bg-[#1E1E22] rounded-lg text-xs outline-none border border-black/5 dark:border-white/10">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-apple-textSecondary mb-1">AccessKey Secret</label>
+                                <input id="aliyunAccessKeySecret" type="password" class="w-full px-3 py-1.5 bg-white dark:bg-[#1E1E22] rounded-lg text-xs outline-none border border-black/5 dark:border-white/10">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[11px] text-apple-textSecondary mb-1">短信签名 (SignName)</label>
+                                    <input id="aliyunSignName" type="text" value="聚会桌游" class="w-full px-3 py-1.5 bg-white dark:bg-[#1E1E22] rounded-lg text-xs outline-none border border-black/5 dark:border-white/10">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] text-apple-textSecondary mb-1">模板代码 (TemplateCode)</label>
+                                    <input id="aliyunTemplateCode" type="text" value="SMS_200000001" class="w-full px-3 py-1.5 bg-white dark:bg-[#1E1E22] rounded-lg text-xs outline-none border border-black/5 dark:border-white/10">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 腾讯云字段 -->
+                        <div id="tencentFields" class="space-y-3 p-4 rounded-2xl bg-[#F0F0F3] dark:bg-[#26262B] border border-black/5 dark:border-white/5 hidden">
+                            <div class="text-xs font-bold text-apple-purple">🐧 腾讯云短信配置项</div>
+                            <div>
+                                <label class="block text-[11px] text-apple-textSecondary mb-1">SecretId</label>
+                                <input id="tencentSecretId" type="text" class="w-full px-3 py-1.5 bg-white dark:bg-[#1E1E22] rounded-lg text-xs outline-none border border-black/5 dark:border-white/10">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-apple-textSecondary mb-1">SecretKey</label>
+                                <input id="tencentSecretKey" type="password" class="w-full px-3 py-1.5 bg-white dark:bg-[#1E1E22] rounded-lg text-xs outline-none border border-black/5 dark:border-white/10">
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div>
+                                    <label class="block text-[11px] text-apple-textSecondary mb-1">SDK AppID</label>
+                                    <input id="tencentSdkAppId" type="text" class="w-full px-3 py-1.5 bg-white dark:bg-[#1E1E22] rounded-lg text-xs outline-none border border-black/5 dark:border-white/10">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] text-apple-textSecondary mb-1">短信签名</label>
+                                    <input id="tencentSignName" type="text" value="聚会桌游" class="w-full px-3 py-1.5 bg-white dark:bg-[#1E1E22] rounded-lg text-xs outline-none border border-black/5 dark:border-white/10">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] text-apple-textSecondary mb-1">模板ID</label>
+                                    <input id="tencentTemplateId" type="text" value="100001" class="w-full px-3 py-1.5 bg-white dark:bg-[#1E1E22] rounded-lg text-xs outline-none border border-black/5 dark:border-white/10">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button onclick="saveSmsConfig()" class="w-full py-2.5 bg-apple-blue hover:bg-apple-blueHover text-white font-semibold rounded-xl text-xs shadow-md shadow-apple-blue/20 transition active:scale-[0.98]">
+                            保存并热更新短信网关
+                        </button>
+                    </div>
+
+                    <!-- 短信连通性在线测试 -->
+                    <div class="p-5 rounded-2xl bg-[#FAFAFC] dark:bg-[#26262B] border border-black/5 dark:border-white/5 space-y-3">
+                        <h4 class="text-xs font-bold flex items-center gap-1.5">
+                            <span>📡 网关连通性在线实测</span>
+                        </h4>
+                        <p class="text-xs text-apple-textSecondary">输入测试手机号码，系统将立即派发一条验证码以校验阿里云/腾讯云通信接口连通性。</p>
+                        <div class="flex gap-2">
+                            <input id="testPhone" type="tel" placeholder="输入测试手机号 (如 13800000000)" class="flex-1 px-3 py-2 bg-white dark:bg-[#1E1E22] rounded-xl text-xs border border-black/5 dark:border-white/10 outline-none">
+                            <button onclick="sendTestSms()" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl text-xs transition active:scale-95">
+                                派发测试
+                            </button>
+                        </div>
+                        <div id="testSmsResult" class="p-3 rounded-xl bg-black/5 dark:bg-black/30 font-mono text-[11px] text-apple-textSecondary hidden break-all"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 4. 营销活动与横幅 PANEL -->
+        <!-- ========================================== -->
+        <div id="tab-marketing" class="space-y-4 hidden">
+            <div class="bg-apple-cardLight dark:bg-apple-cardDark p-6 rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow space-y-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-base font-bold tracking-tight">🎨 营销活动轮播横幅与游戏内公告实时分发</h3>
+                        <p class="text-xs text-apple-textSecondary mt-0.5">在此修改后，APP客户端与网页版无需发版即可秒级热更新展现营销活动</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="addNewBannerModal()" class="px-3.5 py-1.5 bg-apple-blue/10 hover:bg-apple-blue/20 text-apple-blue font-semibold rounded-xl text-xs transition active:scale-95">
+                            + 新增营销横幅
+                        </button>
+                        <button onclick="saveBannersToServer()" class="px-4 py-1.5 bg-apple-blue hover:bg-apple-blueHover text-white font-semibold rounded-xl text-xs shadow-md shadow-apple-blue/20 transition active:scale-95">
+                            保存并下发生效
+                        </button>
+                    </div>
+                </div>
+
+                <div id="bannersList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- 动态渲染 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 5. 会员体系与充值规则 PANEL -->
+        <!-- ========================================== -->
+        <div id="tab-rules" class="space-y-6 hidden">
+            <div class="bg-apple-cardLight dark:bg-apple-cardDark p-6 rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow space-y-5">
+                <div>
+                    <h3 class="text-base font-bold tracking-tight">⚖️ 会员特权体系、充值比例与游戏心理定价机制</h3>
+                    <p class="text-xs text-apple-textSecondary mt-0.5">严格遵循游戏经济学规律，符合玩家成长心理预期，实现良性付费循环</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="p-4 rounded-2xl bg-[#FAFAFC] dark:bg-[#26262B] border border-black/5 dark:border-white/5 space-y-1.5">
+                        <div class="text-xs text-apple-textSecondary">💎 钻石汇率基准</div>
+                        <div class="text-2xl font-extrabold text-apple-blue tracking-tight">¥ 1 : 10 钻</div>
+                        <p class="text-[11px] text-apple-textSecondary">人民币直接兑换钻石，充值预留微信/支付宝通道，模拟充值100%成功</p>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-[#FAFAFC] dark:bg-[#26262B] border border-black/5 dark:border-white/5 space-y-1.5">
+                        <div class="text-xs text-apple-textSecondary">🪙 金币兑换基准</div>
+                        <div class="text-2xl font-extrabold text-amber-500 tracking-tight">1 钻 : 100 币</div>
+                        <p class="text-[11px] text-apple-textSecondary">¥1 = 1000金币，对局入场基础筹码，支持对战胜利获取与任务领取</p>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-[#FAFAFC] dark:bg-[#26262B] border border-black/5 dark:border-white/5 space-y-1.5">
+                        <div class="text-xs text-apple-textSecondary">👑 VIP 荣耀等级</div>
+                        <div class="text-2xl font-extrabold text-purple-500 tracking-tight">VIP 0 ~ VIP 10</div>
+                        <p class="text-[11px] text-apple-textSecondary">充值金额累计100%转化为VIP经验，永久尊享专属骰盅、入场横幅与头像框</p>
+                    </div>
+                </div>
+
+                <!-- 道具属性表 -->
+                <div class="p-4 rounded-2xl bg-[#FAFAFC] dark:bg-[#26262B] border border-black/5 dark:border-white/5 space-y-3">
+                    <h4 class="text-xs font-bold text-apple-textPrimary dark:text-white">🛍️ 道具分层购买与心理定位设计</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div class="p-3 bg-white dark:bg-[#1E1E22] rounded-xl border border-black/5 dark:border-white/5">
+                            <div class="font-bold text-amber-600 dark:text-amber-400 mb-1">🪙 金币可购买道具 (大众普及型)</div>
+                            <p class="text-apple-textSecondary leading-relaxed text-[11px]">
+                                · 基础经典原木骰盅、常规彩色聊天字体、普通入场欢迎横幅、对局输赢筹码补给。<br>
+                                心理定位：让所有非付费及微氪玩家在活跃对局后均有获得感与消耗场景。
+                            </p>
+                        </div>
+                        <div class="p-3 bg-white dark:bg-[#1E1E22] rounded-xl border border-black/5 dark:border-white/5">
+                            <div class="font-bold text-apple-blue mb-1">💎 钻石专属道具 (尊享身份型)</div>
+                            <p class="text-apple-textSecondary leading-relaxed text-[11px]">
+                                · 黑金神龙发光骰盅、赛博朋克霓虹边框、全服大喇叭跑马灯广播、VIP专属特权徽章。<br>
+                                心理定位：彰显土豪与高活跃玩家的尊崇感，形成社交崇拜与破冰谈资。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- 玩家资产特权调配弹窗 (Apple Sheet Modal) -->
+    <!-- ========================================== -->
+    <div id="userModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/60 apple-frosted hidden transition-opacity duration-300">
+        <div class="bg-white dark:bg-apple-cardDark p-6 rounded-3xl w-full max-w-lg border border-black/5 dark:border-white/10 apple-card-shadow transform transition-all space-y-4">
+            <div class="flex justify-between items-start">
+                <div class="flex items-center gap-3">
+                    <div id="modalUserAvatar" class="w-12 h-12 rounded-2xl bg-[#EFEFF2] dark:bg-[#2C2C2E] flex items-center justify-center text-2xl shadow-inner">
+                        🦊
+                    </div>
+                    <div>
+                        <h3 id="modalUserNick" class="text-base font-bold tracking-tight text-apple-textPrimary dark:text-white">玩家详情</h3>
+                        <p id="modalUserId" class="text-xs text-apple-textSecondary font-mono mt-0.5">ID: --</p>
+                    </div>
+                </div>
+                <button onclick="closeUserModal()" class="w-8 h-8 rounded-full bg-[#EFEFF2] dark:bg-[#2C2C2E] text-apple-textSecondary hover:text-apple-textPrimary flex items-center justify-center text-xs font-bold transition">
+                    ✕
+                </button>
+            </div>
+
+            <!-- 玩家基本指标 -->
+            <div class="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-[#F5F5F7] dark:bg-[#26262B] text-xs">
+                <div>
+                    <span class="text-apple-textSecondary text-[11px]">绑定手机</span>
+                    <div id="modalUserPhone" class="font-mono font-semibold text-apple-textPrimary dark:text-white mt-0.5">--</div>
+                </div>
+                <div>
+                    <span class="text-apple-textSecondary text-[11px]">段位等级</span>
+                    <div id="modalUserTier" class="font-semibold text-amber-500 mt-0.5">--</div>
+                </div>
+                <div>
+                    <span class="text-apple-textSecondary text-[11px]">总充值流水</span>
+                    <div id="modalUserRecharge" class="font-bold text-emerald-500 mt-0.5">¥0</div>
+                </div>
+            </div>
+
+            <!-- 快捷增加资产快捷键 -->
+            <div class="space-y-1.5">
+                <div class="text-xs font-semibold text-apple-textSecondary">快捷资产赠送 (点击直接累加):</div>
+                <div class="flex flex-wrap gap-2 text-xs">
+                    <button onclick="addDeltaAsset(10000, 0)" class="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 font-medium transition active:scale-95">+1万金币</button>
+                    <button onclick="addDeltaAsset(50000, 0)" class="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 font-medium transition active:scale-95">+5万金币</button>
+                    <button onclick="addDeltaAsset(0, 100)" class="px-2.5 py-1 rounded-lg bg-apple-blue/10 hover:bg-apple-blue/20 text-apple-blue font-medium transition active:scale-95">+100钻石</button>
+                    <button onclick="addDeltaAsset(0, 500)" class="px-2.5 py-1 rounded-lg bg-apple-blue/10 hover:bg-apple-blue/20 text-apple-blue font-medium transition active:scale-95">+500钻石</button>
+                    <button onclick="addDeltaAsset(0, 2000)" class="px-2.5 py-1 rounded-lg bg-apple-blue/10 hover:bg-apple-blue/20 text-apple-blue font-medium transition active:scale-95">+2000钻石</button>
+                </div>
+            </div>
+
+            <!-- 资产编辑表单 -->
+            <div class="space-y-3 pt-2 border-t border-black/5 dark:border-white/5">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-apple-textSecondary mb-1">金币余额 (Coins)</label>
+                        <input id="modalCoinsInput" type="number" class="w-full px-3 py-2 bg-[#EFEFF2] dark:bg-[#2C2C2E] rounded-xl text-xs font-semibold outline-none border border-transparent focus:border-apple-blue">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-apple-textSecondary mb-1">钻石余额 (Diamonds)</label>
+                        <input id="modalDiamondsInput" type="number" class="w-full px-3 py-2 bg-[#EFEFF2] dark:bg-[#2C2C2E] rounded-xl text-xs font-semibold outline-none border border-transparent focus:border-apple-blue">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-apple-textSecondary mb-1">VIP 荣耀等级</label>
+                        <select id="modalVipSelect" class="w-full px-3 py-2 bg-[#EFEFF2] dark:bg-[#2C2C2E] rounded-xl text-xs font-semibold outline-none border border-transparent focus:border-apple-blue">
+                            <option value="0">VIP 0 (普通会员)</option>
+                            <option value="1">VIP 1 (白银会员)</option>
+                            <option value="2">VIP 2 (黄金会员)</option>
+                            <option value="3">VIP 3 (铂金会员)</option>
+                            <option value="4">VIP 4 (钻石会员)</option>
+                            <option value="5">VIP 5 (星耀会员)</option>
+                            <option value="6">VIP 6 (王者会员)</option>
+                            <option value="7">VIP 7 (至尊会员)</option>
+                            <option value="8">VIP 8 (荣耀会员)</option>
+                            <option value="9">VIP 9 (无双会员)</option>
+                            <option value="10">VIP 10 (神级总尊)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-apple-textSecondary mb-1">玩家昵称</label>
+                        <input id="modalNickInput" type="text" class="w-full px-3 py-2 bg-[#EFEFF2] dark:bg-[#2C2C2E] rounded-xl text-xs font-semibold outline-none border border-transparent focus:border-apple-blue">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="flex justify-end gap-2.5 pt-3">
+                <button onclick="closeUserModal()" class="px-4 py-2 rounded-xl bg-[#EFEFF2] dark:bg-[#2C2C2E] text-apple-textSecondary hover:text-apple-textPrimary text-xs font-semibold transition">
+                    取消
+                </button>
+                <button onclick="saveUserModal()" class="px-5 py-2 rounded-xl bg-apple-blue hover:bg-apple-blueHover text-white text-xs font-semibold shadow-md shadow-apple-blue/20 transition active:scale-95">
+                    保存生效
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 客户端核心 JavaScript -->
+    <!-- ========================================== -->
+    <script>
+        let peakChart = null;
+        let weeklyChart = null;
+        let gameChart = null;
+        let currentBanners = [];
+        let activeTab = 'analytics';
+
+        // 玩家分页全局状态
+        let userCurrentPage = 1;
+        let userPageSize = 15;
+        let userFilterType = 'ALL';
+        let currentEditingUserId = null;
+
+        // 路径自适应
+        function getApiBase() {
+            return window.location.pathname.startsWith('/party-game') ? '/party-game/api/admin' : '/api/admin';
+        }
+
+        // Apple Toast 提示
+        function showToast(msg, icon = '✅') {
+            const toast = document.getElementById('appleToast');
+            document.getElementById('toastText').innerText = msg;
+            document.getElementById('toastIcon').innerText = icon;
+            toast.classList.remove('opacity-0', '-translate-y-16');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-16');
+                toast.classList.remove('opacity-100', 'translate-y-0');
+            }, 2500);
+        }
+
+        // 护眼模式切换 (持久化至 localStorage)
+        function initTheme() {
+            const saved = localStorage.getItem('apple_eye_theme');
+            if (saved === 'dark') {
+                document.documentElement.classList.add('dark');
+                updateThemeUI(true);
+            } else {
+                document.documentElement.classList.remove('dark');
+                updateThemeUI(false);
+            }
+        }
+
+        function toggleEyeCareMode() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('apple_eye_theme', isDark ? 'dark' : 'light');
+            updateThemeUI(isDark);
+            if (activeTab === 'analytics') {
+                loadAnalyticsData(); // 重绘适配主题图表
+            }
+        }
+
+        function updateThemeUI(isDark) {
+            const icon = document.getElementById('eyeCareIcon');
+            const label = document.getElementById('eyeCareLabel');
+            if (icon && label) {
+                icon.innerText = isDark ? '☀️' : '🌙';
+                label.innerText = isDark ? '明亮护眼' : '深空夜览';
+            }
+        }
+
+        // 实时时钟
+        function updateClock() {
+            const el = document.getElementById('liveClock');
+            if (!el) return;
+            const now = new Date();
+            el.innerText = now.getFullYear() + '-' +
+                String(now.getMonth()+1).padStart(2,'0') + '-' +
+                String(now.getDate()).padStart(2,'0') + ' ' +
+                String(now.getHours()).padStart(2,'0') + ':' +
+                String(now.getMinutes()).padStart(2,'0') + ':' +
+                String(now.getSeconds()).padStart(2,'0');
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // 身份验证检查（支持 FWPT OneID sso_token 单点免密直达）
+        function checkAuth() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const ssoToken = urlParams.get('sso_token');
+                if (ssoToken) {
+                    localStorage.setItem('party_admin_token', ssoToken);
+                    localStorage.setItem('fwpt_token', ssoToken);
+                    urlParams.delete('sso_token');
+                    const newSearch = urlParams.toString();
+                    window.history.replaceState({}, document.title, window.location.pathname + (newSearch ? '?' + newSearch : ''));
+                }
+            } catch (e) {}
+
+            const token = localStorage.getItem('party_admin_token') || localStorage.getItem('fwpt_token');
+            if (token) {
+                localStorage.setItem('party_admin_token', token);
+                document.getElementById('loginModal').classList.add('hidden');
+                refreshActiveData();
+            } else {
+                document.getElementById('loginModal').classList.remove('hidden');
+            }
+        }
+
+        async function doLogin() {
+            const u = document.getElementById('adminUser').value.trim();
+            const p = document.getElementById('adminPwd').value.trim();
+            try {
+                const res = await fetch(getApiBase() + '/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username: u, password: p})
+                });
+                const data = await res.json();
+                if (data.code === 0) {
+                    localStorage.setItem('party_admin_token', data.data.token);
+                    document.getElementById('loginModal').classList.add('hidden');
+                    showToast('通行证认证通过，已登入控制台');
+                    refreshActiveData();
+                } else {
+                    showToast(data.message || '登录失败：账号或密码错误', '❌');
+                }
+            } catch(e) {
+                showToast('连接服务器失败: ' + e, '❌');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('party_admin_token');
+            localStorage.removeItem('fwpt_token');
+            location.reload();
+        }
+
+        // 标签切换
+        function switchTab(tabId) {
+            activeTab = tabId;
+            ['analytics', 'users', 'sms', 'marketing', 'rules'].forEach(id => {
+                const el = document.getElementById('tab-' + id);
+                const btn = document.getElementById('tabBtn-' + id);
+                if (id === tabId) {
+                    el.classList.remove('hidden');
+                    btn.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold apple-tab-active transition-all';
+                } else {
+                    el.classList.add('hidden');
+                    btn.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all';
+                }
+            });
+            refreshActiveData();
+        }
+
+        function refreshActiveData() {
+            if (activeTab === 'analytics') loadAnalyticsData();
+            if (activeTab === 'users') searchUsers(userCurrentPage);
+            if (activeTab === 'sms') loadSmsConfig();
+            if (activeTab === 'marketing') loadMarketingBanners();
+        }
+
+        // ==========================================
+        // 1. 数据大盘与图表
+        // ==========================================
+        async function loadAnalyticsData() {
+            try {
+                const res = await fetch(getApiBase() + '/analytics');
+                const json = await res.json();
+                if (json.code !== 0) return;
+                const d = json.data;
+
+                // KPI 渲染
+                document.getElementById('kpi-totalUsers').innerText = d.kpis.totalUsers;
+                document.getElementById('kpi-officialUsers').innerText = d.kpis.officialUsers;
+                document.getElementById('kpi-guestUsers').innerText = d.kpis.guestUsers;
+                document.getElementById('kpi-todayDau').innerText = d.kpis.todayDau;
+                document.getElementById('kpi-todayNew').innerText = d.kpis.todayNewUsers;
+                document.getElementById('kpi-totalRecharge').innerText = '¥' + d.kpis.totalRechargeRmb;
+                document.getElementById('kpi-totalDiamonds').innerText = d.kpis.totalRechargeDiamonds;
+                document.getElementById('kpi-totalBattles').innerText = d.kpis.totalBattles;
+                document.getElementById('kpi-todayBattles').innerText = d.kpis.todayBattles;
+
+                const isDark = document.documentElement.classList.contains('dark');
+                renderPeakHourChart(d.peakHourDistribution, isDark);
+                renderWeeklyChart(d.weeklyTrend, isDark);
+                renderGameTypeChart(d.gamePopularity, isDark);
+            } catch(e) {
+                console.error('加载分析报表失败:', e);
+            }
+        }
+
+        function renderPeakHourChart(hours, isDark) {
+            const ctx = document.getElementById('peakHourChart').getContext('2d');
+            const labels = hours.map(h => h.hour);
+            const data = hours.map(h => h.count);
+            const bgColors = hours.map(h => {
+                if (h.hourNumber >= 20 && h.hourNumber <= 23) return '#FF3B30'; // 晚间高峰红
+                if (h.hourNumber >= 12 && h.hourNumber <= 14) return '#FF9500'; // 午间闲暇黄
+                if (h.hourNumber >= 1 && h.hourNumber <= 6) return '#5E5CE6'; // 深夜低谷紫蓝
+                return '#0071E3'; // 常规苹果蓝
+            });
+
+            if (peakChart) peakChart.destroy();
+            peakChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '对战/活跃次数',
+                        data: data,
+                        backgroundColor: bgColors,
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: (ctx) => hours[ctx.dataIndex].peakStatus
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                            ticks: { color: isDark ? '#A1A1A6' : '#86868B', font: { size: 10 } }
+                        },
+                        y: {
+                            grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                            ticks: { color: isDark ? '#A1A1A6' : '#86868B', precision: 0 },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderWeeklyChart(weekly, isDark) {
+            const ctx = document.getElementById('weeklyChart').getContext('2d');
+            if (weeklyChart) weeklyChart.destroy();
+            weeklyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: weekly.map(w => w.date),
+                    datasets: [
+                        {
+                            label: '活跃玩家 (DAU)',
+                            data: weekly.map(w => w.dau),
+                            borderColor: '#34C759',
+                            backgroundColor: 'rgba(52, 199, 89, 0.1)',
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 2.5
+                        },
+                        {
+                            label: '新增注册',
+                            data: weekly.map(w => w.newUsers),
+                            borderColor: '#0071E3',
+                            borderDash: [4, 4],
+                            backgroundColor: 'transparent',
+                            tension: 0.35,
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                            ticks: { color: isDark ? '#A1A1A6' : '#86868B' }
+                        },
+                        y: {
+                            grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                            ticks: { color: isDark ? '#A1A1A6' : '#86868B', precision: 0 },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderGameTypeChart(list, isDark) {
+            const ctx = document.getElementById('gameTypeChart').getContext('2d');
+            if (gameChart) gameChart.destroy();
+            gameChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: list.map(g => g.gameName),
+                    datasets: [{
+                        data: list.map(g => g.count),
+                        backgroundColor: ['#FF9500', '#0071E3', '#AF52DE', '#34C759', '#5E5CE6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: isDark ? '#F5F5F7' : '#1D1D1F', boxWidth: 10, font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        // 2. 玩家分页与操作管理
+        // ==========================================
+        let currentUserList = [];
+
+        function setFilterType(type) {
+            userFilterType = type;
+            ['ALL', 'OFFICIAL', 'GUEST', 'VIP', 'RECHARGED'].forEach(t => {
+                const btn = document.getElementById('filterBtn-' + t);
+                if (t === type) {
+                    btn.className = 'px-3 py-1 rounded-lg font-semibold bg-apple-blue text-white shadow-sm transition';
+                } else {
+                    btn.className = 'px-3 py-1 rounded-lg font-medium bg-[#EAEAEA] dark:bg-[#2C2C2E] text-apple-textSecondary hover:text-apple-textPrimary transition';
+                }
+            });
+            searchUsers(1);
+        }
+
+        function clearSearch() {
+            document.getElementById('userSearchKw').value = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            searchUsers(1);
+        }
+
+        async function searchUsers(page = 1) {
+            userCurrentPage = page;
+            const kw = document.getElementById('userSearchKw').value.trim();
+            const sortBy = document.getElementById('userSortBy').value;
+            const size = document.getElementById('userPageSize').value;
+            userPageSize = parseInt(size, 10);
+
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (kw) clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+
+            const params = new URLSearchParams({
+                page: page,
+                size: userPageSize,
+                filterType: userFilterType,
+                sortBy: sortBy,
+                direction: 'desc'
+            });
+            if (kw) params.append('keyword', kw);
+
+            try {
+                const res = await fetch(getApiBase() + '/users/page?' + params.toString());
+                const json = await res.json();
+                if (json.code === 0 && json.data) {
+                    const d = json.data;
+                    currentUserList = d.items || [];
+                    renderUserTable(currentUserList);
+                    renderPagination(d);
+                    document.getElementById('userTotalBadge').innerText = `共 ${d.totalElements} 位玩家`;
+                }
+            } catch(e) {
+                console.error('加载分页玩家失败:', e);
+            }
+        }
+
+        function renderUserTable(users) {
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+            if (users.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" class="p-8 text-center text-apple-textSecondary text-xs">
+                            暂无符合筛选条件的玩家数据
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            users.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition';
+                tr.innerHTML = `
+                    <td class="p-3.5 pl-5 font-semibold flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-[#EFEFF2] dark:bg-[#2C2C2E] flex items-center justify-center text-base shadow-inner">
+                            ${u.avatar || '🦊'}
+                        </div>
+                        <div>
+                            <div class="text-apple-textPrimary dark:text-white font-bold">${escapeHtml(u.nickname)}</div>
+                            <div class="text-[10px] text-apple-textSecondary font-mono">@${escapeHtml(u.username)}</div>
+                        </div>
+                    </td>
+                    <td class="p-3.5 font-mono text-[11px] text-apple-textSecondary">
+                        <span class="cursor-pointer hover:text-apple-blue" title="点击复制" onclick="copyText('${u.id}')">${u.id.substring(0, 14)}... 📋</span>
+                    </td>
+                    <td class="p-3.5 font-mono text-[11px]">${u.phone}</td>
+                    <td class="p-3.5">
+                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${u.isGuest ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}">
+                            ${u.isGuest ? '试玩客官' : '正式用户'}
+                        </span>
+                    </td>
+                    <td class="p-3.5">
+                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400">
+                            👑 VIP.${u.vipLevel}
+                        </span>
+                    </td>
+                    <td class="p-3.5 font-mono font-semibold text-amber-500">🪙 ${u.coins.toLocaleString()}</td>
+                    <td class="p-3.5 font-mono font-semibold text-apple-blue">💎 ${u.diamonds.toLocaleString()}</td>
+                    <td class="p-3.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">¥${u.totalRechargeRmb}</td>
+                    <td class="p-3.5 text-apple-textSecondary font-mono text-[11px]">${u.lastLoginAt}</td>
+                    <td class="p-3.5 pr-5 text-right">
+                        <button onclick="openUserModal('${u.id}')" class="px-3 py-1 rounded-lg bg-apple-blue/10 hover:bg-apple-blue/20 text-apple-blue font-semibold text-xs transition active:scale-95">
+                            ✏️ 调配特权
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderPagination(d) {
+            const summary = document.getElementById('paginationSummary');
+            summary.innerText = `共 ${d.totalElements} 位玩家 · 第 ${d.currentPage} / ${Math.max(1, d.totalPages)} 页`;
+
+            const container = document.getElementById('paginationControls');
+            container.innerHTML = '';
+
+            const total = d.totalPages || 1;
+            const cur = d.currentPage || 1;
+
+            // 上一页按钮
+            const prevBtn = document.createElement('button');
+            prevBtn.innerText = '‹ 上一页';
+            prevBtn.disabled = !d.hasPrevious;
+            prevBtn.className = `px-3 py-1 rounded-lg text-xs font-semibold transition ${d.hasPrevious ? 'bg-[#EAEAEA] dark:bg-[#2C2C2E] hover:bg-apple-blue hover:text-white' : 'opacity-40 cursor-not-allowed bg-[#EAEAEA] dark:bg-[#2C2C2E]'}`;
+            prevBtn.onclick = () => searchUsers(cur - 1);
+            container.appendChild(prevBtn);
+
+            // 数字页码 (最多显示 5 个数字)
+            let start = Math.max(1, cur - 2);
+            let end = Math.min(total, start + 4);
+            if (end - start < 4) start = Math.max(1, end - 4);
+
+            for (let i = start; i <= end; i++) {
+                const btn = document.createElement('button');
+                btn.innerText = i;
+                if (i === cur) {
+                    btn.className = 'w-7 h-7 rounded-lg text-xs font-bold bg-apple-blue text-white shadow-sm';
+                } else {
+                    btn.className = 'w-7 h-7 rounded-lg text-xs font-semibold bg-[#EAEAEA] dark:bg-[#2C2C2E] hover:bg-apple-blue/20 text-apple-textSecondary transition';
+                    btn.onclick = () => searchUsers(i);
+                }
+                container.appendChild(btn);
+            }
+
+            // 下一页按钮
+            const nextBtn = document.createElement('button');
+            nextBtn.innerText = '下一页 ›';
+            nextBtn.disabled = !d.hasNext;
+            nextBtn.className = `px-3 py-1 rounded-lg text-xs font-semibold transition ${d.hasNext ? 'bg-[#EAEAEA] dark:bg-[#2C2C2E] hover:bg-apple-blue hover:text-white' : 'opacity-40 cursor-not-allowed bg-[#EAEAEA] dark:bg-[#2C2C2E]'}`;
+            nextBtn.onclick = () => searchUsers(cur + 1);
+            container.appendChild(nextBtn);
+        }
+
+        function jumpToPage() {
+            const val = parseInt(document.getElementById('jumpPageInput').value, 10);
+            if (val && val >= 1) {
+                searchUsers(val);
+            }
+        }
+
+        // 玩家资产与特权管理弹窗
+        function openUserModal(userId) {
+            const user = currentUserList.find(u => u.id === userId);
+            if (!user) return;
+            currentEditingUserId = userId;
+
+            document.getElementById('modalUserAvatar').innerText = user.avatar || '🦊';
+            document.getElementById('modalUserNick').innerText = user.nickname || '无名大侠';
+            document.getElementById('modalUserId').innerText = 'ID: ' + user.id;
+            document.getElementById('modalUserPhone').innerText = user.phone || '未绑定';
+            document.getElementById('modalUserTier').innerText = user.rankTier || '黄金II';
+            document.getElementById('modalUserRecharge').innerText = '¥' + user.totalRechargeRmb;
+
+            document.getElementById('modalCoinsInput').value = user.coins;
+            document.getElementById('modalDiamondsInput').value = user.diamonds;
+            document.getElementById('modalVipSelect').value = user.vipLevel;
+            document.getElementById('modalNickInput').value = user.nickname;
+
+            document.getElementById('userModal').classList.remove('hidden');
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').classList.add('hidden');
+            currentEditingUserId = null;
+        }
+
+        function addDeltaAsset(c, d) {
+            if (c > 0) {
+                const inp = document.getElementById('modalCoinsInput');
+                inp.value = (parseInt(inp.value, 10) || 0) + c;
+            }
+            if (d > 0) {
+                const inp = document.getElementById('modalDiamondsInput');
+                inp.value = (parseInt(inp.value, 10) || 0) + d;
+            }
+        }
+
+        async function saveUserModal() {
+            if (!currentEditingUserId) return;
+            const coins = parseInt(document.getElementById('modalCoinsInput').value, 10);
+            const diamonds = parseInt(document.getElementById('modalDiamondsInput').value, 10);
+            const vip = parseInt(document.getElementById('modalVipSelect').value, 10);
+            const nickname = document.getElementById('modalNickInput').value.trim();
+
+            const body = {
+                userId: currentEditingUserId,
+                coins: coins,
+                diamonds: diamonds,
+                vipLevel: vip,
+                nickname: nickname
+            };
+
+            try {
+                const res = await fetch(getApiBase() + '/users/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+                const j = await res.json();
+                if (j.code === 0) {
+                    showToast(j.message || '玩家特权已生效更新');
+                    closeUserModal();
+                    searchUsers(userCurrentPage);
+                } else {
+                    alert(j.message || '更新失败');
+                }
+            } catch(e) {
+                alert('网络异常: ' + e);
+            }
+        }
+
+        // ==========================================
+        // 3. 短信配置
+        // ==========================================
+        async function loadSmsConfig() {
+            try {
+                const res = await fetch(getApiBase() + '/config/sms');
+                const json = await res.json();
+                if (json.code === 0 && json.data) {
+                    const c = json.data;
+                    document.getElementById('smsProvider').value = c.provider || 'MOCK';
+                    document.getElementById('aliyunAccessKeyId').value = c.aliyunAccessKeyId || '';
+                    document.getElementById('aliyunAccessKeySecret').value = c.aliyunAccessKeySecret || '';
+                    document.getElementById('aliyunSignName').value = c.aliyunSignName || '聚会桌游';
+                    document.getElementById('aliyunTemplateCode').value = c.aliyunTemplateCode || 'SMS_200000001';
+
+                    document.getElementById('tencentSecretId').value = c.tencentSecretId || '';
+                    document.getElementById('tencentSecretKey').value = c.tencentSecretKey || '';
+                    document.getElementById('tencentSdkAppId').value = c.tencentSdkAppId || '';
+                    document.getElementById('tencentSignName').value = c.tencentSignName || '聚会桌游';
+                    document.getElementById('tencentTemplateId').value = c.tencentTemplateId || '100001';
+
+                    onSmsProviderChange();
+                }
+            } catch(e) { console.error('加载短信配置失败:', e); }
+        }
+
+        function onSmsProviderChange() {
+            const p = document.getElementById('smsProvider').value;
+            document.getElementById('aliyunFields').classList.toggle('hidden', p !== 'ALIYUN');
+            document.getElementById('tencentFields').classList.toggle('hidden', p !== 'TENCENT');
+        }
+
+        async function saveSmsConfig() {
+            const body = {
+                provider: document.getElementById('smsProvider').value,
+                aliyunAccessKeyId: document.getElementById('aliyunAccessKeyId').value,
+                aliyunAccessKeySecret: document.getElementById('aliyunAccessKeySecret').value,
+                aliyunSignName: document.getElementById('aliyunSignName').value,
+                aliyunTemplateCode: document.getElementById('aliyunTemplateCode').value,
+                tencentSecretId: document.getElementById('tencentSecretId').value,
+                tencentSecretKey: document.getElementById('tencentSecretKey').value,
+                tencentSdkAppId: document.getElementById('tencentSdkAppId').value,
+                tencentSignName: document.getElementById('tencentSignName').value,
+                tencentTemplateId: document.getElementById('tencentTemplateId').value
+            };
+            const res = await fetch(getApiBase() + '/config/sms', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            });
+            const j = await res.json();
+            showToast(j.message || '短信网关配置保存成功！');
+        }
+
+        async function sendTestSms() {
+            const phone = document.getElementById('testPhone').value.trim();
+            if (!phone) return alert('请输入手机号');
+            const resBox = document.getElementById('testSmsResult');
+            resBox.classList.remove('hidden');
+            resBox.innerText = '正在派发测试短信...';
+            try {
+                const res = await fetch(getApiBase() + '/config/sms/test', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({phone: phone})
+                });
+                const j = await res.json();
+                resBox.innerText = JSON.stringify(j, null, 2);
+                showToast('测试短信指令已派发');
+            } catch(e) {
+                resBox.innerText = '发送异常: ' + e;
+            }
+        }
+
+        // ==========================================
+        // 4. 营销横幅
+        // ==========================================
+        async function loadMarketingBanners() {
+            try {
+                const res = await fetch(getApiBase() + '/config/marketing');
+                const json = await res.json();
+                if (json.code === 0 && json.data) {
+                    currentBanners = json.data;
+                    renderBannersUI();
+                }
+            } catch(e) { console.error('加载活动横幅失败:', e); }
+        }
+
+        function renderBannersUI() {
+            const container = document.getElementById('bannersList');
+            container.innerHTML = '';
+            currentBanners.forEach((b, idx) => {
+                const card = document.createElement('div');
+                card.className = 'p-4 rounded-2xl bg-[#FAFAFC] dark:bg-[#26262B] border border-black/5 dark:border-white/5 flex flex-wrap justify-between items-center gap-3';
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-xs shadow-sm" style="background: linear-gradient(135deg, ${b.colorStart || '#0071E3'}, ${b.colorEnd || '#AF52DE'})">
+                            ${b.badge || 'HOT'}
+                        </div>
+                        <div>
+                            <div class="font-bold text-apple-textPrimary dark:text-white text-sm flex items-center gap-2">
+                                <span>${escapeHtml(b.title)}</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] bg-black/5 dark:bg-white/10 text-apple-textSecondary">${escapeHtml(b.tag || '营销活动')}</span>
+                            </div>
+                            <div class="text-xs text-apple-textSecondary mt-0.5">${escapeHtml(b.subtitle || '')}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs">
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" ${b.active ? 'checked' : ''} onchange="toggleBannerActive(${idx})" class="rounded text-apple-blue">
+                            <span class="${b.active ? 'text-emerald-500' : 'text-apple-textSecondary'} font-semibold">${b.active ? '上架中' : '已停用'}</span>
+                        </label>
+                        <button onclick="removeBanner(${idx})" class="text-red-500 hover:text-red-400 px-2 py-1 bg-red-500/10 rounded-lg">删除</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleBannerActive(idx) {
+            currentBanners[idx].active = !currentBanners[idx].active;
+            renderBannersUI();
+        }
+
+        function removeBanner(idx) {
+            if (confirm('确认删除此营销横幅？')) {
+                currentBanners.splice(idx, 1);
+                renderBannersUI();
+            }
+        }
+
+        function addNewBannerModal() {
+            const title = prompt('请输入营销活动主题名称:', '🔥 新人首充豪礼盛典');
+            if (!title) return;
+            const sub = prompt('请输入副标题说明:', '首充立享100%返钻与专属神龙骰盅');
+            currentBanners.push({
+                id: 'act_' + Date.now(),
+                title: title,
+                subtitle: sub || '',
+                tag: '最新特惠',
+                badge: 'NEW',
+                colorStart: '#0071E3',
+                colorEnd: '#AF52DE',
+                active: true,
+                sortOrder: currentBanners.length + 1
+            });
+            renderBannersUI();
+        }
+
+        async function saveBannersToServer() {
+            const res = await fetch(getApiBase() + '/config/marketing', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(currentBanners)
+            });
+            const j = await res.json();
+            showToast(j.message || '营销活动已成功下发同步！');
+        }
+
+        // 工具函数
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function copyText(txt) {
+            navigator.clipboard.writeText(txt).then(() => {
+                showToast('已复制玩家完整ID至剪贴板');
+            }).catch(() => {
+                showToast('复制失败，请手动选择', '⚠️');
+            });
+        }
+
+        // 初始化
+        initTheme();
+        checkAuth();
+    </script>
+</body>
+</html>

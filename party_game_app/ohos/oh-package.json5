@@ -1,0 +1,12 @@
+{
+  "name": "party_game_app",
+  "version": "1.0.0",
+  "description": "Party Game Club for HarmonyOS Next / OpenHarmony",
+  "main": "",
+  "author": "fwpt",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@ohos/flutter_ohos": "3.27.0"
+  },
+  "devDependencies": {}
+}

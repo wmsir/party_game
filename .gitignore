@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+
+# Build Outputs & Caches
+target/
+dist/
+dist-ssr/
+build/
+.dart_tool/
+.gradle/
+.kotlin/
+__pycache__/
+*.py[cod]
+*.tsbuildinfo
+
+# Binaries & Archives
+*.apk
+*.aab
+*.hap
+*.ipa
+*.exe
+*.msi
+*.dmg
+*.jar
+!**/gradle-wrapper.jar
+*.war
+*.zip
+*.tar.gz
+*.tgz
+
+# IDE & OS
+.idea/
+.vscode/
+.cursor/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs & Backups
+*.log
+*.tmp
+*.bak*
+logs/
+scratch/
+
+# Secrets & Local Env
+.env.local
+.env.*.local
+*.local
+.secrets/
+application-prod.yml
+application-secrets*.yml
+*credentials*.json
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+key.properties
+local.properties
+.flutter-plugins
+.flutter-plugins-dependencies

@@ -1,0 +1,35 @@
+server:
+  port: 9001
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+spring:
+  application:
+    name: party-game-server
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://127.0.0.1:3306/party_game_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&characterEncoding=UTF-8}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 20000
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false
+
+logging:
+  level:
+    root: INFO
+    com.partygame: INFO
+    org.springframework.web: INFO

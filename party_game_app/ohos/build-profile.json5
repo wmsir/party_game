@@ -1,0 +1,31 @@
+{
+  "app": {
+    "signingConfigs": [],
+    "compileSdkVersion": 12,
+    "compatibleSdkVersion": 11,
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "compileSdkVersion": 12,
+        "compatibleSdkVersion": 11,
+        "targetSdkVersion": 12,
+        "runtimeOS": "HarmonyOS"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}
