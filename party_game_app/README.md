@@ -93,7 +93,7 @@ hvigorw assembleHap --mode module -p module=entry@default -p product=default --n
 
 ### 5. 编译 Web / 移动端 H5
 ```bash
-flutter build web --release --web-renderer canvaskit
+flutter build web --release
 ```
 
 ---

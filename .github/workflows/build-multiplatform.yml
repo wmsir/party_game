@@ -1,4 +1,4 @@
-name: Build Multi-Platform Apps (Android, iOS, HarmonyOS, Web, Windows & Server)
+name: Build Multi-Platform Apps (Android, iOS, Web, Windows & Server)
 
 on:
   push:
@@ -91,106 +91,7 @@ jobs:
           path: release_out/party-game-v1.0.56-ios-unsigned.ipa
 
   # ============================================================================
-  # 3. HarmonyOS Next / OpenHarmony Client (.hap & DevEco Project Bundle)
-  # ============================================================================
-  build-harmonyos:
-    name: HarmonyOS Next Client (.hap)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Source
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17 & Node.js 20
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Set up Flutter SDK
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          flutter-version: '3.27.x'
-          cache: true
-
-      - name: Build Flutter Assets & Package HarmonyOS Next HAP Bundle
-        run: |
-          cd party_game_app
-          flutter pub get
-          flutter build bundle
-          RAWFILE_DIR="ohos/entry/src/main/resources/rawfile/flutter_assets"
-          mkdir -p "$RAWFILE_DIR"
-          cp -R build/flutter_assets/* "$RAWFILE_DIR/"
-
-          mkdir -p ../release_out
-
-          # 1. Package complete DevEco Studio HarmonyOS Next Project (with pre-compiled flutter_assets)
-          zip -qry ../release_out/party-game-v1.0.56-harmonyos-deveco-project.zip ohos
-
-          # 2. Construct standard OpenHarmony Stage-model unsigned .hap package
-          HAP_STAGE="build/ohos_hap_stage"
-          mkdir -p "$HAP_STAGE/ets" "$HAP_STAGE/resources/rawfile/flutter_assets"
-          cp -R ohos/entry/src/main/ets/* "$HAP_STAGE/ets/"
-          cp -R ohos/entry/src/main/resources/* "$HAP_STAGE/resources/"
-          cp ohos/entry/src/main/module.json5 "$HAP_STAGE/module.json"
-          cat > "$HAP_STAGE/pack.info" << 'EOF'
-          {
-            "summary": {
-              "app": {
-                "bundleName": "com.fwpt.partygame",
-                "bundleType": "app",
-                "version": {
-                  "code": 1000056,
-                  "name": "1.0.56"
-                }
-              },
-              "modules": [
-                {
-                  "mainAbility": "EntryAbility",
-                  "deviceType": ["phone", "tablet", "2in1"],
-                  "abilities": [
-                    {
-                      "name": "EntryAbility",
-                      "label": "聚会桌游吧"
-                    }
-                  ],
-                  "distro": {
-                    "moduleType": "entry",
-                    "installationFree": false,
-                    "deliveryWithInstall": true,
-                    "moduleName": "entry"
-                  },
-                  "apiVersion": {
-                    "compatible": 11,
-                    "releaseType": "Release",
-                    "target": 12
-                  }
-                }
-              ]
-            },
-            "packages": [
-              {
-                "deviceType": ["phone", "tablet", "2in1"],
-                "moduleType": "entry",
-                "deliveryWithInstall": true,
-                "name": "entry-default"
-              }
-            ]
-          }
-          EOF
-          (cd "$HAP_STAGE" && zip -qry ../../../release_out/party-game-v1.0.56-harmonyos-unsigned.hap .)
-          ls -lh ../release_out/
-
-      - name: Upload HarmonyOS Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: PartyGame-HarmonyOS-Next-HAP
-          path: |
-            release_out/party-game-v1.0.56-harmonyos-unsigned.hap
-            release_out/party-game-v1.0.56-harmonyos-deveco-project.zip
-
-  # ============================================================================
-  # 4. Web Client (H5) & Java Backend Server (.jar)
+  # 3. Web Client (H5) & Java Backend Server (.jar)
   # ============================================================================
   build-web-and-backend:
     name: Web H5 Client & Java Server (.jar)
@@ -272,7 +173,7 @@ jobs:
   # ============================================================================
   publish-release:
     name: Publish Multi-Platform GitHub Release
-    needs: [build-android, build-ios, build-harmonyos, build-web-and-backend, build-windows]
+    needs: [build-android, build-ios, build-web-and-backend, build-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download All Built Artifacts
@@ -292,14 +193,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.56' }}
-          name: "聚会桌游吧 PartyGame Club v1.0.56 (Android / iOS / HarmonyOS / Windows / Web)"
+          name: "聚会桌游吧 PartyGame Club v1.0.56 (Android / iOS / Windows / Web)"
           body: |
             ## 🎲 聚会桌游吧 (PartyGame Club) v1.0.56 全平台构建发行包
             - **📱 Android 移动端 (通用安装包 APK)**: `party-game-v1.0.56-android-universal.apk`
             - **📱 Android 应用商店包 (Google Play AAB)**: `party-game-v1.0.56-android-bundle.aab`
             - **🍎 iOS 移动端 (未签名 IPA，支持 AltStore / Sideloadly / TrollStore / 企业签名)**: `party-game-v1.0.56-ios-unsigned.ipa`
-            - **🏵️ 鸿蒙 HarmonyOS Next / OpenHarmony (未签名 HAP 安装包)**: `party-game-v1.0.56-harmonyos-unsigned.hap`
-            - **🏵️ 鸿蒙 DevEco Studio 完整工程包 (已内嵌编译后 Flutter Assets)**: `party-game-v1.0.56-harmonyos-deveco-project.zip`
             - **💻 Windows 桌面客户端 (x64 绿色免安装版)**: `party-game-v1.0.56-windows-x64.zip`
             - **🌐 Web H5 网页端 (静态部署包)**: `party-game-v1.0.56-web-h5.zip`
             - **☕ Java 实时联机后端微服务 (Spring Boot 3 可执行 JAR)**: `party-game-server-1.0.0.jar`

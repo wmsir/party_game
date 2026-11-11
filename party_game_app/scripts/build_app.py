@@ -39,7 +39,7 @@ def log(msg, color="92"):
     print(f"[\033[{color}mPARTY-BUILD\033[0m] {msg}")
 
 def ensure_dist_dir():
-    os.makedirs(ROOT_DIR, exist_ok=True)
+    os.makedirs(DIST_DIR, exist_ok=True)
 
 def run_cmd(cmd, cwd=APP_DIR):
     log(f"执行命令: {cmd}")
@@ -194,10 +194,10 @@ def build_ios():
 
 def build_web():
     log("================================================================", "96")
-    log(">>> 正在编译 Web 纯静态 HTML5 / CanvasKit 生产产物...", "96")
+    log(">>> 正在编译 Web 纯静态 HTML5 生产产物...", "96")
     log("================================================================", "96")
     ensure_dist_dir()
-    success = run_cmd("flutter build web --release --web-renderer canvaskit")
+    success = run_cmd("flutter build web --release")
     if success:
         web_build = os.path.join(APP_DIR, "build", "web")
         target_zip = os.path.join(DIST_DIR, "party_game_web.zip")

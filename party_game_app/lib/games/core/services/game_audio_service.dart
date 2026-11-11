@@ -1,5 +1,5 @@
 import 'dart:async';
-import '../../../../core/sound/game_sound_service.dart';
+import '../../../core/sound/game_sound_service.dart';
 
 /// 聚会桌游音频与音效中枢服务 (Game Audio & Sound FX Service)
 /// 统一转发至全局高保真音效引擎 GameSoundService
