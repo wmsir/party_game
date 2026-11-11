@@ -14,6 +14,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
   final _phoneCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
   final _newPwdCtrl = TextEditingController();
+  final _confirmPwdCtrl = TextEditingController();
   bool _isLoading = false;
 
   @override
@@ -21,18 +22,24 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
     _phoneCtrl.dispose();
     _codeCtrl.dispose();
     _newPwdCtrl.dispose();
+    _confirmPwdCtrl.dispose();
     super.dispose();
   }
 
   void _submit() async {
     final phone = _phoneCtrl.text.trim();
     final pwd = _newPwdCtrl.text.trim();
+    final confirmPwd = _confirmPwdCtrl.text.trim();
     if (phone.length != 11) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请输入有效手机号')));
       return;
     }
     if (pwd.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('新密码至少6位')));
+      return;
+    }
+    if (pwd != confirmPwd) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('两次输入的新密码不一致，请重新核对')));
       return;
     }
 
@@ -99,6 +106,16 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
               decoration: const InputDecoration(
                 labelText: '新密码',
                 hintText: '设置不少于6位的新密码',
+                prefixIcon: Icon(Icons.lock_outline),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _confirmPwdCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: '确认新密码',
+                hintText: '请再次输入新密码以确认',
                 prefixIcon: Icon(Icons.lock_outline),
               ),
             ),
