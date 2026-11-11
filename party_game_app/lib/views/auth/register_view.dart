@@ -15,8 +15,10 @@ class _RegisterViewState extends State<RegisterView> {
   final _nicknameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
   bool _agreeTerms = true;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
@@ -24,6 +26,7 @@ class _RegisterViewState extends State<RegisterView> {
     _nicknameCtrl.dispose();
     _phoneCtrl.dispose();
     _passwordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
     super.dispose();
   }
 
@@ -38,11 +41,24 @@ class _RegisterViewState extends State<RegisterView> {
     final username = _usernameCtrl.text.trim();
     final nickname = _nicknameCtrl.text.trim();
     final password = _passwordCtrl.text.trim();
+    final confirmPassword = _confirmPasswordCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
 
     if (username.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('请完整填写账号与密码')),
+      );
+      return;
+    }
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('登录密码长度至少需要 6 位字符')),
+      );
+      return;
+    }
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('两次输入的登录密码不一致，请重新核对'), backgroundColor: AppColors.error),
       );
       return;
     }
@@ -136,6 +152,21 @@ class _RegisterViewState extends State<RegisterView> {
                   suffixIcon: IconButton(
                     icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              TextField(
+                controller: _confirmPasswordCtrl,
+                obscureText: _obscureConfirmPassword,
+                decoration: InputDecoration(
+                  labelText: '确认登录密码 *',
+                  hintText: '请再次输入登录密码以确认',
+                  prefixIcon: const Icon(Icons.lock_reset_outlined),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
                   ),
                 ),
               ),
