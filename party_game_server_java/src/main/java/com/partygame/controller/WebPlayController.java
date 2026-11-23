@@ -694,7 +694,7 @@ public class WebPlayController {
         sb.append("        .spinner-inline { display: inline-block; width: 14px; height: 14px; border: 2px solid #ffffff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -2px; margin-right: 6px; }\n");
         sb.append("        @keyframes spin { to { transform: rotate(360deg); } }\n");
         sb.append("    </style>\n");
-        sb.append("    <link rel='stylesheet' href='" + assetPrefix + "/css/webplay-pro.css?v=2.0'>\n");
+        sb.append("    <link rel='stylesheet' href='" + assetPrefix + "/css/webplay-pro.css?v=2.1'>\n");
         sb.append("</head>\n");
         sb.append("<body>\n");
         return sb.toString();
@@ -1567,10 +1567,10 @@ public class WebPlayController {
         StringBuilder sb = new StringBuilder(8000);
         sb.append("    <div class='main-stage'>\n" +
 "        <div class='seats-grid' id='seatsGrid'></div>\n" +
-"        <div class='ready-bar' style='display:flex; gap:8px;'>\n" +
+"        <div class='ready-bar'>\n" +
 "            <button class='btn-ready-toggle ready' id='btnReadyToggle' onclick='toggleMyReady()'>⚡ 点击准备</button>\n" +
-"            <button class='btn-summon-players' id='btnSummonPlayers' onclick='actionSummonPlayers()' style='background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:none; border-radius:10px; font-weight:bold; font-size:13px; padding:10px 16px; cursor:pointer; box-shadow:0 4px 12px rgba(245,158,11,0.3);'>📢 召集玩家</button>\n" +
-"            <button class='btn-spectator-toggle' id='btnSpectatorToggle' onclick='actionToggleSpectator()' style='display:none; background:#334155; color:#94a3b8; border:1px solid #475569; border-radius:10px; font-weight:bold; font-size:12px; padding:10px 14px; cursor:pointer;'>👁️ 允许旁观 (开)</button>\n" +
+"            <button class='btn-summon-players' id='btnSummonPlayers' onclick='actionSummonPlayers()'>📢 召集玩家</button>\n" +
+"            <button class='btn-spectator-toggle is-on' id='btnSpectatorToggle' onclick='actionToggleSpectator()' style='display:none;'>👁️ 允许旁观 (开)</button>\n" +
 "        </div>\n" +
 "        <div id='summonCountdownBanner' style='display:none; margin:8px 0; background:rgba(245,158,11,0.15); border:1px solid #f59e0b; color:#fbbf24; border-radius:8px; padding:8px 12px; font-size:12px; font-weight:bold; text-align:center;'>\n" +
 "            📢 已向全服世界与同城频道发布召集广播！正在呼叫桌友进房 (<span id='summonTimerSeconds'>10</span>s)...\n" +
@@ -4812,15 +4812,15 @@ public class WebPlayController {
                "        const btn = document.getElementById('btnReadyToggle');\n" +
                "        const summonBtn = document.getElementById('btnSummonPlayers');\n" +
                "        const specBtn = document.getElementById('btnSpectatorToggle');\n" +
-               "        if (summonBtn) { summonBtn.style.display = isGameStarted ? 'none' : 'inline-block'; }\n" +
+               "        if (summonBtn) { summonBtn.style.display = isGameStarted ? 'none' : 'inline-flex'; }\n" +
                "        if (!btn) return;\n" +
                "        const me = players.find(p => p.id === myUserId || p.name === myNickname);\n" +
                "        const isHost = me ? (me.isHost || players[0]?.id === me.id) : (players.length <= 1);\n" +
                "        if (specBtn) {\n" +
-               "            specBtn.style.display = (isHost && !isGameStarted) ? 'inline-block' : 'none';\n" +
+               "            specBtn.style.display = (isHost && !isGameStarted) ? 'inline-flex' : 'none';\n" +
                "            specBtn.innerText = window.allowSpectator ? '👁️ 允许旁观 (开)' : '🚫 禁止旁观 (关)';\n" +
-               "            specBtn.style.color = window.allowSpectator ? '#34d399' : '#94a3b8';\n" +
-               "            specBtn.style.borderColor = window.allowSpectator ? '#059669' : '#475569';\n" +
+               "            specBtn.classList.toggle('is-on', !!window.allowSpectator);\n" +
+               "            specBtn.classList.toggle('is-off', !window.allowSpectator);\n" +
                "        }\n" +
                "        if (window.isSpectatorMode) {\n" +
                "            btn.className = 'btn-ready-toggle';\n" +
@@ -6489,12 +6489,15 @@ public class WebPlayController {
                "        const isSvip = (vipLevel >= 4);\n" +
                "        const vipBadgeHtml = isVip ? ('<span class=\"badge-vip' + (isV10 ? ' v10' : (isSvip ? ' svip' : '')) + '\" style=\"margin-right:4px;\">' + (isV10 ? '✨ V10 无双' : ((isSvip ? '👑 ' : '') + 'V' + vipLevel)) + '</span>') : '';\n" +
                "        const nameColor = isV10 ? '#f59e0b' : (isVip ? (isSvip ? '#ff2e4d' : '#e60012') : '#38bdf8');\n" +
-               "        let colorHex = (typeof CHAT_COLOR_MAP !== 'undefined' && CHAT_COLOR_MAP[textColor]) ? CHAT_COLOR_MAP[textColor] : '#1e293b';\n" +
-               "        if (!colorHex || colorHex === '#ffffff' || colorHex.toLowerCase() === '#fff' || colorHex.toLowerCase() === '#f8fafc' || colorHex.toLowerCase() === '#e2e8f0') { colorHex = '#1e293b'; }\n" +
+               "        const isDarkTheme = document.body.classList.contains('dark-mode');\n" +
+               "        const defaultChatColor = isDarkTheme ? '#f1f5f9' : '#1e293b';\n" +
+               "        let colorHex = (typeof CHAT_COLOR_MAP !== 'undefined' && CHAT_COLOR_MAP[textColor]) ? CHAT_COLOR_MAP[textColor] : defaultChatColor;\n" +
+               "        if (!colorHex || colorHex === '#ffffff' || colorHex.toLowerCase() === '#fff' || colorHex.toLowerCase() === '#f8fafc' || colorHex.toLowerCase() === '#e2e8f0') { colorHex = defaultChatColor; }\n" +
                "        div.innerHTML = vipBadgeHtml + '<span class=\"sender\" style=\"color:' + nameColor + ';\">' + sender + ':</span> <span style=\"color:' + colorHex + ';font-weight:' + (textColor && textColor !== 'COLOR_DEFAULT' ? 'bold' : '500') + ';\">' + text + '</span>';\n" +
                "        stream.appendChild(div); stream.scrollTop = stream.scrollHeight;\n" +
                "    }\n" +
                "    function applyWebTheme(isDark) {\n" +
+               "        document.documentElement.classList.toggle('dark-mode', isDark);\n" +
                "        document.body.classList.toggle('dark-mode', isDark);\n" +
                "        const b1 = document.getElementById('btnLobbyThemeToggle');\n" +
                "        const b2 = document.getElementById('btnRoomThemeToggle');\n" +
@@ -6551,7 +6554,14 @@ public class WebPlayController {
                "        if (modal) modal.style.display = 'none';\n" +
                "    };\n" +
                "    window.onload = () => {\n" +
-               "        applyWebTheme(localStorage.getItem('pg_web_theme') === 'dark');\n" +
+               "        const savedTheme = localStorage.getItem('pg_web_theme');\n" +
+               "        const colorMedia = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;\n" +
+               "        applyWebTheme(savedTheme ? savedTheme === 'dark' : Boolean(colorMedia && colorMedia.matches));\n" +
+               "        if (colorMedia && colorMedia.addEventListener) {\n" +
+               "            colorMedia.addEventListener('change', (e) => {\n" +
+               "                if (!localStorage.getItem('pg_web_theme')) applyWebTheme(e.matches);\n" +
+               "            });\n" +
+               "        }\n" +
                "        initAuthFromStorage();\n" +
                "        refreshCaptcha();\n" +
                "        renderSeats([]);\n" +

@@ -75,20 +75,58 @@ jobs:
             echo "No release keystore secrets configured; falling back to debug signing."
           fi
 
-      - name: Analyze & Build Android Release APK & AAB
-        env:
-          VER: ${{ needs.prepare-metadata.outputs.app_version }}
+      - name: Flutter Pub Get & Analyze
         run: |
+          set -o pipefail
           cd party_game_app
           chmod +x android/gradlew
           flutter pub get
-          flutter analyze --no-fatal-infos
-          flutter build apk --release
-          flutter build appbundle --release
-          mkdir -p ../release_out
-          cp build/app/outputs/flutter-apk/app-release.apk "../release_out/party-game-v${VER}-android-universal.apk"
-          cp build/app/outputs/bundle/release/app-release.aab "../release_out/party-game-v${VER}-android-bundle.aab"
-          ls -lh ../release_out/
+          if ! flutter analyze --no-fatal-infos 2>&1 | tee /tmp/analyze.log; then
+            (grep -iE 'error' /tmp/analyze.log || true) | head -n 6 | while IFS= read -r line; do
+              echo "::error title=Flutter Analyze::${line}"
+            done
+            tail -n 4 /tmp/analyze.log | while IFS= read -r line; do
+              echo "::error title=Flutter Analyze Tail::${line}"
+            done
+            exit 1
+          fi
+
+      - name: Build Android Release APK
+        run: |
+          set -o pipefail
+          cd party_game_app
+          if ! flutter build apk --release 2>&1 | tee /tmp/apk.log; then
+            grep -E '(ERROR:|FAILURE:|Exception:|e:|What went wrong|Build failed|error:)' /tmp/apk.log | head -n 6 | while IFS= read -r line; do
+              echo "::error title=Android APK::${line}"
+            done
+            tail -n 6 /tmp/apk.log | while IFS= read -r line; do
+              echo "::error title=Android APK Tail::${line}"
+            done
+            exit 1
+          fi
+
+      - name: Build Android Release AAB
+        run: |
+          set -o pipefail
+          cd party_game_app
+          if ! flutter build appbundle --release 2>&1 | tee /tmp/aab.log; then
+            grep -E '(ERROR:|FAILURE:|Exception:|e:|What went wrong|Build failed|error:)' /tmp/aab.log | head -n 6 | while IFS= read -r line; do
+              echo "::error title=Android AAB::${line}"
+            done
+            tail -n 6 /tmp/aab.log | while IFS= read -r line; do
+              echo "::error title=Android AAB Tail::${line}"
+            done
+            exit 1
+          fi
+
+      - name: Stage Android Release Files
+        env:
+          VER: ${{ needs.prepare-metadata.outputs.app_version }}
+        run: |
+          mkdir -p release_out
+          cp party_game_app/build/app/outputs/flutter-apk/app-release.apk "release_out/party-game-v${VER}-android-universal.apk"
+          cp party_game_app/build/app/outputs/bundle/release/app-release.aab "release_out/party-game-v${VER}-android-bundle.aab"
+          ls -lh release_out/
 
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4
@@ -161,19 +199,64 @@ jobs:
           flutter-version: '3.27.x'
           cache: true
 
-      - name: Test & Build Web H5 Bundle & Java Spring Boot Server
+      - name: Flutter Pub Get & Analyze
+        run: |
+          set -o pipefail
+          cd party_game_app
+          flutter pub get
+          if ! flutter analyze --no-fatal-infos 2>&1 | tee /tmp/analyze_web.log; then
+            (grep -iE 'error' /tmp/analyze_web.log || true) | head -n 6 | while IFS= read -r line; do
+              echo "::error title=Flutter Analyze::${line}"
+            done
+            tail -n 4 /tmp/analyze_web.log | while IFS= read -r line; do
+              echo "::error title=Flutter Analyze Tail::${line}"
+            done
+            exit 1
+          fi
+
+      - name: Build Web H5 Bundle
         env:
           VER: ${{ needs.prepare-metadata.outputs.app_version }}
         run: |
+          set -o pipefail
           mkdir -p release_out
           cd party_game_app
-          flutter pub get
-          flutter analyze --no-fatal-infos
-          flutter build web --release
+          if ! flutter build web --release 2>&1 | tee /tmp/web.log; then
+            grep -E '(Error:|FAILURE:|Exception|Target dart2js failed)' /tmp/web.log | head -n 6 | while IFS= read -r line; do
+              echo "::error title=Web Build::${line}"
+            done
+            tail -n 6 /tmp/web.log | while IFS= read -r line; do
+              echo "::error title=Web Build Tail::${line}"
+            done
+            exit 1
+          fi
           (cd build/web && zip -qry "../../../release_out/party-game-v${VER}-web-h5.zip" .)
-          cd ../party_game_server_java
-          mvn -B test
-          mvn -B clean package
+
+      - name: Run Java Unit Tests
+        run: |
+          set -o pipefail
+          cd party_game_server_java
+          if ! mvn -B test 2>&1 | tee /tmp/mvn_test.log; then
+            grep -E '(\[ERROR\]|FAILURE!|Errors:|Tests run:)' /tmp/mvn_test.log | head -n 8 | while IFS= read -r line; do
+              echo "::error title=Maven Test::${line}"
+            done
+            tail -n 6 /tmp/mvn_test.log | while IFS= read -r line; do
+              echo "::error title=Maven Test Tail::${line}"
+            done
+            exit 1
+          fi
+
+      - name: Package Java Spring Boot Server
+        run: |
+          set -o pipefail
+          mkdir -p release_out
+          cd party_game_server_java
+          if ! mvn -B clean package -DskipTests 2>&1 | tee /tmp/mvn_pkg.log; then
+            grep -E '(\[ERROR\]|COMPILATION ERROR)' /tmp/mvn_pkg.log | head -n 8 | while IFS= read -r line; do
+              echo "::error title=Maven Package::${line}"
+            done
+            exit 1
+          fi
           cp target/party-game-server-1.0.0.jar ../release_out/party-game-server-1.0.0.jar
           ls -lh ../release_out/
 
@@ -206,18 +289,34 @@ jobs:
       - name: Set up NuGet
         uses: NuGet/setup-nuget@v2
 
+      - name: Flutter Pub Get
+        shell: pwsh
+        run: |
+          Set-Location party_game_app
+          flutter config --enable-windows-desktop
+          flutter pub get
+
       - name: Build Windows Release Client
         shell: pwsh
         env:
           VER: ${{ needs.prepare-metadata.outputs.app_version }}
         run: |
+          $ErrorActionPreference = 'Continue'
           New-Item -ItemType Directory -Force -Path release_out | Out-Null
           Set-Location party_game_app
           $winBuildNum = ($env:VER -split '\.')[-1]
           if ([string]::IsNullOrWhiteSpace($winBuildNum) -or ($winBuildNum -notmatch '^\d+$')) { $winBuildNum = '57' }
-          flutter config --enable-windows-desktop
-          flutter pub get
-          flutter build windows --release --build-name="$($env:VER)" --build-number="$winBuildNum"
+          $out = flutter build windows --release --build-name="$($env:VER)" --build-number="$winBuildNum" 2>&1
+          $out | ForEach-Object { Write-Host $_ }
+          if ($LASTEXITCODE -ne 0) {
+            ($out | Where-Object { $_ -match 'error|CMake|NuGet|Exception|failed' } | Select-Object -First 6) | ForEach-Object {
+              Write-Host "::error title=Windows Build::$_"
+            }
+            ($out | Select-Object -Last 4) | ForEach-Object {
+              Write-Host "::error title=Windows Build Tail::$_"
+            }
+            exit $LASTEXITCODE
+          }
           Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "../release_out/party-game-v$($env:VER)-windows-x64.zip" -Force
           Get-ChildItem ../release_out
 

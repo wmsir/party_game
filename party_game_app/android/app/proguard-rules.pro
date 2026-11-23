@@ -14,3 +14,14 @@
 }
 -dontwarn kotlin.**
 -keep class kotlin.Metadata { *; }
+
+# Suppress warnings for optional Flutter deferred components / annotations / media plugins
+-dontwarn com.google.android.play.core.**
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn org.checkerframework.**
+-dontwarn javax.annotation.**
+-dontwarn com.google.j2objc.annotations.**
+-dontwarn kotlinx.**
+-dontwarn androidx.media3.**
+-dontwarn com.google.android.exoplayer2.**
+-keep class com.google.android.play.core.** { *; }
