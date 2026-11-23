@@ -68,16 +68,21 @@ class _CreateRoomDialogState extends State<CreateRoomDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final textPrimary = AppColors.adaptiveTextPrimary(context);
+    final textSecondary = AppColors.adaptiveTextSecondary(context);
+    final textMuted = AppColors.adaptiveTextMuted(context);
+    final primaryColor = AppColors.adaptivePrimary(context);
+
     return AlertDialog(
-      backgroundColor: AppColors.bgCard,
+      backgroundColor: AppColors.adaptiveCard(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text('🏠 创建对局房间', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+      title: Text('🏠 创建对局房间', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textPrimary)),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('选择桌游玩法：', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+            Text('选择桌游玩法：', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textSecondary)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -88,6 +93,14 @@ class _CreateRoomDialogState extends State<CreateRoomDialog> {
                   label: Text('${g['icon']} ${g['name']}'),
                   selected: isSel,
                   selectedColor: AppColors.primary,
+                  backgroundColor: AppColors.adaptiveElevated(context),
+                  side: BorderSide(color: isSel ? AppColors.primary : AppColors.adaptiveBorder(context)),
+                  labelStyle: TextStyle(
+                    color: isSel ? Colors.white : textPrimary,
+                    fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 12.5,
+                  ),
+                  showCheckmark: false,
                   onSelected: (_) => setState(() => _selectedGameType = g['type']!),
                 );
               }).toList(),
@@ -116,10 +129,10 @@ class _CreateRoomDialogState extends State<CreateRoomDialog> {
 
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('本地同屏轮流玩 (Pass & Play)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-              subtitle: const Text('聚会多位好友共用一台手机轮流传阅操作', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+              title: Text('本地同屏轮流玩 (Pass & Play)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textPrimary)),
+              subtitle: Text('聚会多位好友共用一台手机轮流传阅操作', style: TextStyle(fontSize: 11, color: textMuted)),
               value: _isPassAndPlay,
-              activeColor: AppColors.primary,
+              activeColor: primaryColor,
               onChanged: (v) => setState(() => _isPassAndPlay = v ?? false),
             ),
           ],

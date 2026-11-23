@@ -66,7 +66,11 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     long countByCreatedAtAfter(java.time.LocalDateTime time);
 
+    long countByCreatedAtBetween(java.time.LocalDateTime start, java.time.LocalDateTime end);
+
     long countByLastLoginAtAfter(java.time.LocalDateTime time);
+
+    long countByLastLoginAtBetween(java.time.LocalDateTime start, java.time.LocalDateTime end);
 
     @Query("SELECT COALESCE(SUM(u.totalRechargeRmb), 0) FROM User u")
     Long sumTotalRechargeRmb();

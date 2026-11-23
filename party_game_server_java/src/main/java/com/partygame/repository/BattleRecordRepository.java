@@ -30,6 +30,12 @@ public interface BattleRecordRepository extends JpaRepository<BattleRecord, Long
 
     long countByPlayedAtAfter(java.time.LocalDateTime time);
 
+    @Query("SELECT COUNT(r) FROM BattleRecord r WHERE REPLACE(LOWER(r.userId), '-', '') = REPLACE(LOWER(:userId), '-', '') AND r.playedAt >= :time")
+    long countByUserIdAndPlayedAtAfter(@Param("userId") String userId, @Param("time") java.time.LocalDateTime time);
+
+    @Query("SELECT COUNT(r) FROM BattleRecord r WHERE REPLACE(LOWER(r.userId), '-', '') = REPLACE(LOWER(:userId), '-', '') AND r.isWin = true AND r.playedAt >= :time")
+    long countByUserIdAndIsWinTrueAndPlayedAtAfter(@Param("userId") String userId, @Param("time") java.time.LocalDateTime time);
+
     @Query("SELECT HOUR(b.playedAt) as hr, COUNT(b) as cnt FROM BattleRecord b GROUP BY HOUR(b.playedAt) ORDER BY HOUR(b.playedAt)")
     List<Object[]> countBattlesByHour();
 

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>聚会桌游吧 · 官方门户与 Android 客户端下载 ({{VERSION}})</title>
+    <style>
+        :root {
+            --bg-dark: #0b1120;
+            --bg-panel: rgba(30, 41, 59, 0.78);
+            --emerald: #10b981;
+            --emerald-glow: rgba(16, 185, 129, 0.35);
+            --amber: #f59e0b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(148, 163, 184, 0.18);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { max-width: 100%; overflow-x: hidden; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background:
+                radial-gradient(circle at 15% 15%, rgba(16, 185, 129, 0.20), transparent 40%),
+                radial-gradient(circle at 85% 20%, rgba(245, 158, 11, 0.16), transparent 36%),
+                radial-gradient(circle at 50% 90%, rgba(59, 130, 246, 0.16), transparent 45%),
+                var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        a { text-decoration: none; color: inherit; }
+        .container { width: 100%; max-width: 1080px; margin: 0 auto; padding: 20px 18px 56px; }
+
+        /* Top Nav */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 18px;
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(16px);
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+        }
+        .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 16px; }
+        .brand-logo {
+            width: 36px; height: 36px; border-radius: 11px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; box-shadow: 0 4px 14px var(--emerald-glow);
+        }
+        .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
+        .nav-pill {
+            padding: 7px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+            background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border);
+            transition: transform 0.18s ease, background 0.18s ease;
+        }
+        .nav-pill:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.15); }
+        .nav-pill.cta { background: var(--emerald); color: #052e16; border-color: transparent; }
+
+        /* Hero Grid */
+        .hero {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 22px;
+            align-items: stretch;
+            margin-bottom: 34px;
+        }
+        @media (min-width: 860px) {
+            .hero { grid-template-columns: 1.15fr 0.85fr; gap: 28px; }
+        }
+        .hero-copy, .release-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 26px;
+            padding: 28px 24px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 22px 48px rgba(0, 0, 0, 0.35);
+        }
+        .status-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 12px; border-radius: 999px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.38);
+            color: #6ee7b7; font-size: 12px; font-weight: 800; margin-bottom: 14px;
+        }
+        .hero-title { font-size: clamp(26px, 4vw, 38px); font-weight: 900; line-height: 1.2; margin-bottom: 12px; }
+        .hero-title span { color: #34d399; }
+        .hero-desc { color: var(--text-muted); font-size: 14.5px; margin-bottom: 22px; }
+        .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+        .btn-primary {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 13px 22px; border-radius: 14px; font-weight: 900; font-size: 14.5px;
+            background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+            box-shadow: 0 10px 26px var(--emerald-glow);
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.06); }
+        .btn-secondary {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 13px 20px; border-radius: 14px; font-weight: 800; font-size: 14px;
+            background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border); color: #f8fafc;
+            transition: background 0.2s ease;
+        }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.14); }
+        .trust-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .trust-item {
+            background: rgba(15, 23, 42, 0.55); border: 1px solid var(--border);
+            border-radius: 14px; padding: 10px; font-size: 12px;
+        }
+        .trust-item b { display: block; color: #fde68a; font-size: 13px; margin-bottom: 2px; }
+
+        /* Release Meta Card */
+        .release-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+        .release-icon {
+            width: 60px; height: 60px; border-radius: 18px;
+            background: linear-gradient(135deg, #10b981, #f59e0b);
+            display: flex; align-items: center; justify-content: center; font-size: 32px;
+            flex-shrink: 0;
+        }
+        .meta-list {
+            background: rgba(15, 23, 42, 0.65); border: 1px solid var(--border);
+            border-radius: 16px; padding: 12px 14px; margin-bottom: 16px; font-size: 12.5px;
+        }
+        .meta-row {
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 10px; padding: 6px 0; border-bottom: 1px dashed rgba(148, 163, 184, 0.16);
+        }
+        .meta-row:last-child { border-bottom: none; }
+        .meta-label { color: var(--text-muted); white-space: nowrap; }
+        .meta-val { font-weight: 700; text-align: right; word-break: break-all; }
+        .install-tip {
+            font-size: 11.5px; color: var(--text-muted);
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.22);
+            border-radius: 12px; padding: 10px 12px;
+        }
+
+        /* 4 Games Grid */
+        .section-title { font-size: 20px; font-weight: 900; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+        .games-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+        @media (min-width: 720px) {
+            .games-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        .game-card {
+            background: var(--bg-panel); border: 1px solid var(--border);
+            border-radius: 20px; padding: 20px;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .game-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .game-card-title { font-size: 16.5px; font-weight: 800; }
+        .game-tag { font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; }
+        .game-card p { font-size: 13px; color: var(--text-muted); }
+
+        .footer {
+            text-align: center; font-size: 12px; color: var(--text-muted);
+            padding: 18px 0 calc(18px + env(safe-area-inset-bottom));
+            border-top: 1px solid var(--border);
+        }
+        @media (max-width: 560px) {
+            .container { padding: 14px 14px 36px; }
+            .hero-copy, .release-card { padding: 22px 16px; border-radius: 20px; }
+            .trust-row { grid-template-columns: 1fr; }
+            .hero-actions a { width: 100%; }
+            .topbar { gap: 10px; }
+            .nav-links { width: 100%; }
+            .nav-pill { flex: 1; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-logo">🎲</div>
+                <div>
+                    <div>聚会桌游吧 · Party Game</div>
+                    <div style="font-size:11px; color:#94a3b8; font-weight:600;">商业级跨端实时联机派对平台</div>
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a class="nav-pill" href="{{WEB_PLAY_URL}}">🌐 网页即玩端</a>
+                <a class="nav-pill cta" href="{{DOWNLOAD_URL}}">📲 下载 APK ({{VERSION}})</a>
+            </nav>
+        </header>
+
+        <section class="hero">
+            <div class="hero-copy">
+                <div class="status-chip">✨ {{STATUS_BADGE}}</div>
+                <h1 class="hero-title">把酒吧与桌游屋搬进手机：<span>随时随地 5 秒开局</span></h1>
+                <p class="hero-desc">
+                    支持 Web 浏览器与 Android 客户端实时联机对战、跨端账号资产同步、全服广播礼物特效、AI 智能补位托管及服务端权威反作弊裁决。
+                </p>
+                <div class="hero-actions">
+                    <a id="btnApkDownload" class="btn-primary" href="{{DOWNLOAD_URL}}">🚀 立即下载 Android APK ({{VERSION}})</a>
+                    <a id="btnWebLaunch" class="btn-secondary" href="{{WEB_PLAY_URL}}">⚡ 免下载直接进入网页版</a>
+                </div>
+                <div class="trust-row">
+                    <div class="trust-item"><b>WebSocket 秒级同步</b>断线重连自动托管不坑队友</div>
+                    <div class="trust-item"><b>权威随机校验</b>全服务端发牌摇骰防作弊</div>
+                    <div class="trust-item"><b>双端数据互通</b>手机号验证码 / 扫码一键互登</div>
+                </div>
+            </div>
+
+            <aside class="release-card">
+                <div class="release-head">
+                    <div class="release-icon">📦</div>
+                    <div>
+                        <div style="font-size:18px; font-weight:900;">Android 官方安装包</div>
+                        <div style="font-size:12px; color:#6ee7b7; font-weight:700;">版本标识：{{VERSION}}</div>
+                    </div>
+                </div>
+                <div class="meta-list">
+                    <div class="meta-row"><span class="meta-label">安装包名称</span><span class="meta-val" style="color:#38bdf8;">{{APK_NAME}}</span></div>
+                    <div class="meta-row"><span class="meta-label">安装包体积</span><span class="meta-val">{{SIZE_MB}}</span></div>
+                    <div class="meta-row"><span class="meta-label">发布时间</span><span class="meta-val">{{MOD_TIME}}</span></div>
+                    <div class="meta-row"><span class="meta-label">系统兼容</span><span class="meta-val">Android 5.0+ (ARM64 / ARMv7)</span></div>
+                    <div class="meta-row"><span class="meta-label">状态说明</span><span class="meta-val" style="color:#fde68a;">{{STATUS_BADGE}}</span></div>
+                </div>
+                <div class="install-tip">
+                    💡 <b>安装指引：</b>Android 下载完成后点击安装，若系统提示“未知来源应用”，请在系统设置中勾选信任当前浏览器即可；也可直接点击上方“进入网页版”免安装畅玩全部 4 款玩法。
+                </div>
+            </aside>
+        </section>
+
+        <h2 class="section-title">🎮 精选四大核心派对玩法</h2>
+        <section class="games-grid">
+            <article class="game-card" style="border-left:4px solid #f59e0b;">
+                <div class="game-card-top">
+                    <div class="game-card-title">🐂 谁是牛头王 (Take 6!)</div>
+                    <span class="game-tag" style="background:rgba(245,158,11,0.18); color:#fcd34d;">德式策略 · 避坑预览</span>
+                </div>
+                <p>全员同时暗扣出牌、升序接龙，智能标红第6张爆行风险与最小落点预览，支持断线托管与全服排名结算。</p>
+            </article>
+            <article class="game-card" style="border-left:4px solid #3b82f6;">
+                <div class="game-card-top">
+                    <div class="game-card-title">🎲 大话骰吹牛 (Liar's Dice)</div>
+                    <span class="game-card-badge game-tag" style="background:rgba(59,130,246,0.18); color:#93c5fd;">酒桌经典 · 精准2x</span>
+                </div>
+                <p>支持 1 点飞万能与叫【斋】、纯 1 大于 6、顺子重摇、豹子 +1 奖励及“刚好 (Spot On)”双倍绝杀裁决！</p>
+            </article>
+            <article class="game-card" style="border-left:4px solid #ec4899;">
+                <div class="game-card-top">
+                    <div class="game-card-title">🎡 聚会大冒险大转盘</div>
+                    <span class="game-tag" style="background:rgba(236,72,153,0.18); color:#f9a8d4;">四大场景 · 题库下发</span>
+                </div>
+                <p>内置破冰局、老友狂欢、心动微醺、才艺高能四套权威不重样题库，全桌同步动画停盘并记录历史。</p>
+            </article>
+            <article class="game-card" style="border-left:4px solid #10b981;">
+                <div class="game-card-top">
+                    <div class="game-card-title">🕵️ 谁是卧底 (Undercover)</div>
+                    <span class="game-tag" style="background:rgba(16,185,129,0.18); color:#6ee7b7;">逻辑推理 · 平票PK</span>
+                </div>
+                <p>支持白板高阶局、私密防窥底词卡、麦序轮流发言、平票 PK 复投机制与局终全部底词阵营揭晓。</p>
+            </article>
+        </section>
+
+        <footer class="footer">
+            聚会桌游吧 (Party Game) · 官方分发页面 · 仅限健康绿色线上娱乐使用
+        </footer>
+    </div>
+</body>
+</html>

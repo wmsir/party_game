@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_version.dart';
+import '../../core/widgets/commercial_ui_kit.dart';
+import '../../main.dart';
 import '../../models/saved_account_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/friend_provider.dart';
@@ -36,6 +38,9 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initSavedAccount();
     });
@@ -331,7 +336,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                 constraints: const BoxConstraints(maxWidth: 420),
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: AppColors.cardSurface,
+                  color: AppColors.adaptiveCardSurface(context),
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
                   boxShadow: [
@@ -350,17 +355,17 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
-                          children: const [
-                            Text('🎮', style: TextStyle(fontSize: 24)),
-                            SizedBox(width: 8),
+                          children: [
+                            const Text('🎮', style: TextStyle(fontSize: 24)),
+                            const SizedBox(width: 8),
                             Text(
                               '手机验证码 · 免费极速试玩',
-                              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: AppColors.adaptiveTextPrimary(context), fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: AppColors.textSecondary, size: 20),
+                          icon: Icon(Icons.close, color: AppColors.adaptiveTextSecondary(context), size: 20),
                           onPressed: () {
                             timer?.cancel();
                             Navigator.of(dlgCtx).pop();
@@ -416,7 +421,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                                   width: 90,
                                   child: Text(
                                     '${countdown}s 后重发',
-                                    style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.bold),
+                                    style: TextStyle(color: AppColors.adaptiveTextMuted(context), fontSize: 12, fontWeight: FontWeight.bold),
                                   ),
                                 )
                               : TextButton(
@@ -488,251 +493,252 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final isDark = AppColors.isDarkMode(context);
 
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 20),
-              // 应用官方设计 Logo 与标识
-              Container(
-                width: 92,
-                height: 92,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF6366F1).withOpacity(0.35),
-                      blurRadius: 22,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(21),
-                  child: Image.asset(
-                    'assets/images/app_logo.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      onPressed: () => PartyGameApp.toggleThemeMode(context),
+                      tooltip: isDark ? '切换明亮护眼模式' : '切换暗夜模式',
+                      icon: Icon(
+                        isDark ? Icons.wb_sunny_rounded : Icons.nightlight_round,
+                        color: isDark ? const Color(0xFFFBBF24) : AppColors.primary,
                       ),
-                      child: const Center(child: Text('🎲', style: TextStyle(fontSize: 44))),
                     ),
                   ),
-                ),
+                  // 应用官方设计 Logo 与商业化翡翠金色光环
+                  Container(
+                    width: 92,
+                    height: 92,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: const LinearGradient(
+                        colors: [AppColors.primary, AppColors.accent],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.30),
+                          blurRadius: 22,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(21),
+                      child: Image.asset(
+                        'assets/images/app_logo.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [AppColors.primary, AppColors.primaryDark],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: const Center(child: Text('🎲', style: TextStyle(fontSize: 44))),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    '聚会桌游俱乐部',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                      color: AppColors.adaptiveTextPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Party Game Club · 大话骰 · 牛头王 · 聚会转盘 · 谁是卧底',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: AppColors.adaptiveTextSecondary(context)),
+                  ),
+                  const SizedBox(height: 22),
+
+                  // 记住的历史账号快捷选用卡片 (一键登录 / 选用 / 切换其他账号)
+                  _buildSavedAccountCard(auth),
+
+                  // 登录方式 Tab
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.adaptiveCard(context),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.adaptiveBorder(context)),
+                    ),
+                    child: TabBar(
+                      controller: _tabController,
+                      indicatorColor: AppColors.adaptivePrimary(context),
+                      indicatorWeight: 3,
+                      labelColor: AppColors.adaptivePrimary(context),
+                      unselectedLabelColor: AppColors.adaptiveTextMuted(context),
+                      tabs: const [
+                        Tab(text: '手机验证码登录'),
+                        Tab(text: '账号密码登录'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+              // Tab 表单内容 (自适应高度，兼容系统字体放大与短信辅助条不溢出)
+              AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: _tabController.index == 0
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextField(
+                            controller: _phoneCtrl,
+                            keyboardType: TextInputType.phone,
+                            decoration: InputDecoration(
+                              labelText: '手机号码',
+                              hintText: '请输入11位大陆手机号',
+                              prefixIcon: const Icon(Icons.phone_android),
+                              suffixIcon: _phoneCtrl.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, size: 18),
+                                      onPressed: () => setState(() => _phoneCtrl.clear()),
+                                    )
+                                  : null,
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _codeCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: '短信验证码',
+                              hintText: '请输入6位验证码',
+                              prefixIcon: const Icon(Icons.shield_outlined),
+                              suffixIcon: Padding(
+                                padding: const EdgeInsets.only(right: 6.0),
+                                child: _countdown > 0
+                                    ? Container(
+                                        alignment: Alignment.center,
+                                        width: 96,
+                                        child: Text(
+                                          '${_countdown}s 后重发',
+                                          style: TextStyle(color: AppColors.adaptiveTextMuted(context), fontSize: 13, fontWeight: FontWeight.bold),
+                                        ),
+                                      )
+                                    : TextButton(
+                                        onPressed: _isSendingCode ? null : _onSendSmsCode,
+                                        child: _isSendingCode
+                                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                            : const Text('获取验证码', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+
+                          // 模拟短信即时填入与测试辅助条
+                          if (_mockSmsCodeReceived != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              margin: const EdgeInsets.only(bottom: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.mark_email_unread_outlined, size: 16, color: Color(0xFFF59E0B)),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      '模拟短信码: $_mockSmsCodeReceived',
+                                      style: const TextStyle(fontSize: 12, color: Color(0xFFF59E0B), fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: () {
+                                      setState(() => _codeCtrl.text = _mockSmsCodeReceived!);
+                                    },
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      child: Text('一键填入', style: TextStyle(color: AppColors.primaryLight, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                          // 新手自动注册说明
+                          Row(
+                            children: [
+                              const Icon(Icons.bolt, color: AppColors.accent, size: 16),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  '新手机号验证后将自动完成注册并赠送新手福利',
+                                  style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 11),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          TextField(
+                            controller: _accountUserCtrl,
+                            decoration: const InputDecoration(
+                              labelText: '统一登录账号',
+                              hintText: '支持 用户名 / 手机号 / 邮箱 登录',
+                              prefixIcon: Icon(Icons.person_outline),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          TextField(
+                            controller: _accountPwdCtrl,
+                            obscureText: _obscurePassword,
+                            decoration: InputDecoration(
+                              labelText: '密码',
+                              hintText: '请输入登录密码',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                              ),
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => const ForgotPasswordDialog(),
+                                );
+                              },
+                              child: Text('忘记密码？', style: TextStyle(fontSize: 12, color: AppColors.adaptiveTextMuted(context))),
+                            ),
+                          ),
+                        ],
+                      ),
               ),
               const SizedBox(height: 14),
-              const Text(
-                '聚会桌游俱乐部',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Party Game Club · 大话骰 · 牛头王 · 聚会转盘 · 谁是卧底',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 22),
-
-              // 记住的历史账号快捷选用卡片 (一键登录 / 选用 / 切换其他账号)
-              _buildSavedAccountCard(auth),
-
-              // 登录方式 Tab
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.bgCard,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicatorColor: AppColors.primary,
-                  indicatorWeight: 3,
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: AppColors.textMuted,
-                  tabs: const [
-                    Tab(text: '手机验证码登录'),
-                    Tab(text: '账号密码登录'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // Tab 表单内容
-              SizedBox(
-                height: 236,
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    // 1. 手机验证码登录 (商业化标准首选)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextField(
-                          controller: _phoneCtrl,
-                          keyboardType: TextInputType.phone,
-                          decoration: InputDecoration(
-                            labelText: '手机号码',
-                            hintText: '请输入11位大陆手机号',
-                            prefixIcon: const Icon(Icons.phone_android),
-                            suffixIcon: _phoneCtrl.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear, size: 18),
-                                    onPressed: () => setState(() => _phoneCtrl.clear()),
-                                  )
-                                : null,
-                          ),
-                          onChanged: (_) => setState(() {}),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _codeCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: '短信验证码',
-                            hintText: '请输入6位验证码',
-                            prefixIcon: const Icon(Icons.shield_outlined),
-                            suffixIcon: Padding(
-                              padding: const EdgeInsets.only(right: 6.0),
-                              child: _countdown > 0
-                                  ? Container(
-                                      alignment: Alignment.center,
-                                      width: 96,
-                                      child: Text(
-                                        '${_countdown}s 后重发',
-                                        style: const TextStyle(color: AppColors.textMuted, fontSize: 13, fontWeight: FontWeight.bold),
-                                      ),
-                                    )
-                                  : TextButton(
-                                      onPressed: _isSendingCode ? null : _onSendSmsCode,
-                                      child: _isSendingCode
-                                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                                          : const Text('获取验证码', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                    ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        // 模拟短信即时填入与测试辅助条
-                        if (_mockSmsCodeReceived != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            margin: const EdgeInsets.only(bottom: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF59E0B).withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.mark_email_unread_outlined, size: 16, color: Color(0xFFF59E0B)),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    '模拟短信码: $_mockSmsCodeReceived',
-                                    style: const TextStyle(fontSize: 12, color: Color(0xFFF59E0B), fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                InkWell(
-                                  onTap: () {
-                                    setState(() => _codeCtrl.text = _mockSmsCodeReceived!);
-                                  },
-                                  child: const Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                    child: Text('一键填入', style: TextStyle(color: AppColors.primaryLight, fontSize: 12, fontWeight: FontWeight.bold)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        // 商业化新手福利说明 & 万能测试提示
-                        Row(
-                          children: [
-                            const Icon(Icons.bolt, color: AppColors.accent, size: 16),
-                            const SizedBox(width: 4),
-                            const Expanded(
-                              child: Text(
-                                '新手机号登录直接自动入库开户；万能测试码 888888',
-                                style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
-                              ),
-                            ),
-                            InkWell(
-                              onTap: () {
-                                setState(() => _codeCtrl.text = '888888');
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.bgElevated,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: AppColors.border),
-                                ),
-                                child: const Text('填888888', style: TextStyle(fontSize: 11, color: AppColors.primary)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-
-                    // 2. 账号密码登录
-                    Column(
-                      children: [
-                        TextField(
-                          controller: _accountUserCtrl,
-                          decoration: const InputDecoration(
-                            labelText: '统一登录账号',
-                            hintText: '支持 FWPT 统一通行证账号 / 手机号 / 邮箱',
-                            prefixIcon: Icon(Icons.person_outline),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        TextField(
-                          controller: _accountPwdCtrl,
-                          obscureText: _obscurePassword,
-                          decoration: InputDecoration(
-                            labelText: '密码',
-                            hintText: '请输入登录密码',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                            ),
-                          ),
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (_) => const ForgotPasswordDialog(),
-                              );
-                            },
-                            child: const Text('忘记密码？', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
 
               // 登录按钮
               SizedBox(
@@ -777,7 +783,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('还没有聚会账号？', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  Text('还没有聚会账号？', style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 13)),
                   TextButton(
                     onPressed: () {
                       Navigator.push(
@@ -799,9 +805,9 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.04),
+                    color: AppColors.adaptiveElevated(context).withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: AppColors.adaptiveBorder(context)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -817,8 +823,8 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                       const SizedBox(width: 8),
                       Text(
                         '聚会桌游吧 v${AppVersionInfo.versionName} · 构建: ${AppVersionInfo.buildTime}',
-                        style: const TextStyle(
-                          color: AppColors.textMuted,
+                        style: TextStyle(
+                          color: AppColors.adaptiveTextMuted(context),
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.2,
@@ -828,9 +834,29 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                   ),
                 ),
               ),
+              const SizedBox(height: 10),
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 4,
+                children: [
+                  Text('登录即代表同意', style: TextStyle(color: AppColors.adaptiveTextMuted(context), fontSize: 11)),
+                  InkWell(
+                    onTap: () => LegalAgreementDialog.show(context),
+                    child: const Text('《用户服务协议》', style: TextStyle(color: AppColors.primaryLight, fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                  Text('与', style: TextStyle(color: AppColors.adaptiveTextMuted(context), fontSize: 11)),
+                  InkWell(
+                    onTap: () => LegalAgreementDialog.show(context, isPrivacy: true),
+                    child: const Text('《隐私保护声明》', style: TextStyle(color: AppColors.primaryLight, fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
               const SizedBox(height: 6),
             ],
           ),
+        ),
+        ),
         ),
       ),
     );
@@ -841,24 +867,24 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
     if (list.isEmpty) return const SizedBox.shrink();
 
     final current = _selectedAccount ?? list.first;
+    final isDark = AppColors.isDarkMode(context);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF1E293B),
-            Color(0xFF0F172A),
-          ],
+        gradient: LinearGradient(
+          colors: isDark
+              ? const [Color(0xFF1E293B), Color(0xFF0F172A)]
+              : const [Color(0xFFFFFFFF), Color(0xFFF0F9F4)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withOpacity(0.5), width: 1.2),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.45), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.12),
+            color: AppColors.primary.withValues(alpha: 0.12),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -871,13 +897,13 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
-                children: const [
-                  Icon(Icons.history_toggle_off, color: AppColors.primaryLight, size: 16),
-                  SizedBox(width: 6),
+                children: [
+                  const Icon(Icons.history_toggle_off, color: AppColors.primaryLight, size: 16),
+                  const SizedBox(width: 6),
                   Text(
                     '已保存的历史账号',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: AppColors.adaptiveTextPrimary(context),
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                     ),
@@ -912,8 +938,8 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                 height: 44,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.bgElevated,
-                  border: Border.all(color: AppColors.border),
+                  color: AppColors.adaptiveElevated(context),
+                  border: Border.all(color: AppColors.adaptiveBorder(context)),
                 ),
                 alignment: Alignment.center,
                 child: Text(
@@ -931,8 +957,8 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                         Flexible(
                           child: Text(
                             current.nickname,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: AppColors.adaptiveTextPrimary(context),
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),
@@ -971,8 +997,8 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                     const SizedBox(height: 3),
                     Text(
                       _maskAccount(current.displayAccount),
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: AppColors.adaptiveTextSecondary(context),
                         fontSize: 12,
                       ),
                     ),
@@ -1002,7 +1028,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
   void _showAccountSwitchSheet(AuthProvider auth) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: AppColors.adaptiveCardSurface(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -1022,34 +1048,34 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         '选择或切换已存账号',
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: AppColors.adaptiveTextPrimary(context),
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                        icon: Icon(Icons.close, color: AppColors.adaptiveTextSecondary(context)),
                         onPressed: () => Navigator.pop(sheetCtx),
                       ),
                     ],
                   ),
-                  const Divider(color: AppColors.border),
+                  Divider(color: AppColors.adaptiveBorder(context)),
                   const SizedBox(height: 8),
                   if (list.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
                       child: Center(
-                        child: Text('暂无记住的账号', style: TextStyle(color: AppColors.textMuted)),
+                        child: Text('暂无记住的账号', style: TextStyle(color: AppColors.adaptiveTextMuted(context))),
                       ),
                     )
                   else
                     Expanded(
                       child: ListView.separated(
                         itemCount: list.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.border),
+                        separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.adaptiveBorder(context)),
                         itemBuilder: (c, idx) {
                           final acc = list[idx];
                           final isCurrent = _selectedAccount?.id == acc.id;
@@ -1060,8 +1086,8 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                               height: 42,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: AppColors.bgElevated,
-                                border: Border.all(color: isCurrent ? AppColors.primary : AppColors.border),
+                                color: AppColors.adaptiveElevated(context),
+                                border: Border.all(color: isCurrent ? AppColors.primary : AppColors.adaptiveBorder(context)),
                               ),
                               alignment: Alignment.center,
                               child: Text(acc.avatar.isNotEmpty ? acc.avatar : '🦊', style: const TextStyle(fontSize: 22)),
@@ -1073,7 +1099,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                                     acc.nickname,
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: isCurrent ? AppColors.primary : AppColors.textPrimary,
+                                      color: isCurrent ? AppColors.primary : AppColors.adaptiveTextPrimary(context),
                                       fontSize: 14,
                                     ),
                                     maxLines: 1,
@@ -1094,7 +1120,7 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                             ),
                             subtitle: Text(
                               '${acc.loginType == 'phone' ? '📱 手机号' : (acc.loginType == 'guest' ? '🎮 游客' : '👤 账号')}: ${_maskAccount(acc.displayAccount)}',
-                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                              style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 12),
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1146,8 +1172,8 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
                     height: 44,
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
-                        side: const BorderSide(color: AppColors.border),
+                        foregroundColor: AppColors.adaptiveTextPrimary(context),
+                        side: BorderSide(color: AppColors.adaptiveBorder(context)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
@@ -1196,25 +1222,16 @@ class _LoginViewState extends State<LoginView> with SingleTickerProviderStateMix
     } else if (acc.loginType == 'guest') {
       _onGuestLogin();
     } else {
-      // 手机号登录：直接使用万能验证码自动极速登入，无需手动填写
       final phone = acc.phone.isNotEmpty ? acc.phone : acc.username;
-      _codeCtrl.text = '888888';
-      final ok = await auth.loginWithPhone(phone, '888888');
-      if (ok && mounted) {
-        messenger.clearSnackBars();
-        final user = auth.user;
-        if (user != null) {
-          context.read<FriendProvider>().refresh(user.id);
-        }
-      } else if (!ok && mounted) {
-        _tabController.animateTo(0);
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(auth.errorMessage ?? '自动登入失败，请点击获取验证码'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-      }
+      _phoneCtrl.text = phone;
+      _codeCtrl.clear();
+      _tabController.animateTo(0);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('已为您填入手机号 ${_maskAccount(phone)}，请点击【获取验证码】完成安全验证'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
     }
   }
 

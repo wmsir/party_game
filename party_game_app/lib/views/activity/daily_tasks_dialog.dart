@@ -85,7 +85,7 @@ class _DailyTasksDialogState extends State<DailyTasksDialog> {
       child: Container(
         constraints: const BoxConstraints(maxWidth: 480),
         decoration: BoxDecoration(
-          color: AppColors.cardSurface,
+          color: AppColors.adaptiveCardSurface(context),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: const Color(0xFF10B981), width: 1.5),
           boxShadow: [
@@ -152,9 +152,9 @@ class _DailyTasksDialogState extends State<DailyTasksDialog> {
                   return Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.bgElevated,
+                      color: AppColors.adaptiveElevated(ctx),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: AppColors.adaptiveBorder(ctx)),
                     ),
                     child: Row(
                       children: [
@@ -164,7 +164,7 @@ class _DailyTasksDialogState extends State<DailyTasksDialog> {
                             children: [
                               Text(
                                 t.title,
-                                style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
+                                style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 13),
                               ),
                               const SizedBox(height: 4),
                               Row(
@@ -182,7 +182,7 @@ class _DailyTasksDialogState extends State<DailyTasksDialog> {
                                       borderRadius: BorderRadius.circular(4),
                                       child: LinearProgressIndicator(
                                         value: t.progress,
-                                        backgroundColor: AppColors.bgDark,
+                                        backgroundColor: AppColors.adaptiveBgDark(ctx),
                                         valueColor: AlwaysStoppedAnimation<Color>(
                                           isDone ? const Color(0xFF10B981) : const Color(0xFF38BDF8),
                                         ),
@@ -194,7 +194,7 @@ class _DailyTasksDialogState extends State<DailyTasksDialog> {
                                   Text(
                                     '${t.current}/${t.target}',
                                     style: TextStyle(
-                                      color: isDone ? const Color(0xFF10B981) : AppColors.textMuted,
+                                      color: isDone ? const Color(0xFF10B981) : AppColors.adaptiveTextMuted(ctx),
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -207,7 +207,7 @@ class _DailyTasksDialogState extends State<DailyTasksDialog> {
                         const SizedBox(width: 12),
                         // 领取或去完成按钮
                         if (t.isClaimed)
-                          const Text('已领取', style: TextStyle(color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.bold))
+                          Text('已领取', style: TextStyle(color: AppColors.adaptiveTextMuted(ctx), fontSize: 12, fontWeight: FontWeight.bold))
                         else if (isDone)
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(

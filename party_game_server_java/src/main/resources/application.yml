@@ -1,5 +1,9 @@
 server:
   port: 9001
+  shutdown: graceful
+  compression:
+    enabled: true
+    min-response-size: 1024
   servlet:
     encoding:
       charset: UTF-8
@@ -8,6 +12,8 @@ server:
 spring:
   application:
     name: party-game-server
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://127.0.0.1:3306/party_game_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&characterEncoding=UTF-8}
     username: ${SPRING_DATASOURCE_USERNAME:root}
@@ -27,6 +33,32 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+party:
+  public-base-url: ${PARTY_PUBLIC_BASE_URL:http://localhost:9001}
+  cors:
+    allowed-origins: ${PARTY_CORS_ALLOWED_ORIGINS:https://fwpt.cn,https://*.fwpt.cn,http://localhost:*,http://127.0.0.1:*}
+  ws:
+    allowed-origins: ${PARTY_WS_ALLOWED_ORIGINS:https://fwpt.cn,https://*.fwpt.cn,http://localhost:*,http://127.0.0.1:*}
+  auth:
+    allow-passwordless-phone: ${PARTY_ALLOW_PASSWORDLESS_PHONE:false}
+  sms:
+    sandbox-mode: ${PARTY_SMS_SANDBOX:true}
+  payment:
+    sandbox-enabled: ${PARTY_PAYMENT_SANDBOX:true}
+  admin:
+    password-hash: ${PARTY_ADMIN_PASSWORD_HASH:}
+    password: ${PARTY_ADMIN_PASSWORD:}
+    allowed-usernames: ${PARTY_ADMIN_USERNAMES:admin}
 
 logging:
   level:

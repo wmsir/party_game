@@ -1,38 +1,135 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
-
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="聚会桌游吧 (Party Game) 官方跨端实时对战应用：谁是牛头王、大话骰吹牛、聚会大冒险转盘、谁是卧底。">
+  <meta name="theme-color" content="#1B8354" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0F172A" media="(prefers-color-scheme: dark)">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="party_game_app">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="聚会桌游吧">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png">
 
-  <title>party_game_app</title>
+  <title>聚会桌游吧 · Party Game 官方在线端</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #0F172A;
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      overflow: hidden;
+    }
+    #pg-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+      box-sizing: border-box;
+      text-align: center;
+      background:
+        radial-gradient(circle at 30% 25%, rgba(27, 131, 84, 0.35), transparent 45%),
+        radial-gradient(circle at 75% 80%, rgba(245, 158, 11, 0.20), transparent 45%),
+        #0F172A;
+      color: #F8FAFC;
+      transition: opacity 0.35s ease;
+    }
+    #pg-splash.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .pg-splash-badge {
+      width: 76px;
+      height: 76px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, #1B8354, #10B981);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      box-shadow: 0 14px 34px rgba(16, 185, 129, 0.35);
+      margin-bottom: 16px;
+    }
+    .pg-splash-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      margin-bottom: 6px;
+    }
+    .pg-splash-sub {
+      font-size: 12.5px;
+      color: #94A3B8;
+      margin-bottom: 20px;
+    }
+    .pg-splash-bar {
+      width: 160px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+    }
+    .pg-splash-fill {
+      width: 45%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #10B981, #F59E0B);
+      animation: pgLoad 1.2s ease-in-out infinite;
+    }
+    .pg-splash-tip {
+      margin-top: 14px;
+      font-size: 11.5px;
+      color: #CBD5E1;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .pg-splash-tip.visible {
+      opacity: 1;
+    }
+    @keyframes pgLoad {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(260%); }
+    }
+  </style>
 </head>
 <body>
+  <div id="pg-splash" aria-label="正在加载聚会桌游吧">
+    <div class="pg-splash-badge">🎲</div>
+    <div class="pg-splash-title">聚会桌游吧</div>
+    <div class="pg-splash-sub">正在连接牌桌与实时联机引擎...</div>
+    <div class="pg-splash-bar"><div class="pg-splash-fill"></div></div>
+    <div id="pg-splash-tip" class="pg-splash-tip">首次加载渲染引擎资源较多，请稍候片刻...</div>
+  </div>
+  <script>
+    (function () {
+      var slowTimer = setTimeout(function () {
+        var tip = document.getElementById('pg-splash-tip');
+        if (tip) tip.classList.add('visible');
+      }, 8000);
+      window.addEventListener('flutter-first-frame', function () {
+        clearTimeout(slowTimer);
+        var splash = document.getElementById('pg-splash');
+        if (!splash) return;
+        splash.classList.add('hidden');
+        setTimeout(function () {
+          if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+        }, 380);
+      });
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

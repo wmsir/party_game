@@ -37,25 +37,25 @@ class FirstRechargeDialog extends StatelessWidget {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.cardSurface,
+          backgroundColor: AppColors.adaptiveCard(ctx),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Row(
             children: [
               Text('🎉 ', style: TextStyle(fontSize: 24)),
-              Text('首充豪礼领取成功！', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.amber)),
+              Flexible(child: Text('首充豪礼领取成功！', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFFD97706)))),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('恭喜客官解锁聚会首充大礼包，以下丰厚资产已到账：', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+              Text('恭喜客官解锁聚会首充大礼包，以下丰厚资产已到账：', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 13)),
               const SizedBox(height: 12),
-              _buildRewardItem('👑 绝版【紫晶星系】奢华骰蛊', '已自动穿戴'),
-              _buildRewardItem('🐉「凤舞龙吟」全服入场横幅', '已自动激活'),
-              _buildRewardItem('🪙 66,666 聚会金币', '已存入钱包'),
-              _buildRewardItem('💎 666 尊享钻石', '已存入钱包'),
-              _buildRewardItem('⭐ VIP 贵族成长值 +60 点', '直升 VIP 1'),
+              _buildRewardItem(ctx, '👑 绝版【紫晶星系】奢华骰蛊', '已自动穿戴'),
+              _buildRewardItem(ctx, '🐉「凤舞龙吟」全服入场横幅', '已自动激活'),
+              _buildRewardItem(ctx, '🪙 66,666 聚会金币', '已存入钱包'),
+              _buildRewardItem(ctx, '💎 666 尊享钻石', '已存入钱包'),
+              _buildRewardItem(ctx, '⭐ VIP 贵族成长值 +60 点', '直升 VIP 1'),
             ],
           ),
           actions: [
@@ -74,15 +74,15 @@ class FirstRechargeDialog extends StatelessWidget {
     }
   }
 
-  static Widget _buildRewardItem(String title, String status) {
+  static Widget _buildRewardItem(BuildContext context, String title, String status) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         children: [
           const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 16),
           const SizedBox(width: 8),
-          Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white))),
-          Text(status, style: const TextStyle(color: AppColors.accent, fontSize: 11)),
+          Expanded(child: Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.adaptiveTextPrimary(context)))),
+          Text(status, style: TextStyle(color: AppColors.adaptiveAccent(context), fontSize: 11, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -90,18 +90,19 @@ class FirstRechargeDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final maxDialogHeight = (MediaQuery.sizeOf(context).height * 0.88).clamp(380.0, 680.0);
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 440),
+        constraints: BoxConstraints(maxWidth: 440, maxHeight: maxDialogHeight),
         decoration: BoxDecoration(
           color: const Color(0xFF181126),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: const Color(0xFFF59E0B), width: 2),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFF59E0B).withOpacity(0.35),
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
               blurRadius: 28,
               spreadRadius: 2,
             ),
@@ -109,9 +110,10 @@ class FirstRechargeDialog extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 // 顶部聚光灯横幅
                 Container(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
@@ -206,12 +208,14 @@ class FirstRechargeDialog extends StatelessWidget {
                       const SizedBox(height: 10),
                       const Text(
                         '支持微信支付 · 支付宝 · 苹果 App Store 模拟沙盒免密扣款',
-                        style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
                       ),
                     ],
                   ),
                 ),
               ],
+            ),
             ),
 
             // 关闭按钮
@@ -236,7 +240,7 @@ class FirstRechargeDialog extends StatelessWidget {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
+            color: Colors.white.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Center(child: Text(icon, style: const TextStyle(fontSize: 22))),
@@ -248,12 +252,19 @@ class FirstRechargeDialog extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                  Flexible(
+                    child: Text(
+                      title,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                   const SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF59E0B).withOpacity(0.2),
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(tag, style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 10, fontWeight: FontWeight.bold)),
@@ -261,7 +272,7 @@ class FirstRechargeDialog extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 2),
-              Text(desc, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+              Text(desc, style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 11)),
             ],
           ),
         ),

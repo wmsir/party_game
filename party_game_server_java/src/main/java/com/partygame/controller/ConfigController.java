@@ -14,7 +14,6 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class ConfigController {
 
     private final ConfigService configService;

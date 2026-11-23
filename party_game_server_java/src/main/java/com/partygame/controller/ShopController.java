@@ -47,7 +47,46 @@ public class ShopController {
     }
 
     /**
-     * 官方商业化充值与收银台支付 (支持微信支付 WXPAY / 支付宝 ALIPAY 模拟支付与入账)
+     * 创建商业化充值订单 (PENDING 待支付状态，用于标准微信/支付宝收银台与验签回调)
+     */
+    @PostMapping({"/api/shop/order/create", "/party-game/api/shop/order/create"})
+    public ResponseEntity<?> createOrder(@RequestBody Map<String, String> body) {
+        String userId = body.get("userId");
+        String tierId = body.get("tierId");
+        String payChannel = body.get("payChannel");
+        if (userId == null || userId.trim().isEmpty() || tierId == null || tierId.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(createError("参数错误"));
+        }
+        try {
+            Map<String, Object> res = shopService.createOrder(userId, tierId, payChannel);
+            return ResponseEntity.ok(createSuccess(res));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+        }
+    }
+
+    /**
+     * 幂等确认订单到账 (接收支付凭证流水号并核销入账)
+     */
+    @PostMapping({"/api/shop/order/confirm", "/party-game/api/shop/order/confirm"})
+    public ResponseEntity<?> confirmOrder(@RequestBody Map<String, String> body) {
+        String orderId = body.get("orderId");
+        String tradeNo = body.get("tradeNo");
+        if (orderId == null || orderId.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(createError("订单号不能为空"));
+        }
+        try {
+            Map<String, Object> res = shopService.confirmOrder(orderId, tradeNo);
+            Map<String, Object> resp = createSuccess(res);
+            resp.put("message", "🎉 订单支付确认成功！钻石与金币已到账！");
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+        }
+    }
+
+    /**
+     * 官方商业化充值与收银台支付 (支持微信支付 WXPAY / 支付宝 ALIPAY 沙盒支付与订单留痕)
      */
     @PostMapping({"/api/shop/pay", "/party-game/api/shop/pay"})
     public ResponseEntity<?> pay(@RequestBody Map<String, String> body) {
@@ -71,7 +110,7 @@ public class ShopController {
     /**
      * 充值加币与升级 VIP (兼容老接口，默认走微信支付通道)
      */
-    @PostMapping("/api/shop/recharge")
+    @PostMapping({"/api/shop/recharge", "/party-game/api/shop/recharge"})
     public ResponseEntity<?> recharge(@RequestBody Map<String, String> body) {
         String userId = body.get("userId");
         String tierId = body.get("tierId");
@@ -194,43 +233,26 @@ public class ShopController {
     }
 
     /**
-     * 每日任务
+     * 每日任务 (基于今日真实对局与互动进度)
      */
-    @GetMapping("/api/tasks/daily")
+    @GetMapping({"/api/tasks/daily", "/party-game/api/tasks/daily"})
     public ResponseEntity<?> getDailyTasks(@RequestParam(required = false) String userId) {
-        List<Map<String, Object>> tasks = new ArrayList<>();
-        tasks.add(createTask("task_login", "每日登录打卡", 1, 1, 100, 5, false));
-        tasks.add(createTask("task_play_1", "参与 1 局聚会桌游", 1, 0, 200, 10, false));
-        tasks.add(createTask("task_win_1", "赢得 1 场排位对局", 1, 0, 300, 15, false));
-        tasks.add(createTask("task_throw_3", "向好友投掷 3 次互动道具", 3, 0, 150, 5, false));
-        tasks.add(createTask("task_play_3", "累计完成 3 局桌游", 3, 0, 500, 30, false));
-        return ResponseEntity.ok(createSuccess(tasks));
+        return ResponseEntity.ok(createSuccess(shopService.getDailyTasks(userId)));
     }
 
-    @PostMapping("/api/tasks/claim")
+    @PostMapping({"/api/tasks/claim", "/party-game/api/tasks/claim"})
     public ResponseEntity<?> claimTask(@RequestBody Map<String, String> body) {
         String userId = body.get("userId");
         String taskId = body.get("taskId");
         if (userId == null || taskId == null) return ResponseEntity.badRequest().body(createError("参数错误"));
-        User user = userService.getUserById(userId).orElseThrow(() -> new IllegalArgumentException("用户不存在"));
-        user.setCoins((user.getCoins() != null ? user.getCoins() : 0) + 200);
-        user.setDiamonds((user.getDiamonds() != null ? user.getDiamonds() : 0) + 10);
-        userService.saveUser(user);
-        Map<String, Object> res = createSuccess(user);
-        res.put("message", "🎉 任务奖励已成功领取！");
-        return ResponseEntity.ok(res);
-    }
-
-    private Map<String, Object> createTask(String id, String title, int target, int current, int coins, int diamonds, boolean claimed) {
-        Map<String, Object> map = new HashMap<>();
-        map.put("id", id);
-        map.put("title", title);
-        map.put("target", target);
-        map.put("current", current);
-        map.put("rewardCoins", coins);
-        map.put("rewardDiamonds", diamonds);
-        map.put("isClaimed", claimed);
-        return map;
+        try {
+            Map<String, Object> claimed = shopService.claimDailyTask(userId, taskId);
+            Map<String, Object> res = createSuccess(claimed);
+            res.put("message", "🎉 任务奖励已成功领取！");
+            return ResponseEntity.ok(res);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(createError(e.getMessage()));
+        }
     }
 
     private Map<String, Object> createSuccess(Object data) {

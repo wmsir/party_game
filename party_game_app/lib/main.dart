@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/constants/app_theme.dart';
@@ -30,6 +31,7 @@ void main() async {
   // 初始化本地持久化与音频触感引擎
   await LocalStorage.init();
   GameSoundService().init();
+  PartyGameApp.restoreThemeMode();
 
   runApp(const PartyGameApp());
 }
@@ -39,18 +41,35 @@ class PartyGameApp extends StatelessWidget {
   static final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
   static final ValueNotifier<ThemeMode> themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);
 
+  static void restoreThemeMode() {
+    final saved = LocalStorage.getThemeMode();
+    if (saved == 'dark') {
+      themeModeNotifier.value = ThemeMode.dark;
+      applySystemUiOverlay(ThemeMode.dark);
+    } else if (saved == 'light') {
+      themeModeNotifier.value = ThemeMode.light;
+      applySystemUiOverlay(ThemeMode.light);
+    }
+  }
+
+  static void applySystemUiOverlay(ThemeMode mode) {
+    final isDark = mode == ThemeMode.dark;
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F3EE),
+        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      ),
+    );
+  }
+
   static void toggleThemeMode(BuildContext context) {
     final isCurrentlyDark = Theme.of(context).brightness == Brightness.dark;
     final nextMode = isCurrentlyDark ? ThemeMode.light : ThemeMode.dark;
     themeModeNotifier.value = nextMode;
-    SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: nextMode == ThemeMode.dark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: nextMode == ThemeMode.dark ? const Color(0xFF0F172A) : const Color(0xFFF5F3EE),
-        systemNavigationBarIconBrightness: nextMode == ThemeMode.dark ? Brightness.light : Brightness.dark,
-      ),
-    );
+    LocalStorage.saveThemeMode(nextMode == ThemeMode.dark ? 'dark' : 'light');
+    applySystemUiOverlay(nextMode);
   }
 
   const PartyGameApp({super.key});
@@ -73,16 +92,46 @@ class PartyGameApp extends StatelessWidget {
             scaffoldMessengerKey: PartyGameApp.messengerKey,
             title: '聚会桌游吧 (PartyGame Club)',
             debugShowCheckedModeBanner: false,
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('zh', 'CN'),
+              Locale('en', 'US'),
+            ],
+            locale: const Locale('zh', 'CN'),
             theme: AppTheme.lightEyeCareTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: currentThemeMode,
             builder: (context, child) {
-              return Stack(
-                children: [
-                  if (child != null) child,
-                  // 全服大喇叭与盛典跑马灯：置顶于全 App 最上层（覆盖所有子路由、全屏弹窗与对话框）
-                  const GlobalBlessingMarquee(),
-                ],
+              final mq = MediaQuery.of(context);
+              final clampedScaler = mq.textScaler.clamp(
+                minScaleFactor: 0.9,
+                maxScaleFactor: 1.2,
+              );
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              final overlayStyle = SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+                statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+                systemNavigationBarColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF5F3EE),
+                systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+              );
+
+              return AnnotatedRegion<SystemUiOverlayStyle>(
+                value: overlayStyle,
+                child: MediaQuery(
+                  data: mq.copyWith(textScaler: clampedScaler),
+                  child: Stack(
+                    children: [
+                      if (child != null) child,
+                      // 全服大喇叭与盛典跑马灯：置顶于全 App 最上层（覆盖所有子路由、全屏弹窗与对话框）
+                      const GlobalBlessingMarquee(),
+                    ],
+                  ),
+                ),
               );
             },
             home: Consumer<AuthProvider>(

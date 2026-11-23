@@ -78,11 +78,12 @@ class _MockAdPlayerDialogState extends State<MockAdPlayerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final maxDialogHeight = (MediaQuery.sizeOf(context).height * 0.84).clamp(360.0, 600.0);
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 420, maxHeight: 600),
+        constraints: BoxConstraints(maxWidth: 420, maxHeight: maxDialogHeight),
         decoration: BoxDecoration(
           color: const Color(0xFF0F172A),
           borderRadius: BorderRadius.circular(20),
@@ -119,7 +120,7 @@ class _MockAdPlayerDialogState extends State<MockAdPlayerDialog> {
                   Expanded(
                     child: Text(
                       _canClaim ? '已完成观看，可领奖' : '观看倒计时: ${_countdown}s',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12),
                     ),
                   ),
                   IconButton(
@@ -155,52 +156,57 @@ class _MockAdPlayerDialogState extends State<MockAdPlayerDialog> {
                       ),
                     ),
                   ),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 90,
-                        height: 90,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(22),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withOpacity(0.5),
-                              blurRadius: 20,
-                              offset: const Offset(0, 6),
+                  Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 90,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(22),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.5),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(22),
-                          child: Image.asset('assets/images/app_logo.png', fit: BoxFit.cover),
-                        ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(22),
+                              child: Image.asset('assets/images/app_logo.png', fit: BoxFit.cover),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            '🎲 聚会桌游俱乐部 🎲',
+                            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            '全国年轻人的派对轰趴首选桌游神器\n大话骰 · 谁是牛头王 · 大冒险转盘 · 卧底对决',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 13, height: 1.5),
+                          ),
+                          const SizedBox(height: 24),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              '🎁 观看完成即领: ${widget.rewardTitle}',
+                              style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        '🎲 聚会桌游俱乐部 🎲',
-                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        '全国年轻人的派对轰趴首选桌游神器\n大话骰 · 谁是牛头王 · 大冒险转盘 · 卧底对决',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4)),
-                        ),
-                        child: Text(
-                          '🎁 观看完成即领: ${widget.rewardTitle}',
-                          style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 13, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
 
                   // 底部进度条

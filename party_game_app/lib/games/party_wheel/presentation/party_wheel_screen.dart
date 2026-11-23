@@ -12,9 +12,19 @@ import '../../../views/widgets/game_settlement_dialog.dart';
 import '../domain/party_wheel_model.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/sound/game_sound_service.dart';
+import '../../../services/socket_service.dart';
 
 class PartyWheelScreen extends StatefulWidget {
-  const PartyWheelScreen({Key? key}) : super(key: key);
+  final String? roomCode;
+  final String? myPlayerId;
+  final String? myPlayerName;
+
+  const PartyWheelScreen({
+    Key? key,
+    this.roomCode,
+    this.myPlayerId,
+    this.myPlayerName,
+  }) : super(key: key);
 
   @override
   State<PartyWheelScreen> createState() => _PartyWheelScreenState();
@@ -28,7 +38,15 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
   bool _isSpinning = false;
   WheelSegment? _selectedSegment;
 
-  final List<WheelSegment> _segments = List.from(PartyWheelModel.defaultSegments);
+  String _selectedPackId = 'icebreaker';
+  late List<WheelSegment> _segments;
+  final Set<String> _usedPrompts = {};
+  final List<Map<String, String>> _spinHistory = [];
+  StreamSubscription? _socketSub;
+  CurvedAnimation? _activeCurve;
+  String? _pendingTitle;
+  String? _pendingContent;
+  String? _pendingSpinner;
 
   // AI 托管自动旋转模式
   bool _isAutoPlay = false;
@@ -66,15 +84,20 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
   }
 
   void _minimizeRoom() {
+    final code = widget.roomCode ?? 'WHEEL-1';
     final roomProv = Provider.of<RoomProvider>(context, listen: false);
     roomProv.registerActiveSession(
       ActiveRoomSession(
-        roomCode: 'WHEEL-1',
+        roomCode: code,
         gameType: 'party_wheel',
         gameTitle: '聚会大转盘',
         gameIcon: '🎡',
         isMinimized: true,
-        screenBuilder: (_) => const PartyWheelScreen(),
+        screenBuilder: (_) => PartyWheelScreen(
+          roomCode: widget.roomCode,
+          myPlayerId: widget.myPlayerId,
+          myPlayerName: widget.myPlayerName,
+        ),
       ),
     );
     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -90,6 +113,7 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
+    _segments = List.from(PartyWheelModel.packById(_selectedPackId).segments);
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
@@ -101,6 +125,34 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
     );
 
     GameSoundService().playGameBgm('party_wheel');
+
+    if (widget.roomCode != null && widget.roomCode!.isNotEmpty) {
+      _socketSub = SocketService().messageStream.listen((data) {
+        if (!mounted) return;
+        if (data['type'] == 'GAME_ACTION' && data['action'] == 'WHEEL_SPIN') {
+          final payload = data['payload'];
+          if (payload is Map) {
+            final packId = payload['scenePack']?.toString();
+            final targetIdx = int.tryParse(payload['targetIdx']?.toString() ?? '') ?? 0;
+            final pTitle = payload['promptTitle']?.toString();
+            final pContent = payload['promptContent']?.toString();
+            final spinnerName = payload['spinnerName']?.toString();
+            if (packId != null && packId.isNotEmpty && packId != _selectedPackId) {
+              setState(() {
+                _selectedPackId = packId;
+                _segments = List.from(PartyWheelModel.packById(packId).segments);
+              });
+            }
+            _animateToSegment(
+              targetIdx: targetIdx.clamp(0, _segments.length - 1),
+              serverTitle: pTitle,
+              serverContent: pContent,
+              spinnerName: spinnerName,
+            );
+          }
+        }
+      });
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -120,7 +172,10 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
 
   @override
   void dispose() {
+    _socketSub?.cancel();
     _autoPlayTimer?.cancel();
+    _activeCurve?.dispose();
+    _activeCurve = null;
     GameSoundService().stopBgm();
     _controller.dispose();
     try {
@@ -132,7 +187,7 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
       final roomProv = context.read<RoomProvider>();
       if (!roomProv.hasMinimizedRoom) {
         final user = context.read<AuthProvider>().user;
-        roomProv.leaveRoom(user?.id, 'WHEEL-1');
+        roomProv.leaveRoom(user?.id, widget.roomCode ?? 'WHEEL-1');
       }
     } catch (_) {}
     super.dispose();
@@ -141,31 +196,65 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
   void _spinWheel() {
     if (_isSpinning) return;
 
+    if (widget.roomCode != null && widget.roomCode!.isNotEmpty && SocketService().isConnected) {
+      setState(() => _isSpinning = true);
+      final user = context.read<AuthProvider>().user;
+      SocketService().send({
+        'type': 'GAME_ACTION',
+        'action': 'WHEEL_SPIN',
+        'roomCode': widget.roomCode,
+        'senderId': widget.myPlayerId ?? user?.id,
+        'senderName': widget.myPlayerName ?? user?.nickname ?? '桌友',
+        'payload': {'scenePack': _selectedPackId},
+      });
+      return;
+    }
+
+    _animateToSegment(targetIdx: Random().nextInt(_segments.length));
+  }
+
+  void _animateToSegment({
+    required int targetIdx,
+    String? serverTitle,
+    String? serverContent,
+    String? spinnerName,
+  }) {
     setState(() {
       _isSpinning = true;
       _selectedSegment = null;
+      _pendingTitle = serverTitle;
+      _pendingContent = serverContent;
+      _pendingSpinner = spinnerName;
     });
 
     GameSoundService().playDiceShake();
 
     final random = Random();
-    // 旋转 5 到 8 圈 + 随机偏移角
-    final extraSpins = 5 + random.nextInt(4);
-    final targetAngle = _currentAngle + (extraSpins * 2 * pi) + (random.nextDouble() * 2 * pi);
+    final segAngle = (2 * pi) / _segments.length;
+    final jitter = (random.nextDouble() - 0.5) * 0.55;
+    final desiredNorm = ((3 * pi / 2) - ((targetIdx + 0.5 + jitter) * segAngle)) % (2 * pi);
+    final currentMod = _currentAngle % (2 * pi);
+    double delta = (desiredNorm - currentMod) % (2 * pi);
+    if (delta <= 0) delta += 2 * pi;
+
+    final extraSpins = 5 + random.nextInt(3);
+    final targetAngle = _currentAngle + (extraSpins * 2 * pi) + delta;
 
     final startAngle = _currentAngle;
     int lastTickSegment = -1;
+    _activeCurve?.dispose();
+    _activeCurve = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.decelerate,
+    );
     _animation = Tween<double>(
       begin: startAngle,
       end: targetAngle,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.decelerate,
-    ))..addListener(() {
+    ).animate(_activeCurve!)..addListener(() {
       setState(() {
         _currentAngle = _animation.value;
       });
-      final currentSeg = (_currentAngle / ((2 * pi) / _segments.length)).floor();
+      final currentSeg = (_currentAngle / segAngle).floor();
       if (currentSeg != lastTickSegment) {
         lastTickSegment = currentSeg;
         GameSoundService().playWheelTick();
@@ -174,7 +263,7 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
       if (status == AnimationStatus.completed) {
         _isSpinning = false;
         GameSoundService().playVictory();
-        _calculateResult();
+        _calculateResult(forcedIdx: targetIdx);
         _scheduleNextAutoSpin();
       }
     });
@@ -182,33 +271,69 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
     _controller.forward(from: 0.0);
   }
 
-  void _calculateResult() {
-    // 指针固定在顶部 (3 * pi / 2)
+  String _pickPromptNonRepeating(List<String> pool, String prefix) {
+    if (pool.isEmpty) return '现场分享一个小秘密！';
+    final unused = pool.where((item) => !_usedPrompts.contains('$prefix:$item')).toList();
+    final source = unused.isEmpty ? pool : unused;
+    if (unused.isEmpty) {
+      _usedPrompts.removeWhere((k) => k.startsWith('$prefix:'));
+    }
+    final chosen = source[Random().nextInt(source.length)];
+    _usedPrompts.add('$prefix:$chosen');
+    return chosen;
+  }
+
+  void _calculateResult({int? forcedIdx}) {
     final normalizedAngle = (3 * pi / 2 - _currentAngle) % (2 * pi);
     final positiveAngle = normalizedAngle < 0 ? normalizedAngle + 2 * pi : normalizedAngle;
     final segmentAngle = (2 * pi) / _segments.length;
-    final index = (positiveAngle / segmentAngle).floor() % _segments.length;
+    final index = forcedIdx ?? ((positiveAngle / segmentAngle).floor() % _segments.length);
 
     final segment = _segments[index];
+    final pack = PartyWheelModel.packById(_selectedPackId);
+    final spinner = _pendingSpinner ?? (widget.myPlayerName ?? '本局玩家');
+
+    String title = _pendingTitle ?? segment.text;
+    String content = _pendingContent ?? '';
+    if (content.isEmpty) {
+      if (segment.type == 'TRUTH') {
+        title = '💬 真心话考验 (${pack.name})';
+        content = _pickPromptNonRepeating(pack.truths, 'TRUTH:$_selectedPackId');
+      } else if (segment.type == 'DARE') {
+        title = '🎭 大冒险挑战 (${pack.name})';
+        content = _pickPromptNonRepeating(pack.dares, 'DARE:$_selectedPackId');
+      } else if (segment.type == 'LUCKY') {
+        title = '🛡️ 免罚金牌';
+        content = '恭喜获得【免罚金牌】1 枚，可抵消本轮或下一轮惩罚！';
+      } else {
+        title = '🍻 酒桌指令';
+        content = segment.text;
+      }
+    }
+
     setState(() {
       _selectedSegment = segment;
+      _spinHistory.insert(0, {
+        'label': segment.text,
+        'detail': content,
+        'spinner': spinner,
+      });
+      if (_spinHistory.length > 8) _spinHistory.removeLast();
     });
+    _pendingTitle = null;
+    _pendingContent = null;
+    _pendingSpinner = null;
 
     GameSoundService().playVictory();
 
-    // 聚会大转盘转动结算排位分与金币
     try {
       context.read<AuthProvider>().settleRankMatch(true, gameType: 'party_wheel');
     } catch (_) {}
 
-    if (segment.type == 'TRUTH') {
-      final randIdx = Random().nextInt(PartyWheelModel.truthQuestions.length);
-      _showQuestionDialog('真心话考验 💬', PartyWheelModel.truthQuestions[randIdx], segment.color);
-    } else if (segment.type == 'DARE') {
-      final randIdx = Random().nextInt(PartyWheelModel.dareChallenges.length);
-      _showQuestionDialog('大冒险挑战 🎭', PartyWheelModel.dareChallenges[randIdx], segment.color);
+    if (segment.type == 'TRUTH' || segment.type == 'DARE') {
+      _showQuestionDialog(title, content, segment.color);
     } else {
-      _showNormalResultDialog(segment);
+      _showNormalResultDialog(segment, detailText: content);
     }
   }
 
@@ -278,7 +403,7 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
     );
   }
 
-  void _showNormalResultDialog(WheelSegment segment) {
+  void _showNormalResultDialog(WheelSegment segment, {String? detailText}) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -297,6 +422,14 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
               segment.text,
               style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
             ),
+            if (detailText != null && detailText.isNotEmpty && detailText != segment.text) ...[
+              const SizedBox(height: 8),
+              Text(
+                detailText,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1)),
+              ),
+            ],
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -382,7 +515,7 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
               Navigator.pop(ctx);
               final user = Provider.of<AuthProvider>(context, listen: false).user;
               final roomProv = Provider.of<RoomProvider>(context, listen: false);
-              roomProv.leaveRoom(user?.id, 'WHEEL-1');
+              roomProv.leaveRoom(user?.id, widget.roomCode ?? 'WHEEL-1');
               Navigator.of(context).popUntil((route) => route.isFirst);
             },
             child: const Text('🚪 强制退出'),
@@ -416,7 +549,14 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🎡 聚会大冒险大转盘', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+            const Flexible(
+              child: Text(
+                '🎡 聚会大冒险大转盘',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+              ),
+            ),
             if (_isAutoPlay) ...[
               const SizedBox(width: 6),
               Container(
@@ -469,64 +609,116 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
             tooltip: _isAutoPlay ? '取消自动连转' : '开启自动连转托管',
             onPressed: _toggleAutoPlay,
           ),
-          // 房间最小化按钮
-          IconButton(
-            icon: const Icon(Icons.picture_in_picture_alt_outlined, color: Color(0xFF94A3B8)),
-            tooltip: '最小化房间',
-            onPressed: _minimizeRoom,
-          ),
-          IconButton(
-            icon: const Icon(Icons.help_outline, color: Color(0xFF94A3B8)),
-            tooltip: '玩法规则',
-            onPressed: _showRulesDialog,
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_horiz_rounded, color: Color(0xFF94A3B8)),
+            tooltip: '更多房间操作',
+            onSelected: (value) {
+              if (value == 'minimize') {
+                _minimizeRoom();
+              } else if (value == 'rules') {
+                _showRulesDialog();
+              }
+            },
+            itemBuilder: (ctx) => const [
+              PopupMenuItem(value: 'minimize', child: Text('🗗 最小化房间')),
+              PopupMenuItem(value: 'rules', child: Text('📖 玩法规则')),
+            ],
           ),
         ],
       ),
       body: Stack(
         children: [
           SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // 自动托管状态高亮横幅
-              if (_isAutoPlay)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFCE7F3),
-                    border: Border(bottom: BorderSide(color: Color(0xFFFBCFE8))),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.smart_toy, color: Color(0xFFDB2777), size: 16),
-                      const SizedBox(width: 8),
-                      const Text(
+        child: Column(
+          children: [
+            // 自动托管状态高亮横幅
+            if (_isAutoPlay)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFCE7F3),
+                  border: Border(bottom: BorderSide(color: Color(0xFFFBCFE8))),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.smart_toy, color: Color(0xFFDB2777), size: 16),
+                    const SizedBox(width: 8),
+                    const Flexible(
+                      child: Text(
                         'AI 自动连转托管中：每隔几秒自动开启下一轮大冒险',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(color: Color(0xFF9D174D), fontSize: 12, fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(width: 12),
-                      GestureDetector(
-                        onTap: _toggleAutoPlay,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFDB2777),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text('取消自动', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: _toggleAutoPlay,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDB2777),
+                          borderRadius: BorderRadius.circular(4),
                         ),
+                        child: const Text('取消自动', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              const SizedBox(height: 16),
-              const Text(
-                '聚会酒桌神器 · 告别冷场尴尬',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
               ),
-              const SizedBox(height: 24),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 680),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 12),
+                        Text(
+                          PartyWheelModel.packById(_selectedPackId).subtitle,
+                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12.5),
+                        ),
+              const SizedBox(height: 10),
+              // 4 大权威场景题库切换胶囊
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: PartyWheelModel.scenePacks.map((pack) {
+                    final selected = pack.id == _selectedPackId;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(
+                          '${pack.emoji} ${pack.name}',
+                          style: TextStyle(
+                            color: selected ? Colors.white : const Color(0xFFCBD5E1),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        selected: selected,
+                        selectedColor: const Color(0xFFEC4899),
+                        backgroundColor: const Color(0xFF27272A),
+                        side: BorderSide(color: selected ? const Color(0xFFF472B6) : const Color(0xFF3F3F46)),
+                        showCheckmark: false,
+                        onSelected: _isSpinning
+                            ? null
+                            : (_) {
+                                setState(() {
+                                  _selectedPackId = pack.id;
+                                  _segments = List.from(pack.segments);
+                                  _selectedSegment = null;
+                                });
+                              },
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 18),
 
               // 转盘区域
               Center(
@@ -625,12 +817,16 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
                     children: [
                       Icon(Icons.stars, color: _selectedSegment!.color),
                       const SizedBox(width: 8),
-                      Text(
-                        '本轮落定：${_selectedSegment!.text}',
-                        style: TextStyle(
-                          color: _selectedSegment!.color,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      Flexible(
+                        child: Text(
+                          '本轮落定：${_selectedSegment!.text}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: _selectedSegment!.color,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -660,8 +856,43 @@ class _PartyWheelScreenState extends State<PartyWheelScreen> with SingleTickerPr
                 ),
               ),
               const SizedBox(height: 20),
+              if (_spinHistory.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF27272A),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFF3F3F46)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '📜 近期转盘纪录',
+                        style: TextStyle(color: Color(0xFFFDE68A), fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._spinHistory.take(4).map((item) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              '• ${item['spinner']} 转出【${item['label']}】· ${item['detail']}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Color(0xFFD4D4D8), fontSize: 11),
+                            ),
+                          )),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 20),
             ],
           ),
+        ),
+      ),
+    ),
+  ),
+          ],
         ),
       ),
       Consumer<ChatProvider>(
@@ -688,6 +919,12 @@ class _WheelPainter extends CustomPainter {
     final radius = size.width / 2;
     final sweepAngle = (2 * pi) / segments.length;
 
+    // 金属金边框外环
+    final rimPaint = Paint()
+      ..color = const Color(0xFFF59E0B)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6.0;
+
     final paint = Paint()..style = PaintingStyle.fill;
     final borderPaint = Paint()
       ..color = Colors.white.withOpacity(0.3)
@@ -699,7 +936,7 @@ class _WheelPainter extends CustomPainter {
       final startAngle = i * sweepAngle;
 
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
+        Rect.fromCircle(center: center, radius: radius - 3),
         startAngle,
         sweepAngle,
         true,
@@ -707,7 +944,7 @@ class _WheelPainter extends CustomPainter {
       );
 
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
+        Rect.fromCircle(center: center, radius: radius - 3),
         startAngle,
         sweepAngle,
         true,
@@ -737,10 +974,21 @@ class _WheelPainter extends CustomPainter {
       textPainter.paint(canvas, Offset(radius * 0.45, -textPainter.height / 2));
       canvas.restore();
     }
+
+    canvas.drawCircle(center, radius - 1.5, rimPaint);
+
+    // 外圈 16 颗发光铆钉装饰灯
+    final dotPaint = Paint()..color = const Color(0xFFFEF08A);
+    for (int k = 0; k < 16; k++) {
+      final theta = k * (2 * pi / 16);
+      final dx = center.dx + (radius - 1.5) * cos(theta);
+      final dy = center.dy + (radius - 1.5) * sin(theta);
+      canvas.drawCircle(Offset(dx, dy), 2.4, dotPaint);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _WheelPainter oldDelegate) => oldDelegate.segments != segments;
 }
 
 class _PointerPainter extends CustomPainter {

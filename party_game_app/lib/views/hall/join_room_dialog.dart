@@ -86,43 +86,46 @@ class _JoinRoomDialogState extends State<JoinRoomDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = AppColors.adaptivePrimary(context);
     return AlertDialog(
-      backgroundColor: AppColors.bgCard,
+      backgroundColor: AppColors.adaptiveCard(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text('🔍 加入对局房间', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _codeCtrl,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            style: const TextStyle(fontSize: 22, letterSpacing: 4, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-            decoration: InputDecoration(
-              counterText: '',
-              hintText: '输入6位房间码',
-              prefixIcon: const Icon(Icons.pin),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary),
-                tooltip: '扫码进房',
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScanQrDialog.show(context);
-                },
+      title: Text('🔍 加入对局房间', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.adaptiveTextPrimary(context))),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _codeCtrl,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              style: const TextStyle(fontSize: 22, letterSpacing: 4, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: '输入6位房间码',
+                prefixIcon: const Icon(Icons.pin),
+                suffixIcon: IconButton(
+                  icon: Icon(Icons.qr_code_scanner, color: primaryColor),
+                  tooltip: '扫码进房',
+                  onPressed: () {
+                    Navigator.pop(context);
+                    ScanQrDialog.show(context);
+                  },
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _pwdCtrl,
-            decoration: const InputDecoration(
-              labelText: '房间密码 (无密码请留空)',
-              hintText: '若房主设置了密码请输入',
-              prefixIcon: Icon(Icons.lock_outline),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _pwdCtrl,
+              decoration: const InputDecoration(
+                labelText: '房间密码 (无密码请留空)',
+                hintText: '若房主设置了密码请输入',
+                prefixIcon: Icon(Icons.lock_outline),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),

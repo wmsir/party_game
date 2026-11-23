@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_version.dart';
 import '../../core/sound/game_sound_service.dart';
+import '../../core/widgets/commercial_ui_kit.dart';
+import '../../main.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/friend_provider.dart';
 import 'dressing_shop_view.dart';
@@ -109,15 +111,15 @@ class _ProfileViewState extends State<ProfileView> {
       barrierDismissible: !isSubmitting,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.cardSurface,
+          backgroundColor: AppColors.adaptiveCardSurface(ctx),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
-            children: const [
-              Icon(Icons.security, color: Color(0xFF10B981)),
-              SizedBox(width: 8),
+            children: [
+              const Icon(Icons.security, color: Color(0xFF10B981)),
+              const SizedBox(width: 8),
               Text(
                 '账号与安全中心',
-                style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 17),
+                style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 17),
               ),
             ],
           ),
@@ -129,13 +131,13 @@ class _ProfileViewState extends State<ProfileView> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.bgDark,
+                    color: AppColors.adaptiveBgDark(ctx),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: AppColors.adaptiveBorder(ctx)),
                   ),
                   child: Row(
                     children: [
-                      const Text('游戏编号：', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      Text('游戏编号：', style: TextStyle(color: AppColors.adaptiveTextMuted(ctx), fontSize: 12)),
                       Expanded(
                         child: Text(
                           user.cleanId,
@@ -167,7 +169,7 @@ class _ProfileViewState extends State<ProfileView> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text('选择聚会头像：', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                Text('选择聚会头像：', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -181,7 +183,7 @@ class _ProfileViewState extends State<ProfileView> {
                         decoration: BoxDecoration(
                           color: isSelected ? AppColors.primary.withAlpha(40) : Colors.transparent,
                           shape: BoxShape.circle,
-                          border: Border.all(color: isSelected ? AppColors.primary : AppColors.border, width: 2),
+                          border: Border.all(color: isSelected ? AppColors.primary : AppColors.adaptiveBorder(ctx), width: 2),
                         ),
                         child: Text(a, style: const TextStyle(fontSize: 22)),
                       ),
@@ -189,73 +191,73 @@ class _ProfileViewState extends State<ProfileView> {
                   }).toList(),
                 ),
                 const SizedBox(height: 14),
-                const Text('登录账号 (唯一用户名)：', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                Text('登录账号 (唯一用户名)：', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: userCtrl,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                  style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontSize: 13),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.person, color: AppColors.textMuted, size: 18),
+                    prefixIcon: Icon(Icons.person, color: AppColors.adaptiveTextMuted(ctx), size: 18),
                     hintText: '请输入新的登录账号',
-                    hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    hintStyle: TextStyle(color: AppColors.adaptiveTextMuted(ctx), fontSize: 12),
                     filled: true,
-                    fillColor: AppColors.bgDark,
+                    fillColor: AppColors.adaptiveBgDark(ctx),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.adaptiveBorder(ctx))),
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text('玩家昵称 (游戏中展示)：', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                Text('玩家昵称 (游戏中展示)：', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: nickCtrl,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                  style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontSize: 13),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.badge, color: AppColors.textMuted, size: 18),
+                    prefixIcon: Icon(Icons.badge, color: AppColors.adaptiveTextMuted(ctx), size: 18),
                     hintText: '请输入游戏昵称',
-                    hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    hintStyle: TextStyle(color: AppColors.adaptiveTextMuted(ctx), fontSize: 12),
                     filled: true,
-                    fillColor: AppColors.bgDark,
+                    fillColor: AppColors.adaptiveBgDark(ctx),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.adaptiveBorder(ctx))),
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text('绑定手机号 (用于快捷免密/验证码登录)：', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                Text('绑定手机号 (用于快捷免密/验证码登录)：', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: phoneCtrl,
                   keyboardType: TextInputType.phone,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                  style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontSize: 13),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.phone_android, color: AppColors.textMuted, size: 18),
+                    prefixIcon: Icon(Icons.phone_android, color: AppColors.adaptiveTextMuted(ctx), size: 18),
                     hintText: '请输入11位中国大陆手机号码',
-                    hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    hintStyle: TextStyle(color: AppColors.adaptiveTextMuted(ctx), fontSize: 12),
                     filled: true,
-                    fillColor: AppColors.bgDark,
+                    fillColor: AppColors.adaptiveBgDark(ctx),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.adaptiveBorder(ctx))),
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text('设置/修改登录密码：', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                Text('设置/修改登录密码：', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: pwdCtrl,
                   obscureText: obscurePwd,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                  style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontSize: 13),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textMuted, size: 18),
+                    prefixIcon: Icon(Icons.lock_outline, color: AppColors.adaptiveTextMuted(ctx), size: 18),
                     suffixIcon: IconButton(
-                      icon: Icon(obscurePwd ? Icons.visibility_off : Icons.visibility, color: AppColors.textMuted, size: 18),
+                      icon: Icon(obscurePwd ? Icons.visibility_off : Icons.visibility, color: AppColors.adaptiveTextMuted(ctx), size: 18),
                       onPressed: () => setDialogState(() => obscurePwd = !obscurePwd),
                     ),
                     hintText: '留空表示不修改密码',
-                    hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    hintStyle: TextStyle(color: AppColors.adaptiveTextMuted(ctx), fontSize: 12),
                     filled: true,
-                    fillColor: AppColors.bgDark,
+                    fillColor: AppColors.adaptiveBgDark(ctx),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.border)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AppColors.adaptiveBorder(ctx))),
                   ),
                 ),
               ],
@@ -264,7 +266,7 @@ class _ProfileViewState extends State<ProfileView> {
           actions: [
             TextButton(
               onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
-              child: const Text('取消', style: TextStyle(color: AppColors.textSecondary)),
+              child: Text('取消', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx))),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -337,38 +339,38 @@ class _ProfileViewState extends State<ProfileView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardSurface,
+        backgroundColor: AppColors.adaptiveCardSurface(ctx),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('转正为正式账号', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+        title: Text('转正为正式账号', style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               '当前为游客体验模式，绑定手机号与密码可永久保存战绩、皮肤与金币资产！',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 13),
             ),
             const SizedBox(height: 14),
             TextField(
               controller: phoneCtrl,
               keyboardType: TextInputType.phone,
-              style: const TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(
+              style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx)),
+              decoration: InputDecoration(
                 labelText: '手机号码',
-                labelStyle: TextStyle(color: AppColors.textSecondary),
+                labelStyle: TextStyle(color: AppColors.adaptiveTextSecondary(ctx)),
                 filled: true,
-                fillColor: AppColors.bgDark,
+                fillColor: AppColors.adaptiveBgDark(ctx),
               ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: pwdCtrl,
               obscureText: true,
-              style: const TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(
+              style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx)),
+              decoration: InputDecoration(
                 labelText: '设置密码',
-                labelStyle: TextStyle(color: AppColors.textSecondary),
+                labelStyle: TextStyle(color: AppColors.adaptiveTextSecondary(ctx)),
                 filled: true,
-                fillColor: AppColors.bgDark,
+                fillColor: AppColors.adaptiveBgDark(ctx),
               ),
             ),
           ],
@@ -376,7 +378,7 @@ class _ProfileViewState extends State<ProfileView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('稍后再说', style: TextStyle(color: AppColors.textSecondary)),
+            child: Text('稍后再说', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
@@ -416,12 +418,24 @@ class _ProfileViewState extends State<ProfileView> {
       );
     }
 
+    final isDark = AppColors.isDarkMode(context);
+
     return Scaffold(
       backgroundColor: AppColors.adaptiveBgDark(context),
       appBar: AppBar(
         backgroundColor: AppColors.adaptiveCardSurface(context),
         elevation: 0,
         title: Text('👤 个人主页', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.adaptiveTextPrimary(context))),
+        actions: [
+          IconButton(
+            icon: Icon(
+              isDark ? Icons.wb_sunny_rounded : Icons.nightlight_round,
+              color: isDark ? const Color(0xFFFBBF24) : AppColors.primary,
+            ),
+            tooltip: isDark ? '切换护眼浅色模式' : '切换夜店暗夜模式',
+            onPressed: () => PartyGameApp.toggleThemeMode(context),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
@@ -431,6 +445,10 @@ class _ProfileViewState extends State<ProfileView> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
         children: [
+          ResponsiveContentFrame(
+            maxWidth: 920,
+            child: Column(
+              children: [
           // 用户资料头部卡片
           Container(
             padding: const EdgeInsets.all(16),
@@ -527,7 +545,9 @@ class _ProfileViewState extends State<ProfileView> {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -541,7 +561,6 @@ class _ProfileViewState extends State<ProfileView> {
                               style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.bold),
                             ),
                           ),
-                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
@@ -617,13 +636,22 @@ class _ProfileViewState extends State<ProfileView> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.history, color: AppColors.primary, size: 18),
-                        const SizedBox(width: 6),
-                        Text('近期对战记录', style: TextStyle(color: AppColors.adaptiveTextPrimary(context), fontWeight: FontWeight.bold, fontSize: 15)),
-                      ],
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Icon(Icons.history, color: AppColors.primary, size: 18),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              '近期对战记录',
+                              style: TextStyle(color: AppColors.adaptiveTextPrimary(context), fontWeight: FontWeight.bold, fontSize: 15),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     if (_battleRecords.isNotEmpty)
                       Builder(
                         builder: (ctx) {
@@ -672,10 +700,10 @@ class _ProfileViewState extends State<ProfileView> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 20),
                       child: Column(
-                        children: const [
-                          Icon(Icons.sports_esports_outlined, size: 40, color: AppColors.textMuted),
-                          SizedBox(height: 8),
-                          Text('暂无近期对战记录，快去开启第一局吧！', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                        children: [
+                          Icon(Icons.sports_esports_outlined, size: 40, color: AppColors.adaptiveTextMuted(context)),
+                          const SizedBox(height: 8),
+                          Text('暂无近期对战记录，快去开启第一局吧！', style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 12)),
                         ],
                       ),
                     ),
@@ -696,9 +724,9 @@ class _ProfileViewState extends State<ProfileView> {
                     margin: const EdgeInsets.only(top: 10),
                     padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: AppColors.adaptiveBgDark(context),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: AppColors.adaptiveBorder(context)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -712,12 +740,16 @@ class _ProfileViewState extends State<ProfileView> {
                           style: TextButton.styleFrom(
                             visualDensity: VisualDensity.compact,
                             foregroundColor: AppColors.primary,
-                            disabledForegroundColor: Colors.grey.shade400,
+                            disabledForegroundColor: AppColors.adaptiveTextMuted(context),
                           ),
                         ),
-                        Text(
-                          '第 ${_battleRecordsPage + 1} / $_battleRecordsTotalPages 页 (共 $_battleRecordsTotal 场)',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                        Flexible(
+                          child: Text(
+                            '第 ${_battleRecordsPage + 1} / $_battleRecordsTotalPages 页 (共 $_battleRecordsTotal 场)',
+                            style: TextStyle(fontSize: 12, color: AppColors.adaptiveTextSecondary(context), fontWeight: FontWeight.w600),
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         TextButton.icon(
                           onPressed: (_battleRecordsPage + 1) < _battleRecordsTotalPages && !_isLoadingRecords
@@ -828,6 +860,14 @@ class _ProfileViewState extends State<ProfileView> {
                     });
                   },
                 ),
+                Divider(height: 1, color: AppColors.adaptiveBorder(context)),
+                ListTile(
+                  leading: Icon(Icons.policy_outlined, color: AppColors.adaptivePrimary(context)),
+                  title: Text('用户协议与隐私保护', style: TextStyle(color: AppColors.adaptiveTextPrimary(context), fontWeight: FontWeight.w500)),
+                  subtitle: Text('查看服务条款、绿色健康娱乐及隐私政策', style: TextStyle(color: AppColors.adaptiveTextMuted(context), fontSize: 11)),
+                  trailing: Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.adaptiveTextSecondary(context)),
+                  onTap: () => LegalAgreementDialog.show(context),
+                ),
               ],
             ),
           ),
@@ -858,6 +898,9 @@ class _ProfileViewState extends State<ProfileView> {
             ),
           ),
           const SizedBox(height: 30),
+              ],
+            ),
+          ),
         ],
       ),
       )
@@ -1031,8 +1074,8 @@ class _ProfileViewState extends State<ProfileView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(game, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
-                Text(mode, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                Text(game, style: TextStyle(color: AppColors.adaptiveTextPrimary(context), fontWeight: FontWeight.bold, fontSize: 13)),
+                Text(mode, style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 11)),
               ],
             ),
           ),
@@ -1041,7 +1084,7 @@ class _ProfileViewState extends State<ProfileView> {
             children: [
               Text(result, style: TextStyle(color: isWin ? const Color(0xFF10B981) : Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12)),
               Text(score, style: TextStyle(color: isWin ? const Color(0xFF10B981) : Colors.redAccent, fontSize: 11)),
-              Text(time, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+              Text(time, style: TextStyle(color: AppColors.adaptiveTextMuted(context), fontSize: 10)),
             ],
           ),
         ],
@@ -1194,7 +1237,7 @@ class _ProfileViewState extends State<ProfileView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消', style: TextStyle(color: AppColors.textSecondary)),
+            child: Text('取消', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1243,13 +1286,13 @@ class _ProfileViewState extends State<ProfileView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.adaptiveCardSurface(ctx),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
-            Text('🧹', style: TextStyle(fontSize: 22)),
-            SizedBox(width: 8),
-            Text('使用【战绩清空卡】', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text('🧹', style: TextStyle(fontSize: 22)),
+            const SizedBox(width: 8),
+            Text('使用【战绩清空卡】', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.adaptiveTextPrimary(ctx))),
           ],
         ),
         content: Column(
@@ -1259,9 +1302,9 @@ class _ProfileViewState extends State<ProfileView> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFFCD34D)),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
               ),
               child: Row(
                 children: [
@@ -1271,14 +1314,14 @@ class _ProfileViewState extends State<ProfileView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           '战绩清空卡',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF92400E)),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.adaptiveTextPrimary(ctx)),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '当前背包持有: $ownedCount 张',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFFB45309), fontWeight: FontWeight.w600),
+                          style: const TextStyle(fontSize: 12, color: Color(0xFFD97706), fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
@@ -1287,21 +1330,21 @@ class _ProfileViewState extends State<ProfileView> {
               ),
             ),
             const SizedBox(height: 14),
-            const Text(
+            Text(
               '⚠️ 温馨提示：',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E293B)),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.adaptiveTextPrimary(ctx)),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               '清空后您近期的全部对战胜负记录将彻底重置！本次操作将永久消耗 1 张【战绩清空卡】，确认使用吗？',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
+              style: TextStyle(fontSize: 12, color: AppColors.adaptiveTextSecondary(ctx), height: 1.4),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消', style: TextStyle(color: Color(0xFF64748B))),
+            child: Text('取消', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -1341,30 +1384,30 @@ class _ProfileViewState extends State<ProfileView> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDState) => AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.adaptiveCardSurface(ctx),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
+          title: Row(
             children: [
-              Text('🔒', style: TextStyle(fontSize: 22)),
-              SizedBox(width: 8),
-              Text('需要购买【战绩清空卡】', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text('🔒', style: TextStyle(fontSize: 22)),
+              const SizedBox(width: 8),
+              Text('需要购买【战绩清空卡】', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.adaptiveTextPrimary(ctx))),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 '玩家不能直接免费清空对战记录，必须拥有【战绩清空卡】道具才可抹去历史战绩重塑传奇！',
-                style: TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+                style: TextStyle(fontSize: 13, color: AppColors.adaptiveTextSecondary(ctx), height: 1.4),
               ),
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: AppColors.adaptiveBgDark(ctx),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: AppColors.adaptiveBorder(ctx)),
                 ),
                 child: Row(
                   children: [
@@ -1372,27 +1415,27 @@ class _ProfileViewState extends State<ProfileView> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       alignment: Alignment.center,
                       child: const Text('🧹', style: TextStyle(fontSize: 26)),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('战绩清空卡', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                          SizedBox(height: 4),
-                          Text('单次清空个人全部近期对战记录', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                          Text('战绩清空卡', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.adaptiveTextPrimary(ctx))),
+                          const SizedBox(height: 4),
+                          Text('单次清空个人全部近期对战记录', style: TextStyle(fontSize: 11, color: AppColors.adaptiveTextMuted(ctx))),
                         ],
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Row(
@@ -1400,7 +1443,7 @@ class _ProfileViewState extends State<ProfileView> {
                         children: [
                           Text('🪙', style: TextStyle(fontSize: 12)),
                           SizedBox(width: 3),
-                          Text('100 金币', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFB45309))),
+                          Text('100 金币', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFD97706))),
                         ],
                       ),
                     ),
@@ -1411,7 +1454,7 @@ class _ProfileViewState extends State<ProfileView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('我的钱包余额:', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  Text('我的钱包余额:', style: TextStyle(fontSize: 12, color: AppColors.adaptiveTextSecondary(ctx))),
                   Row(
                     children: [
                       const Text('🪙', style: TextStyle(fontSize: 12)),
@@ -1441,14 +1484,14 @@ class _ProfileViewState extends State<ProfileView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('取消', style: TextStyle(color: Color(0xFF64748B))),
+              child: Text('取消', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx))),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const DressingShopView(initialTabIndex: 3)),
+                  MaterialPageRoute(builder: (_) => const DressingShopView(initialTabIndex: 4)),
                 );
               },
               child: const Text('前往道具商城', style: TextStyle(color: Color(0xFF2563EB))),

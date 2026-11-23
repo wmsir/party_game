@@ -1,22 +1,66 @@
 package com.partygame.service;
 
 import com.alibaba.fastjson2.JSON;
+import com.partygame.entity.PaymentOrder;
 import com.partygame.entity.User;
+import com.partygame.repository.BattleRecordRepository;
+import com.partygame.repository.PaymentOrderRepository;
 import com.partygame.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ShopService {
 
+    private static final Set<String> DEFAULT_OWNED_ITEMS = Set.of(
+            "CLASSIC_GOLD", "FRAME_DEFAULT", "BANNER_DEFAULT", "COLOR_DEFAULT"
+    );
+    private static final long VICTORY_DOUBLE_COOLDOWN_MS = 30_000L;
+    private static final long AD_RELIEF_COOLDOWN_MS = 60_000L;
+    private static final int MAX_DAILY_AD_RELIEF = 5;
+
     private final UserRepository userRepository;
+    private final PaymentOrderRepository paymentOrderRepository;
+    private final BattleRecordRepository battleRecordRepository;
+    private final SecureRandom secureRandom = new SecureRandom();
+
+    @Value("${party.payment.sandbox-enabled:true}")
+    private boolean paymentSandboxEnabled;
+
+    // Daily anti-abuse & task tracking maps
+    private static final Map<String, Integer> DAILY_THROW_COUNTS = new ConcurrentHashMap<>();
+    private final Map<String, int[]> dailyReliefCounts = new ConcurrentHashMap<>(); // [standard, ad]
+    private final Map<String, Long> lastAdReliefMs = new ConcurrentHashMap<>();
+    private final Map<String, Long> lastVictoryDoubleMs = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> dailyClaimedTasks = new ConcurrentHashMap<>();
+
+    public static void recordDailyThrow(String userId) {
+        if (userId == null || userId.isBlank() || userId.startsWith("U-") || userId.startsWith("AI-")) return;
+        String today = LocalDate.now().toString();
+        String key = userId.trim() + ":" + today;
+        if (DAILY_THROW_COUNTS.size() > 10000) {
+            DAILY_THROW_COUNTS.entrySet().removeIf(e -> !e.getKey().endsWith(":" + today));
+        }
+        DAILY_THROW_COUNTS.merge(key, 1, Integer::sum);
+    }
+
+    public static int getDailyThrowCount(String userId) {
+        if (userId == null || userId.isBlank()) return 0;
+        String key = userId.trim() + ":" + LocalDate.now().toString();
+        return DAILY_THROW_COUNTS.getOrDefault(key, 0);
+    }
 
     public User getOrCreateUser(String userId) {
         if (userId == null || userId.trim().isEmpty()) {
@@ -58,7 +102,6 @@ public class ShopService {
         list.add(createGood("CLASSIC_GOLD", "dice_cup", "经典黑金骰盅", 0, 0, 0, "🏆", "尊贵黑金拉丝质感，聚会老手标志", true));
         list.add(createGood("NEON_CYBER", "dice_cup", "赛博霓虹骰盅", 5000, 0, 0, "⚡", "赛博朋克流光幻彩，夜晚开局焦点 (金币专享)", false));
         list.add(createGood("PURPLE_GALAXY", "dice_cup", "紫晶星系骰盅", 10000, 0, 0, "🌌", "星河流转璀璨迷人，运气爆棚加持 (金币专享)", false));
-        // 钻石专属道具（金币无法购买）
         list.add(createGood("FLAME_DRAGON", "dice_cup", "烈焰赤龙骰盅", 0, 88, 0, "🔥", "烈火熊熊势不可挡，纯钻石奢华专属", false));
         list.add(createGood("PURE_DIAMOND", "dice_cup", "璀璨钻石骰盅", 0, 188, 0, "💎", "八心八箭至尊水晶切割，闪耀全场 (纯钻石专属)", false));
         list.add(createGood("ROYAL_DRAGON_GOLD", "dice_cup", "至尊黄金神龙骰盅", 0, 288, 2, "👑", "VIP 2 专属奢华黄金盘龙，尊崇绝伦", false));
@@ -67,14 +110,12 @@ public class ShopService {
         list.add(createGood("FRAME_DEFAULT", "avatar_frame", "聚会新星框", 0, 0, 0, "⭐", "初入聚会社区基础装扮", true));
         list.add(createGood("FRAME_NEON", "avatar_frame", "赛博流光框", 3000, 0, 0, "🌈", "流光幻彩渐变边框，彰显个性 (金币专享)", false));
         list.add(createGood("FRAME_GOLD", "avatar_frame", "荣耀黄金框", 8000, 0, 0, "🥇", "璀璨真金抛光工艺，王者气派 (金币专享)", false));
-        // 钻石专属头像框（金币无法购买）
         list.add(createGood("FRAME_GALAXY_DOMINATOR", "avatar_frame", "星空霸主框", 0, 128, 1, "🌌", "VIP 1 专属星辰环绕动效框 (纯钻石专属)", false));
         list.add(createGood("FRAME_BLACK_GOLD_ROYAL", "avatar_frame", "黑金至尊帝王框", 0, 388, 4, "🔱", "VIP 4 专属黑金龙纹霸气图腾 (纯钻石专属)", false));
 
         // ===== 3. 登场横幅专区 =====
         list.add(createGood("BANNER_DEFAULT", "entrance_banner", "普通登场横幅", 0, 0, 0, "🚪", "系统默认进房提示", true));
         list.add(createGood("BANNER_SHINE", "entrance_banner", "闪亮登场横幅", 5000, 0, 0, "✨", "全场星光闪烁，醒目进场 (金币专享)", false));
-        // 钻石专属入场横幅（金币无法购买）
         list.add(createGood("BANNER_DRAGON", "entrance_banner", "凤舞龙吟横幅", 0, 128, 0, "🐉", "神龙破空进场横幅，全屏焦点 (纯钻石专属)", false));
         list.add(createGood("BANNER_EMPEROR", "entrance_banner", "君临天下横幅", 0, 588, 3, "👑", "VIP 3 专属尊贵入场全服公告 (纯钻石专属)", false));
 
@@ -82,7 +123,6 @@ public class ShopService {
         list.add(createGood("COLOR_DEFAULT", "chat_text_color", "默认经典白", 0, 0, 0, "💬", "系统默认发言文字颜色 (#FFFFFF)", true));
         list.add(createGood("COLOR_SAKURA_PINK", "chat_text_color", "炫彩樱花粉", 3000, 0, 0, "🌸", "清新烂漫樱花粉，字字动人心弦 (金币专享)", false));
         list.add(createGood("COLOR_CYBER_BLUE", "chat_text_color", "赛博冰川蓝", 5000, 0, 0, "💎", "极客未来冷萃冰蓝，字迹冷酷吸睛 (金币专享)", false));
-        // 钻石专属聊天字色（金币无法购买）
         list.add(createGood("COLOR_AURORA_GREEN", "chat_text_color", "翡翠极光绿", 0, 68, 0, "🍀", "青翠荧光草绿，生机盎然 (纯钻石专属)", false));
         list.add(createGood("COLOR_DEEP_PURPLE", "chat_text_color", "幻影深空紫", 0, 88, 0, "🔮", "神秘幽邃深空魅紫，尊贵迷人魅力 (纯钻石专属)", false));
         list.add(createGood("COLOR_BLAZING_GOLD", "chat_text_color", "炽焰曜石金", 0, 168, 2, "👑", "VIP 2 专属奢华曜石流金，牌局全场焦点", false));
@@ -100,9 +140,6 @@ public class ShopService {
         return list;
     }
 
-    /**
-     * 官方标准充值档位 (严格遵循 1元RMB = 10钻石，1钻石 = 100金币，充值赠送超值福利)
-     */
     public List<Map<String, Object>> getRechargeTiers() {
         List<Map<String, Object>> list = new ArrayList<>();
         list.add(createTier("tier_6", 6, 60, 1000, 60, true, "6元聚会新手包", "首充双倍"));
@@ -114,9 +151,6 @@ public class ShopService {
         return list;
     }
 
-    /**
-     * VIP 等级权益详细体系表
-     */
     public List<Map<String, Object>> getVipPrivileges() {
         List<Map<String, Object>> list = new ArrayList<>();
         list.add(Map.of("level", 0, "name", "VIP 0 · 聚会平民", "needExp", 0, "priceRmb", 0, "privileges", "• 基础大厅游戏游玩\n• 每日基础签到福利\n• 破产救济金基础保障"));
@@ -129,13 +163,10 @@ public class ShopService {
         list.add(Map.of("level", 7, "name", "VIP 7 · 巅峰霸主 (荣耀贵族·SVIP)", "needExp", 20000, "priceRmb", 2000, "privileges", "• 专属 SVIP 7 荣耀紫金徽章\n• 贵族专属动态彩色发言气泡\n• 全服盛典超级火箭/超跑专属折扣\n• 专属客服优先响应通道\n• 对局结算金币额外 +40%"));
         list.add(Map.of("level", 8, "name", "VIP 8 · 永恒传说 (传说贵族·SVIP)", "needExp", 50000, "priceRmb", 5000, "privileges", "• 专属 SVIP 8 传说荣耀皇冠勋章\n• 进房全服跑马灯公告通报（神豪降临）\n• 免广告特权（商业广告视频直达免等待）\n• 破产救济金金币翻倍（2.0 倍收益）\n• 对局结算金币额外 +50%"));
         list.add(Map.of("level", 9, "name", "VIP 9 · 神圣主宰 (神圣贵族·SVIP)", "needExp", 100000, "priceRmb", 10000, "privileges", "• 专属 SVIP 9 神圣永恒皇冠徽章\n• 个人主页专属金钻流光背景特效\n• 全服房间置顶广播特权\n• 每日破产救济金额外领取 +5 次\n• 对局结算金币额外 +70%"));
-        list.add(Map.of("level", 10, "name", "VIP 10 · 荣耀无双 (至高无上·无双王者)", "needExp", 188888, "priceRmb", 18888, "privileges", "• 终极 SVIP 10 荣耀无双七彩神级徽章\n• 【同桌装扮共享特权】（牌友可共享使用您拥有的骰盅皮肤与牌桌特效，对标王者荣耀皮肤共享）\n• 神级龙腾入场全服公告横幅\n• 每日破产救济金无限次保底领取\n• 对局结算金币收益额外 +100% (翻倍)"));
+        list.add(Map.of("level", 10, "name", "VIP 10 · 荣耀无双 (至高无上·无双王者)", "needExp", 188888, "priceRmb", 18888, "privileges", "• 终极 SVIP 10 荣耀无双七彩神级徽章\n• 【同桌装扮共享特权】（牌友可共享使用您拥有的骰盅皮肤与牌桌特效）\n• 神级龙腾入场全服公告横幅\n• 每日破产救济金无限次保底领取\n• 对局结算金币收益额外 +100% (翻倍)"));
         return list;
     }
 
-    /**
-     * 钻石兑换金币 (严格按照 1 钻石 = 100 金币比例兑换)
-     */
     @Transactional
     public Map<String, Object> convertDiamondsToCoins(String userId, int diamonds) {
         if (diamonds <= 0) {
@@ -162,59 +193,146 @@ public class ShopService {
     }
 
     /**
-     * 预留微信与支付宝支付网关 (支持模拟支付与真实入账流程)
+     * 创建商业化支付订单 (持久化为 PENDING 状态，支持对接真实微信/支付宝回调)
      */
     @Transactional
-    public Map<String, Object> processPayment(String userId, String tierId, String payChannel) {
-        String channel = (payChannel != null && !payChannel.isBlank()) ? payChannel.toUpperCase() : "WXPAY";
-        if (!"WXPAY".equals(channel) && !"ALIPAY".equals(channel)) {
-            channel = "WXPAY";
+    public Map<String, Object> createOrder(String userId, String tierId, String payChannel) {
+        User user = getOrCreateUser(userId);
+        String channel = normalizeChannel(payChannel);
+        String cleanTierId = (tierId != null && !tierId.isBlank()) ? tierId.trim() : "tier_6";
+
+        int priceRmb;
+        int diamondsAward;
+        int coinsAward;
+        int vipExpAward;
+        String title;
+
+        if ("first_recharge_6".equalsIgnoreCase(cleanTierId)) {
+            List<String> inv = parseInventory(user.getInventory());
+            if (inv.contains("FIRST_RECHARGE_CLAIMED") || (inv.contains("PURPLE_GALAXY") && inv.contains("BANNER_DRAGON"))) {
+                throw new IllegalArgumentException("您已领取过6元首充特惠礼包，每个账号仅限参与一次！");
+            }
+            priceRmb = 6;
+            diamondsAward = 666;
+            coinsAward = 66666;
+            vipExpAward = 60;
+            title = "6元首充至尊豪华大礼包";
+        } else {
+            Map<String, Object> tier = getRechargeTiers().stream()
+                    .filter(t -> t.get("id").equals(cleanTierId))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("未知的充值档位: " + cleanTierId));
+            priceRmb = (int) tier.get("priceRmb");
+            int baseDiamonds = (int) tier.get("diamonds");
+            boolean isFirstDouble = (boolean) tier.get("isFirstDouble");
+            diamondsAward = isFirstDouble ? baseDiamonds * 2 : baseDiamonds;
+            coinsAward = (int) tier.get("coins");
+            vipExpAward = (int) tier.get("vipExp");
+            title = String.valueOf(tier.get("title"));
         }
 
-        User user = getOrCreateUser(userId);
-        Map<String, Object> tier = getRechargeTiers().stream()
-                .filter(t -> t.get("id").equals(tierId))
-                .findFirst()
-                .orElse(getRechargeTiers().get(0));
+        String prefix = "WXPAY".equals(channel) ? "WX-" : "ALI-";
+        String orderId = prefix + System.currentTimeMillis() + "-" + (1000 + secureRandom.nextInt(9000));
 
-        int priceRmb = (int) tier.get("priceRmb");
-        int diamonds = (int) tier.get("diamonds");
-        boolean isFirstDouble = (boolean) tier.get("isFirstDouble");
-        int diamondsAward = isFirstDouble ? diamonds * 2 : diamonds;
-        int coinsAward = (int) tier.get("coins");
-        int vipExpAward = (int) tier.get("vipExp");
-
-        // 模拟支付订单生成 (预留微信 prepay_id 与支付宝 trade_no 规范字段)
-        String orderId = (("WXPAY".equals(channel) ? "WX-" : "ALI-") + System.currentTimeMillis() + "-" + (1000 + new Random().nextInt(9000)));
-
-        user.setDiamonds((user.getDiamonds() != null ? user.getDiamonds() : 0) + diamondsAward);
-        user.setCoins((user.getCoins() != null ? user.getCoins() : 0) + coinsAward);
-        user.setTotalRechargeRmb((user.getTotalRechargeRmb() != null ? user.getTotalRechargeRmb() : 0) + priceRmb);
-
-        int currentExp = (user.getVipExp() != null ? user.getVipExp() : 0) + vipExpAward;
-        user.setVipExp(currentExp);
-        int oldVip = user.getVipLevel() != null ? user.getVipLevel() : 0;
-        int newVip = calculateVipLevel(currentExp);
-        user.setVipLevel(newVip);
-        boolean isVipUpgraded = newVip > oldVip;
-
-        userRepository.save(user);
-
-        log.info("[Payment] 用户 {} 通过 [{}] 成功支付 {} 元 (订单号: {}), 到账 {} 钻石 + {} 金币, VIP 等级: {}",
-                userId, ("WXPAY".equals(channel) ? "微信支付" : "支付宝支付"), priceRmb, orderId, diamondsAward, coinsAward, newVip);
+        PaymentOrder order = PaymentOrder.builder()
+                .orderId(orderId)
+                .userId(user.getId())
+                .tierId(cleanTierId)
+                .payChannel(channel)
+                .amountRmb(priceRmb)
+                .diamondsAward(diamondsAward)
+                .coinsAward(coinsAward)
+                .vipExpAward(vipExpAward)
+                .status("PENDING")
+                .sandboxMode(paymentSandboxEnabled)
+                .build();
+        paymentOrderRepository.save(order);
 
         Map<String, Object> res = new HashMap<>();
         res.put("orderId", orderId);
+        res.put("userId", user.getId());
+        res.put("tierId", cleanTierId);
+        res.put("title", title);
         res.put("payChannel", channel);
         res.put("payChannelName", "WXPAY".equals(channel) ? "微信支付" : "支付宝支付");
-        res.put("priceRmb", priceRmb);
+        res.put("amountRmb", priceRmb);
         res.put("diamondsAward", diamondsAward);
         res.put("coinsAward", coinsAward);
         res.put("vipExpAward", vipExpAward);
-        res.put("vipLevel", newVip);
-        res.put("isVipUpgraded", isVipUpgraded);
-        res.put("user", user);
+        res.put("status", "PENDING");
+        res.put("sandboxEnabled", paymentSandboxEnabled);
         return res;
+    }
+
+    /**
+     * 幂等确认订单到账 (由沙盒收银台或第三方支付验签回调调用)
+     */
+    @Transactional
+    public Map<String, Object> confirmOrder(String orderId, String tradeNo) {
+        if (orderId == null || orderId.isBlank()) {
+            throw new IllegalArgumentException("订单号不能为空");
+        }
+        PaymentOrder order = paymentOrderRepository.findByOrderId(orderId.trim())
+                .orElseThrow(() -> new IllegalArgumentException("支付订单不存在: " + orderId));
+        User user = getOrCreateUser(order.getUserId());
+
+        if ("PAID".equalsIgnoreCase(order.getStatus())) {
+            Map<String, Object> idempotentRes = buildPaymentSettlementMap(order, user, false);
+            idempotentRes.put("alreadyPaid", true);
+            return idempotentRes;
+        }
+        if (!"PENDING".equalsIgnoreCase(order.getStatus())) {
+            throw new IllegalArgumentException("当前订单状态不可结算: " + order.getStatus());
+        }
+
+        if ("first_recharge_6".equalsIgnoreCase(order.getTierId())) {
+            List<String> inventory = parseInventory(user.getInventory());
+            if (!inventory.contains("FIRST_RECHARGE_CLAIMED")) inventory.add("FIRST_RECHARGE_CLAIMED");
+            if (!inventory.contains("PURPLE_GALAXY")) inventory.add("PURPLE_GALAXY");
+            if (!inventory.contains("BANNER_DRAGON")) inventory.add("BANNER_DRAGON");
+            user.setInventory(JSON.toJSONString(inventory));
+            user.setDiceCupSkin("PURPLE_GALAXY");
+            user.setEntranceBanner("BANNER_DRAGON");
+        }
+
+        user.setDiamonds((user.getDiamonds() != null ? user.getDiamonds() : 0L) + order.getDiamondsAward());
+        user.setCoins((user.getCoins() != null ? user.getCoins() : 0L) + order.getCoinsAward());
+        user.setTotalRechargeRmb((user.getTotalRechargeRmb() != null ? user.getTotalRechargeRmb() : 0) + order.getAmountRmb());
+
+        int currentExp = (user.getVipExp() != null ? user.getVipExp() : 0) + order.getVipExpAward();
+        user.setVipExp(currentExp);
+        int oldVip = user.getVipLevel() != null ? user.getVipLevel() : 0;
+        int newVip = calculateVipLevel(currentExp);
+        if ("first_recharge_6".equalsIgnoreCase(order.getTierId())) {
+            newVip = Math.max(1, newVip);
+        }
+        user.setVipLevel(newVip);
+        boolean isVipUpgraded = newVip > oldVip;
+        userRepository.save(user);
+
+        order.setStatus("PAID");
+        order.setPaidAt(LocalDateTime.now());
+        order.setTradeNo(tradeNo != null && !tradeNo.isBlank() ? tradeNo.trim() : ("TX-" + order.getOrderId()));
+        paymentOrderRepository.save(order);
+
+        log.info("[Payment] 订单 {} 已结算到账: user={}, channel={}, amount=¥{}, diamonds={}, coins={}, vip={}",
+                order.getOrderId(), user.getId(), order.getPayChannel(), order.getAmountRmb(),
+                order.getDiamondsAward(), order.getCoinsAward(), newVip);
+
+        return buildPaymentSettlementMap(order, user, isVipUpgraded);
+    }
+
+    /**
+     * 收银台直充 (沙盒开关开启时创建订单并立即核销；生产模式强制走标准订单/回调链路)
+     */
+    @Transactional
+    public Map<String, Object> processPayment(String userId, String tierId, String payChannel) {
+        if (!paymentSandboxEnabled) {
+            throw new IllegalArgumentException("生产模式已关闭模拟直充，请通过官方支付收银台创建订单并完成支付");
+        }
+        Map<String, Object> created = createOrder(userId, tierId, payChannel);
+        String orderId = String.valueOf(created.get("orderId"));
+        return confirmOrder(orderId, "SANDBOX-" + orderId);
     }
 
     @Transactional
@@ -230,12 +348,7 @@ public class ShopService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("所购道具不存在"));
 
-        List<String> inventory = new ArrayList<>();
-        if (user.getInventory() != null && !user.getInventory().trim().isEmpty()) {
-            try {
-                inventory = JSON.parseArray(user.getInventory(), String.class);
-            } catch (Exception ignored) {}
-        }
+        List<String> inventory = parseInventory(user.getInventory());
         if (inventory.contains(itemId) && !"pack".equals(item.get("category")) && !"gift_prop".equals(item.get("category"))) {
             throw new IllegalArgumentException("您已拥有该永久装扮");
         }
@@ -259,6 +372,10 @@ public class ShopService {
             user.setCoins(user.getCoins() - priceCoins);
         }
 
+        if ("GIFT_STARTER".equals(itemId)) {
+            user.setCoins((user.getCoins() != null ? user.getCoins() : 0L) + 10000L);
+        }
+
         if (!inventory.contains(itemId)) {
             inventory.add(itemId);
             user.setInventory(JSON.toJSONString(inventory));
@@ -277,11 +394,21 @@ public class ShopService {
 
     @Transactional
     public User equipItem(String userId, String slot, String itemId) {
+        if (itemId == null || itemId.isBlank()) {
+            throw new IllegalArgumentException("装扮编号不能为空");
+        }
         User user = getOrCreateUser(userId);
+        List<String> inventory = parseInventory(user.getInventory());
+        if (!DEFAULT_OWNED_ITEMS.contains(itemId) && !inventory.contains(itemId)) {
+            throw new IllegalArgumentException("您尚未拥有该装扮，请先前往商城购买");
+        }
+
         if ("dice_cup".equals(slot)) user.setDiceCupSkin(itemId);
         else if ("avatar_frame".equals(slot)) user.setAvatarFrame(itemId);
         else if ("entrance_banner".equals(slot)) user.setEntranceBanner(itemId);
         else if ("chat_text_color".equals(slot) || "chatTextColor".equals(slot)) user.setChatTextColor(itemId);
+        else throw new IllegalArgumentException("不支持的装扮部位: " + slot);
+
         return userRepository.save(user);
     }
 
@@ -291,7 +418,7 @@ public class ShopService {
         String today = LocalDate.now().toString();
         boolean hasSignedInToday = today.equals(user.getLastSignDate());
         int streak = user.getSignInStreak() != null ? user.getSignInStreak() : 0;
-        
+
         List<Map<String, Object>> schedule = new ArrayList<>();
         schedule.add(Map.of("day", 1, "coins", 500, "diamonds", 0, "prop", "", "desc", "🪙 500金币"));
         schedule.add(Map.of("day", 2, "coins", 1000, "diamonds", 0, "prop", "", "desc", "🪙 1,000金币"));
@@ -344,18 +471,13 @@ public class ShopService {
             }
         }
 
-        user.setCoins((user.getCoins() != null ? user.getCoins() : 0) + rewardCoins);
+        user.setCoins((user.getCoins() != null ? user.getCoins() : 0L) + rewardCoins);
         if (rewardDiamonds > 0) {
-            user.setDiamonds((user.getDiamonds() != null ? user.getDiamonds() : 0) + rewardDiamonds);
+            user.setDiamonds((user.getDiamonds() != null ? user.getDiamonds() : 0L) + rewardDiamonds);
         }
 
         if (propAward != null) {
-            List<String> inventory = new ArrayList<>();
-            if (user.getInventory() != null && !user.getInventory().trim().isEmpty()) {
-                try {
-                    inventory = JSON.parseArray(user.getInventory(), String.class);
-                } catch (Exception ignored) {}
-            }
+            List<String> inventory = parseInventory(user.getInventory());
             inventory.add(propAward);
             user.setInventory(JSON.toJSONString(inventory));
         }
@@ -370,6 +492,374 @@ public class ShopService {
         res.put("propReward", propAward);
         res.put("user", user);
         return res;
+    }
+
+    /**
+     * 6元首充至尊豪华大礼包 (严格单账号限领一次)
+     */
+    @Transactional
+    public Map<String, Object> claimFirstRecharge(String userId, String payChannel) {
+        if (!paymentSandboxEnabled) {
+            throw new IllegalArgumentException("生产模式已关闭模拟首充，请通过官方支付收银台完成 6 元首充订单");
+        }
+        User user = getOrCreateUser(userId);
+        List<String> inventory = parseInventory(user.getInventory());
+        if (inventory.contains("FIRST_RECHARGE_CLAIMED") ||
+                (inventory.contains("PURPLE_GALAXY") && inventory.contains("BANNER_DRAGON"))) {
+            throw new IllegalArgumentException("您已领取过6元首充特惠礼包，每个账号仅限参与一次！");
+        }
+
+        Map<String, Object> orderCreated = createOrder(user.getId(), "first_recharge_6", payChannel);
+        String orderId = String.valueOf(orderCreated.get("orderId"));
+        Map<String, Object> settled = confirmOrder(orderId, "SANDBOX-FR-" + orderId);
+        settled.put("diceCupSkin", "PURPLE_GALAXY");
+        settled.put("entranceBanner", "BANNER_DRAGON");
+        return settled;
+    }
+
+    /**
+     * 每日破产救济金与激励广告领币 (带每日限次与防刷冷却)
+     */
+    @Transactional
+    public Map<String, Object> claimBankruptRelief(String userId, boolean isWatchAd) {
+        User user = getOrCreateUser(userId);
+        String today = LocalDate.now().toString();
+        String dayKey = user.getId() + ":" + today;
+        if (dailyReliefCounts.size() > 10000) {
+            dailyReliefCounts.entrySet().removeIf(e -> !e.getKey().endsWith(":" + today));
+        }
+        int[] counts = dailyReliefCounts.computeIfAbsent(dayKey, k -> new int[]{0, 0});
+
+        long curCoins = user.getCoins() != null ? user.getCoins() : 0L;
+        int vip = user.getVipLevel() != null ? user.getVipLevel() : 0;
+
+        long awardCoins;
+        if (isWatchAd) {
+            long now = System.currentTimeMillis();
+            Long lastAd = lastAdReliefMs.get(user.getId());
+            if (lastAd != null && (now - lastAd) < AD_RELIEF_COOLDOWN_MS) {
+                long remain = Math.max(1L, (AD_RELIEF_COOLDOWN_MS - (now - lastAd) + 999L) / 1000L);
+                throw new IllegalArgumentException("激励视频冷却中，请 " + remain + " 秒后再试！");
+            }
+            if (counts[1] >= MAX_DAILY_AD_RELIEF) {
+                throw new IllegalArgumentException("今日激励视频领币次数已达上限 (" + MAX_DAILY_AD_RELIEF + " 次)，明天再来吧！");
+            }
+            counts[1]++;
+            lastAdReliefMs.put(user.getId(), now);
+            awardCoins = 3000L;
+        } else {
+            if (curCoins >= 1000) {
+                throw new IllegalArgumentException("当前金币充足 (" + curCoins + " 币)，未达到破产救济标准（<1000 币）哦！");
+            }
+            int vipExtra = (vip >= 9) ? 5 : (vip >= 6 ? 3 : (vip >= 4 ? 2 : (vip >= 3 ? 1 : 0)));
+            int maxStandardDaily = (vip >= 10) ? Integer.MAX_VALUE : (3 + vipExtra);
+            if (counts[0] >= maxStandardDaily) {
+                throw new IllegalArgumentException("今日破产救济金已领完 (" + maxStandardDaily + " 次)，升级 VIP 或观看福利视频可继续领币！");
+            }
+            counts[0]++;
+            awardCoins = (vip >= 8) ? 3000L : ((vip >= 5) ? 2500L : 1500L);
+        }
+
+        user.setCoins(curCoins + awardCoins);
+        userRepository.save(user);
+        log.info("[BankruptRelief] 用户 {} 领取破产救济 (isWatchAd={}), 金币 +{}, 现余额: {}",
+                userId, isWatchAd, awardCoins, user.getCoins());
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("awardCoins", awardCoins);
+        res.put("isWatchAd", isWatchAd);
+        res.put("coins", user.getCoins());
+        res.put("remainingStandardToday", vip >= 10 ? 999 : Math.max(0, (3 + ((vip >= 9) ? 5 : (vip >= 6 ? 3 : (vip >= 4 ? 2 : (vip >= 3 ? 1 : 0))))) - counts[0]));
+        res.put("remainingAdToday", Math.max(0, MAX_DAILY_AD_RELIEF - counts[1]));
+        res.put("user", user);
+        return res;
+    }
+
+    /**
+     * 幸运夺宝盲盒抽奖转盘 (健康商业化 ~82% RTP 概率模型)
+     */
+    @Transactional
+    public Map<String, Object> luckyDraw(String userId, int drawCount, String currency) {
+        User user = getOrCreateUser(userId);
+        int count = (drawCount == 10) ? 10 : 1;
+        boolean isCoin = !"DIAMOND".equalsIgnoreCase(currency);
+
+        long needCoins = (count == 10) ? 9000L : 1000L;
+        int needDiamonds = (count == 10) ? 90 : 10;
+
+        if (isCoin) {
+            long curCoins = user.getCoins() != null ? user.getCoins() : 0L;
+            if (curCoins < needCoins) {
+                throw new IllegalArgumentException("聚会金币不足 (" + curCoins + "/" + needCoins + ")，可前往充值或看广告领取！");
+            }
+            user.setCoins(curCoins - needCoins);
+        } else {
+            long curDiamonds = user.getDiamonds() != null ? user.getDiamonds() : 0L;
+            if (curDiamonds < needDiamonds) {
+                throw new IllegalArgumentException("钻石不足 (" + curDiamonds + "/" + needDiamonds + ")，请前往充值！");
+            }
+            user.setDiamonds(curDiamonds - needDiamonds);
+        }
+
+        List<Map<String, Object>> prizesWon = new ArrayList<>();
+        long totalCoinsWon = 0;
+        int totalDiamondsWon = 0;
+
+        for (int i = 0; i < count; i++) {
+            int roll = secureRandom.nextInt(1000);
+            Map<String, Object> prize = new HashMap<>();
+            if (isCoin) {
+                if (roll < 3) {
+                    prize.put("name", "👑 88 璀璨钻石大奖");
+                    prize.put("type", "DIAMOND");
+                    prize.put("amount", 88);
+                    prize.put("rarity", "LEGENDARY");
+                    totalDiamondsWon += 88;
+                } else if (roll < 20) {
+                    prize.put("name", "🚀 全服超级火箭 x1");
+                    prize.put("type", "PROP");
+                    prize.put("propId", "PROP_ROCKET_100");
+                    prize.put("rarity", "EPIC");
+                } else if (roll < 100) {
+                    prize.put("name", "🪙 3,888 金币惊喜袋");
+                    prize.put("type", "COIN");
+                    prize.put("amount", 3888);
+                    prize.put("rarity", "RARE");
+                    totalCoinsWon += 3888;
+                } else if (roll < 300) {
+                    prize.put("name", "📢 全服大喇叭 x1");
+                    prize.put("type", "PROP");
+                    prize.put("propId", "PROP_TRUMPET_10");
+                    prize.put("rarity", "UNCOMMON");
+                } else if (roll < 650) {
+                    long c = 800 + secureRandom.nextInt(401);
+                    prize.put("name", "🪙 " + c + " 金币好礼");
+                    prize.put("type", "COIN");
+                    prize.put("amount", c);
+                    prize.put("rarity", "COMMON");
+                    totalCoinsWon += c;
+                } else {
+                    long c = 300 + secureRandom.nextInt(301);
+                    prize.put("name", "🪙 " + c + " 幸运金币");
+                    prize.put("type", "COIN");
+                    prize.put("amount", c);
+                    prize.put("rarity", "COMMON");
+                    totalCoinsWon += c;
+                }
+            } else {
+                if (roll < 8) {
+                    prize.put("name", "👑 188 璀璨钻石大奖");
+                    prize.put("type", "DIAMOND");
+                    prize.put("amount", 188);
+                    prize.put("rarity", "LEGENDARY");
+                    totalDiamondsWon += 188;
+                } else if (roll < 40) {
+                    prize.put("name", "🚀 全服超级火箭 x1");
+                    prize.put("type", "PROP");
+                    prize.put("propId", "PROP_ROCKET_100");
+                    prize.put("rarity", "EPIC");
+                } else if (roll < 160) {
+                    prize.put("name", "🪙 8,888 金币狂欢袋");
+                    prize.put("type", "COIN");
+                    prize.put("amount", 8888);
+                    prize.put("rarity", "RARE");
+                    totalCoinsWon += 8888;
+                } else if (roll < 400) {
+                    prize.put("name", "📢 全服大喇叭 x1");
+                    prize.put("type", "PROP");
+                    prize.put("propId", "PROP_TRUMPET_10");
+                    prize.put("rarity", "UNCOMMON");
+                } else {
+                    long c = 600 + secureRandom.nextInt(601);
+                    prize.put("name", "🪙 " + c + " 金币好礼");
+                    prize.put("type", "COIN");
+                    prize.put("amount", c);
+                    prize.put("rarity", "COMMON");
+                    totalCoinsWon += c;
+                }
+            }
+            prizesWon.add(prize);
+        }
+
+        List<String> inventory = parseInventory(user.getInventory());
+        for (Map<String, Object> prize : prizesWon) {
+            if ("PROP".equals(prize.get("type")) && prize.get("propId") != null) {
+                String propId = (String) prize.get("propId");
+                if (!inventory.contains(propId)) {
+                    inventory.add(propId);
+                }
+            }
+        }
+        user.setInventory(JSON.toJSONString(inventory));
+
+        user.setCoins((user.getCoins() != null ? user.getCoins() : 0L) + totalCoinsWon);
+        user.setDiamonds((user.getDiamonds() != null ? user.getDiamonds() : 0L) + totalDiamondsWon);
+        userRepository.save(user);
+
+        log.info("[LuckyDraw] 用户 {} 夺宝 {} 次 ({}), 赢得金币: {}, 钻石: {}", userId, count, isCoin ? "COIN" : "DIAMOND", totalCoinsWon, totalDiamondsWon);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("drawCount", count);
+        res.put("currency", isCoin ? "COIN" : "DIAMOND");
+        res.put("prizesWon", prizesWon);
+        res.put("totalCoinsWon", totalCoinsWon);
+        res.put("totalDiamondsWon", totalDiamondsWon);
+        res.put("coins", user.getCoins());
+        res.put("diamonds", user.getDiamonds());
+        res.put("user", user);
+        return res;
+    }
+
+    /**
+     * 对局结算赢家翻倍卡 (单局封顶 2,000 金币 + 30 秒冷却)
+     */
+    @Transactional
+    public Map<String, Object> settleVictoryDouble(String userId, long baseWinCoins) {
+        User user = getOrCreateUser(userId);
+        long now = System.currentTimeMillis();
+        Long lastTs = lastVictoryDoubleMs.get(user.getId());
+        if (lastTs != null && (now - lastTs) < VICTORY_DOUBLE_COOLDOWN_MS) {
+            long remain = Math.max(1L, (VICTORY_DOUBLE_COOLDOWN_MS - (now - lastTs) + 999L) / 1000L);
+            throw new IllegalArgumentException("翻倍卡冷却中，请 " + remain + " 秒后再试！");
+        }
+
+        long curDiamonds = user.getDiamonds() != null ? user.getDiamonds() : 0L;
+        if (curDiamonds < 10) {
+            throw new IllegalArgumentException("钻石不足 10 钻，无法激活本局翻倍！快去充值吧！");
+        }
+        user.setDiamonds(curDiamonds - 10L);
+        long clampedBonus = Math.min(Math.max(100L, baseWinCoins), 2000L);
+        user.setCoins((user.getCoins() != null ? user.getCoins() : 0L) + clampedBonus);
+        userRepository.save(user);
+        lastVictoryDoubleMs.put(user.getId(), now);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("extraCoins", clampedBonus);
+        res.put("diamondsSpent", 10);
+        res.put("coins", user.getCoins());
+        res.put("diamonds", user.getDiamonds());
+        res.put("user", user);
+        return res;
+    }
+
+    /**
+     * 获取每日任务列表 (基于今日真实对局与投掷统计)
+     */
+    public List<Map<String, Object>> getDailyTasks(String userId) {
+        String today = LocalDate.now().toString();
+        String uid = (userId != null && !userId.isBlank()) ? userId.trim() : "";
+        Set<String> claimedSet = uid.isEmpty()
+                ? Collections.emptySet()
+                : dailyClaimedTasks.getOrDefault(uid + ":" + today, Collections.emptySet());
+
+        LocalDateTime todayStart = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
+        int todayGames = uid.isEmpty() ? 0 : (int) battleRecordRepository.countByUserIdAndPlayedAtAfter(uid, todayStart);
+        int todayWins = uid.isEmpty() ? 0 : (int) battleRecordRepository.countByUserIdAndIsWinTrueAndPlayedAtAfter(uid, todayStart);
+        int todayThrows = uid.isEmpty() ? 0 : getDailyThrowCount(uid);
+
+        List<Map<String, Object>> tasks = new ArrayList<>();
+        tasks.add(buildTask("task_login", "每日登录打卡", 1, 1, 100, 5, claimedSet.contains("task_login")));
+        tasks.add(buildTask("task_play_1", "参与 1 局聚会桌游", 1, Math.min(1, todayGames), 200, 10, claimedSet.contains("task_play_1")));
+        tasks.add(buildTask("task_win_1", "赢得 1 场排位对局", 1, Math.min(1, todayWins), 300, 15, claimedSet.contains("task_win_1")));
+        tasks.add(buildTask("task_throw_3", "向好友投掷 3 次互动道具", 3, Math.min(3, todayThrows), 150, 5, claimedSet.contains("task_throw_3")));
+        tasks.add(buildTask("task_play_3", "累计完成 3 局桌游", 3, Math.min(3, todayGames), 500, 30, claimedSet.contains("task_play_3")));
+        return tasks;
+    }
+
+    /**
+     * 领取每日任务奖励 (校验真实进度与防重复领取)
+     */
+    @Transactional
+    public Map<String, Object> claimDailyTask(String userId, String taskId) {
+        if (userId == null || userId.isBlank() || taskId == null || taskId.isBlank()) {
+            throw new IllegalArgumentException("参数错误");
+        }
+        User user = getOrCreateUser(userId);
+        List<Map<String, Object>> tasks = getDailyTasks(user.getId());
+        Map<String, Object> task = tasks.stream()
+                .filter(t -> taskId.trim().equals(t.get("id")))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("未知的每日任务: " + taskId));
+
+        if (Boolean.TRUE.equals(task.get("isClaimed"))) {
+            throw new IllegalArgumentException("该任务今日奖励已领取过啦！");
+        }
+        int current = ((Number) task.get("current")).intValue();
+        int target = ((Number) task.get("target")).intValue();
+        if (current < target) {
+            throw new IllegalArgumentException("任务进度尚未达成 (" + current + "/" + target + ")，请先完成任务！");
+        }
+
+        String today = LocalDate.now().toString();
+        String key = user.getId() + ":" + today;
+        if (dailyClaimedTasks.size() > 10000) {
+            dailyClaimedTasks.entrySet().removeIf(e -> !e.getKey().endsWith(":" + today));
+        }
+        Set<String> claimedSet = dailyClaimedTasks.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet());
+        if (!claimedSet.add(taskId.trim())) {
+            throw new IllegalArgumentException("该任务今日奖励已领取过啦！");
+        }
+
+        int rewardCoins = ((Number) task.get("rewardCoins")).intValue();
+        int rewardDiamonds = ((Number) task.get("rewardDiamonds")).intValue();
+        user.setCoins((user.getCoins() != null ? user.getCoins() : 0L) + rewardCoins);
+        user.setDiamonds((user.getDiamonds() != null ? user.getDiamonds() : 0L) + rewardDiamonds);
+        userRepository.save(user);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("taskId", taskId.trim());
+        res.put("rewardCoins", rewardCoins);
+        res.put("rewardDiamonds", rewardDiamonds);
+        res.put("user", user);
+        return res;
+    }
+
+    private Map<String, Object> buildPaymentSettlementMap(PaymentOrder order, User user, boolean isVipUpgraded) {
+        Map<String, Object> res = new HashMap<>();
+        res.put("orderId", order.getOrderId());
+        res.put("payChannel", order.getPayChannel());
+        res.put("payChannelName", "WXPAY".equals(order.getPayChannel()) ? "微信支付" : "支付宝支付");
+        res.put("priceRmb", order.getAmountRmb());
+        res.put("diamondsAward", order.getDiamondsAward());
+        res.put("coinsAward", order.getCoinsAward());
+        res.put("vipExpAward", order.getVipExpAward());
+        res.put("vipLevel", user.getVipLevel() != null ? user.getVipLevel() : 0);
+        res.put("isVipUpgraded", isVipUpgraded);
+        res.put("status", order.getStatus());
+        res.put("user", user);
+        return res;
+    }
+
+    private Map<String, Object> buildTask(String id, String title, int target, int current, int coins, int diamonds, boolean claimed) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", id);
+        map.put("title", title);
+        map.put("target", target);
+        map.put("current", current);
+        map.put("rewardCoins", coins);
+        map.put("rewardDiamonds", diamonds);
+        map.put("isClaimed", claimed);
+        map.put("claimed", claimed);
+        return map;
+    }
+
+    private List<String> parseInventory(String rawInventory) {
+        List<String> inventory = new ArrayList<>();
+        if (rawInventory != null && !rawInventory.trim().isEmpty()) {
+            try {
+                List<String> parsed = JSON.parseArray(rawInventory, String.class);
+                if (parsed != null) inventory.addAll(parsed);
+            } catch (Exception ignored) {}
+        }
+        return inventory;
+    }
+
+    private String normalizeChannel(String payChannel) {
+        String channel = (payChannel != null && !payChannel.isBlank()) ? payChannel.trim().toUpperCase() : "WXPAY";
+        if (!"WXPAY".equals(channel) && !"ALIPAY".equals(channel)) {
+            return "WXPAY";
+        }
+        return channel;
     }
 
     private Map<String, Object> createGood(String id, String category, String name, int coins, int diamonds, int minVip, String icon, String desc, boolean isDefault) {
@@ -398,218 +888,4 @@ public class ShopService {
         map.put("badge", badge);
         return map;
     }
-
-    /**
-     * 6元首充至尊豪华大礼包 (破冰转化)
-     */
-    @Transactional
-    public Map<String, Object> claimFirstRecharge(String userId, String payChannel) {
-        User user = getOrCreateUser(userId);
-        
-        List<String> inventory = new ArrayList<>();
-        if (user.getInventory() != null && !user.getInventory().trim().isEmpty()) {
-            try {
-                inventory = JSON.parseArray(user.getInventory(), String.class);
-            } catch (Exception ignored) {}
-        }
-                if (inventory.contains("PURPLE_GALAXY")) {
-            user.setDiamonds((user.getDiamonds() != null ? user.getDiamonds() : 0) + 666L);
-            user.setCoins((user.getCoins() != null ? user.getCoins() : 0) + 66666L);
-            user.setTotalRechargeRmb((user.getTotalRechargeRmb() != null ? user.getTotalRechargeRmb() : 0) + 6);
-            int currentExp = (user.getVipExp() != null ? user.getVipExp() : 0) + 60;
-            user.setVipExp(currentExp);
-            int newVip = Math.max(1, calculateVipLevel(currentExp));
-            user.setVipLevel(newVip);
-            userRepository.save(user);
-            Map<String, Object> repeatRes = new HashMap<>();
-            repeatRes.put("diamondsAward", 666);
-            repeatRes.put("coinsAward", 66666);
-            repeatRes.put("vipLevel", newVip);
-            repeatRes.put("user", user);
-            return repeatRes;
-        }
-
-        user.setDiamonds((user.getDiamonds() != null ? user.getDiamonds() : 0) + 666L);
-        user.setCoins((user.getCoins() != null ? user.getCoins() : 0) + 66666L);
-        user.setTotalRechargeRmb((user.getTotalRechargeRmb() != null ? user.getTotalRechargeRmb() : 0) + 6);
-
-        int currentExp = (user.getVipExp() != null ? user.getVipExp() : 0) + 60;
-        user.setVipExp(currentExp);
-        int oldVip = user.getVipLevel() != null ? user.getVipLevel() : 0;
-        int newVip = Math.max(1, calculateVipLevel(currentExp));
-        user.setVipLevel(newVip);
-
-        if (!inventory.contains("PURPLE_GALAXY")) inventory.add("PURPLE_GALAXY");
-        if (!inventory.contains("BANNER_DRAGON")) inventory.add("BANNER_DRAGON");
-        user.setInventory(JSON.toJSONString(inventory));
-        user.setDiceCupSkin("PURPLE_GALAXY");
-        user.setEntranceBanner("BANNER_DRAGON");
-
-        userRepository.save(user);
-        log.info("[FirstRecharge] 用户 {} 成功激活 6元首充大礼包，到账 666 钻石 + 66666 金币，获得紫晶骰盅与龙吟横幅，VIP 直升至 {}", userId, newVip);
-
-        Map<String, Object> res = new HashMap<>();
-        res.put("diamondsAward", 666);
-        res.put("coinsAward", 66666);
-        res.put("vipLevel", newVip);
-        res.put("diceCupSkin", "PURPLE_GALAXY");
-        res.put("entranceBanner", "BANNER_DRAGON");
-        res.put("user", user);
-        return res;
-    }
-
-    /**
-     * 每日破产救济金与激励广告领币 (挫败挽留与广告流量变现)
-     */
-    @Transactional
-    public Map<String, Object> claimBankruptRelief(String userId, boolean isWatchAd) {
-        User user = getOrCreateUser(userId);
-        
-        long curCoins = user.getCoins() != null ? user.getCoins() : 0L;
-        if (curCoins >= 1000 && !isWatchAd) {
-            throw new IllegalArgumentException("当前金币充足 (" + curCoins + " 币)，未达到破产救济标准（<1000 币）哦！");
-        }
-
-        long awardCoins;
-        if (isWatchAd) {
-            awardCoins = 3000L;
-        } else {
-            int vip = user.getVipLevel() != null ? user.getVipLevel() : 0;
-            awardCoins = (vip >= 5) ? 2500L : 1500L;
-        }
-
-        user.setCoins(curCoins + awardCoins);
-        userRepository.save(user);
-        log.info("[BankruptRelief] 用户 {} 领取破产救济 (isWatchAd: {}), 金币 +{}, 现余额: {}", userId, isWatchAd, awardCoins, user.getCoins());
-
-        Map<String, Object> res = new HashMap<>();
-        res.put("awardCoins", awardCoins);
-        res.put("isWatchAd", isWatchAd);
-        res.put("coins", user.getCoins());
-        res.put("user", user);
-        return res;
-    }
-
-    /**
-     * 幸运夺宝盲盒抽奖转盘 (金币水池回收与钻石消耗)
-     */
-    @Transactional
-    public Map<String, Object> luckyDraw(String userId, int drawCount, String currency) {
-        User user = getOrCreateUser(userId);
-        int count = (drawCount == 10) ? 10 : 1;
-        boolean isCoin = !"DIAMOND".equalsIgnoreCase(currency);
-
-        long needCoins = (count == 10) ? 9000L : 1000L;
-        int needDiamonds = (count == 10) ? 90 : 10;
-
-        if (isCoin) {
-            long curCoins = user.getCoins() != null ? user.getCoins() : 0L;
-            if (curCoins < needCoins) {
-                throw new IllegalArgumentException("聚会金币不足 (" + curCoins + "/" + needCoins + ")，可前往充值或看广告领取！");
-            }
-            user.setCoins(curCoins - needCoins);
-        } else {
-            long curDiamonds = user.getDiamonds() != null ? user.getDiamonds() : 0L;
-            if (curDiamonds < needDiamonds) {
-                throw new IllegalArgumentException("钻石不足 (" + curDiamonds + "/" + needDiamonds + ")，请前往充值！");
-            }
-            user.setDiamonds(curDiamonds - needDiamonds);
-        }
-
-        List<Map<String, Object>> prizesWon = new ArrayList<>();
-        Random rand = new Random();
-        long totalCoinsWon = 0;
-        int totalDiamondsWon = 0;
-
-        for (int i = 0; i < count; i++) {
-            int roll = rand.nextInt(1000);
-            Map<String, Object> prize = new HashMap<>();
-            if (roll < 5) {
-                prize.put("name", "👑 888 璀璨钻石大奖");
-                prize.put("type", "DIAMOND");
-                prize.put("amount", 888);
-                prize.put("rarity", "LEGENDARY");
-                totalDiamondsWon += 888;
-            } else if (roll < 30) {
-                prize.put("name", "🚀 全服超级火箭 x1");
-                prize.put("type", "PROP");
-                prize.put("propId", "PROP_ROCKET_100");
-                prize.put("rarity", "EPIC");
-            } else if (roll < 120) {
-                prize.put("name", "🪙 18,888 金币狂欢袋");
-                prize.put("type", "COIN");
-                prize.put("amount", 18888);
-                prize.put("rarity", "RARE");
-                totalCoinsWon += 18888;
-            } else if (roll < 350) {
-                prize.put("name", "📢 全服大喇叭 x1");
-                prize.put("type", "PROP");
-                prize.put("propId", "PROP_TRUMPET_10");
-                prize.put("rarity", "UNCOMMON");
-            } else {
-                long c = 1200 + rand.nextInt(1800);
-                prize.put("name", "🪙 " + c + " 金币保底");
-                prize.put("type", "COIN");
-                prize.put("amount", c);
-                prize.put("rarity", "COMMON");
-                totalCoinsWon += c;
-            }
-            prizesWon.add(prize);
-        }
-
-        List<String> inventory = new ArrayList<>();
-        if (user.getInventory() != null && !user.getInventory().trim().isEmpty()) {
-            try {
-                inventory = JSON.parseArray(user.getInventory(), String.class);
-            } catch (Exception ignored) {}
-        }
-        for (Map<String, Object> prize : prizesWon) {
-            if ("PROP".equals(prize.get("type")) && prize.get("propId") != null) {
-                inventory.add((String) prize.get("propId"));
-            }
-        }
-        user.setInventory(JSON.toJSONString(inventory));
-
-        user.setCoins((user.getCoins() != null ? user.getCoins() : 0) + totalCoinsWon);
-        user.setDiamonds((user.getDiamonds() != null ? user.getDiamonds() : 0) + totalDiamondsWon);
-        userRepository.save(user);
-
-        log.info("[LuckyDraw] 用户 {} 夺宝 {} 次, 赢得金币: {}, 钻石: {}", userId, count, totalCoinsWon, totalDiamondsWon);
-
-        Map<String, Object> res = new HashMap<>();
-        res.put("drawCount", count);
-        res.put("currency", isCoin ? "COIN" : "DIAMOND");
-        res.put("prizesWon", prizesWon);
-        res.put("totalCoinsWon", totalCoinsWon);
-        res.put("totalDiamondsWon", totalDiamondsWon);
-        res.put("coins", user.getCoins());
-        res.put("diamonds", user.getDiamonds());
-        res.put("user", user);
-        return res;
-    }
-
-    /**
-     * 对局结算赢家翻倍卡 (局内即时冲动付费)
-     */
-    @Transactional
-    public Map<String, Object> settleVictoryDouble(String userId, long baseWinCoins) {
-        User user = getOrCreateUser(userId);
-        long curDiamonds = user.getDiamonds() != null ? user.getDiamonds() : 0L;
-        if (curDiamonds < 10) {
-            throw new IllegalArgumentException("钻石不足 10 钻，无法激活本局翻倍！快去充值吧！");
-        }
-        user.setDiamonds(curDiamonds - 10L);
-        long doubleAward = Math.max(1000L, baseWinCoins);
-        user.setCoins((user.getCoins() != null ? user.getCoins() : 0L) + doubleAward);
-        userRepository.save(user);
-
-        Map<String, Object> res = new HashMap<>();
-        res.put("extraCoins", doubleAward);
-        res.put("diamondsSpent", 10);
-        res.put("coins", user.getCoins());
-        res.put("diamonds", user.getDiamonds());
-        res.put("user", user);
-        return res;
-    }
-
 }

@@ -17,6 +17,7 @@ class MiniRoomFloatingWidget extends StatefulWidget {
 class _MiniRoomFloatingWidgetState extends State<MiniRoomFloatingWidget> with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  Offset? _dragOffset;
 
   @override
   void initState() {
@@ -46,10 +47,33 @@ class _MiniRoomFloatingWidgetState extends State<MiniRoomFloatingWidget> with Si
       return const SizedBox.shrink();
     }
 
+    final size = MediaQuery.sizeOf(context);
+    final padding = MediaQuery.paddingOf(context);
+    const pillWidth = 228.0;
+    const pillHeight = 56.0;
+    final minX = padding.left + 10.0;
+    final maxX = (size.width - padding.right - pillWidth - 10.0).clamp(minX, size.width);
+    final minY = padding.top + 60.0;
+    final maxY = (size.height - padding.bottom - pillHeight - 84.0).clamp(minY, size.height);
+
+    final pos = _dragOffset ?? Offset(maxX, maxY);
+    final left = pos.dx.clamp(minX, maxX);
+    final top = pos.dy.clamp(minY, maxY);
+
     return Positioned(
-      right: 16,
-      bottom: 80,
-      child: Material(
+      left: left,
+      top: top,
+      child: GestureDetector(
+        onPanUpdate: (details) {
+          setState(() {
+            final cur = _dragOffset ?? Offset(left, top);
+            _dragOffset = Offset(
+              (cur.dx + details.delta.dx).clamp(minX, maxX),
+              (cur.dy + details.delta.dy).clamp(minY, maxY),
+            );
+          });
+        },
+        child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(30),
@@ -145,14 +169,14 @@ class _MiniRoomFloatingWidgetState extends State<MiniRoomFloatingWidget> with Si
                     showDialog(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        backgroundColor: AppColors.cardSurface,
+                        backgroundColor: AppColors.adaptiveCard(ctx),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        title: const Text('退出对局', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-                        content: const Text('退出房间后将结束当前对局，确定要退出吗？', style: TextStyle(color: AppColors.textSecondary)),
+                        title: Text('退出对局', style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold)),
+                        content: Text('退出房间后将结束当前对局，确定要退出吗？', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx))),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx),
-                            child: const Text('继续游戏', style: TextStyle(color: AppColors.primary)),
+                            child: Text('继续游戏', style: TextStyle(color: AppColors.adaptivePrimary(ctx))),
                           ),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
@@ -179,6 +203,7 @@ class _MiniRoomFloatingWidgetState extends State<MiniRoomFloatingWidget> with Si
               ],
             ),
           ),
+        ),
         ),
       ),
     );

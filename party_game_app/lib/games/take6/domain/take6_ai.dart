@@ -10,6 +10,7 @@ class Take6Ai {
     required List<Take6Card> hand,
     required List<Take6Row> rows,
     required String personality, // 'BALANCED', 'AGGRESSIVE', 'CONSERVATIVE'
+    int playerCount = 4,
   }) {
     if (hand.isEmpty) throw ArgumentError('Hand cannot be empty');
     if (hand.length == 1) return hand.first;
@@ -19,7 +20,7 @@ class Take6Ai {
     double bestScore = double.infinity;
 
     for (final card in hand) {
-      final score = _evaluateCardRisk(card, rows, hand.length, personality);
+      final score = _evaluateCardRisk(card, rows, hand.length, personality, playerCount);
       if (score < bestScore) {
         bestScore = score;
         bestCard = card;
@@ -52,6 +53,7 @@ class Take6Ai {
     List<Take6Row> rows,
     int remainingCardsCount,
     String personality,
+    int playerCount,
   ) {
     // 找出该牌若直接入行，会进哪一行
     int bestRowIndex = -1;
@@ -67,13 +69,11 @@ class Take6Ai {
 
     // 情况 1: 比所有行尾牌都小
     if (bestRowIndex == -1) {
-      // 必须吃行！评估桌面上牛头最少的那行
       int minRowBulls = rows.map((r) => r.totalBullheads).reduce(min);
-      // 若当前桌面最少行的牛头数非常小 (如仅 1~2 个牛头)，主动送掉小牌并不算太坏
       if (minRowBulls <= 2) {
         return 15.0 + minRowBulls;
       }
-      return 60.0 + minRowBulls * 5.0; // 较危险
+      return 60.0 + minRowBulls * 5.0;
     }
 
     final targetRow = rows[bestRowIndex];
@@ -84,17 +84,17 @@ class Take6Ai {
       return 100.0 + targetRow.totalBullheads * 10.0;
     }
 
-    // 情况 3: 放入后未爆 (第 2~5 张)
-    // 剩余坑位 = 5 - currentCount (例如已有4张，剩1个坑位)
+    // 情况 3: 放入后未爆 (第 2~5 张)，评估间隙被多人挤爆风险
     final remainingSlots = 5 - currentCount;
-
-    // 差值越小越安全 (因为其他人在你前面的空间小)
     double diffRisk = minDiff * 1.2;
-
-    // 坑位越少，被别人抢先挤爆的风险越高
     double slotRisk = (5 - remainingSlots) * 8.0;
+    final squeezeFactor = (minDiff / max(1, playerCount)).clamp(0.2, 8.0);
+    if (currentCount == 4) {
+      slotRisk += targetRow.totalBullheads * 1.4 + squeezeFactor * 2.5;
+    } else {
+      slotRisk += squeezeFactor * 0.8;
+    }
 
-    // 保守型加重对爆行的顾忌
     if (personality == 'CONSERVATIVE') {
       slotRisk *= 1.5;
     }

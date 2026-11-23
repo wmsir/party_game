@@ -89,11 +89,13 @@ class GameSettlementDialog extends StatelessWidget {
     final totalCoins = baseCoins + vipBonusCoins;
     final scoreDelta = isWin ? 25 : -15;
 
+    final maxDialogHeight = (MediaQuery.sizeOf(context).height * 0.88).clamp(380.0, 740.0);
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 420),
+        constraints: BoxConstraints(maxWidth: 420, maxHeight: maxDialogHeight),
         decoration: BoxDecoration(
           color: AppColors.adaptiveCard(context),
           borderRadius: BorderRadius.circular(24),
@@ -154,10 +156,11 @@ class GameSettlementDialog extends StatelessWidget {
             ),
 
             // 战果收益与段位变动网格
-            Padding(
-              padding: const EdgeInsets.all(18.0),
-              child: Column(
-                children: [
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(18.0),
+                child: Column(
+                  children: [
                   // 全员排名榜单 (与网页端战绩榜完全一致)
                   if (rankItems != null && rankItems!.isNotEmpty) ...[
                     Container(
@@ -328,7 +331,7 @@ class GameSettlementDialog extends StatelessWidget {
                                 const SizedBox(height: 2),
                                 Text(
                                   vipBonusCoins > 0 ? '基础 $baseCoins + VIP加成 $vipBonusCoins' : '基础奖励',
-                                  style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                                  style: TextStyle(color: AppColors.adaptiveTextMuted(context), fontSize: 11),
                                 ),
                               ],
                             ),
@@ -369,6 +372,7 @@ class GameSettlementDialog extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
               ),
             ),
 

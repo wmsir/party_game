@@ -60,13 +60,19 @@ class _DailySignInDialogState extends State<DailySignInDialog> {
         ? _remoteStatus!.calendar
         : DailySignInDialog.defaultRewards;
 
+    final maxDialogHeight = (MediaQuery.sizeOf(context).height * 0.88).clamp(380.0, 680.0);
+    final gridRewards = rewards.length > 6 ? rewards.sublist(0, 6) : rewards;
+    final day7Reward = rewards.length >= 7 ? rewards[6] : null;
+    final isDay7Past = (isSignedToday && 6 < currentDay) || (!isSignedToday && 6 < (currentDay - 1));
+    final isDay7Today = !isSignedToday && (6 == (currentDay - 1));
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 480),
+        constraints: BoxConstraints(maxWidth: 480, maxHeight: maxDialogHeight),
         decoration: BoxDecoration(
-          color: AppColors.cardSurface,
+          color: AppColors.adaptiveCardSurface(context),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: const Color(0xFFEC4899), width: 1.5),
           boxShadow: [
@@ -119,91 +125,157 @@ class _DailySignInDialogState extends State<DailySignInDialog> {
               ),
             ),
 
-            // 7天签到格子网格
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 0.90,
-                ),
-                itemCount: rewards.length,
-                itemBuilder: (ctx, idx) {
-                  final r = rewards[idx];
-                  final isPastClaimed = (isSignedToday && idx < currentDay) || (!isSignedToday && idx < (currentDay - 1));
-                  final isTodayTarget = !isSignedToday && (idx == (currentDay - 1));
-                  final isDay7 = r.day == 7;
-
-                  String rewardSubText = '';
-                  if (isDay7) {
-                    rewardSubText = '66钻+6666币';
-                  } else if (r.prop == 'PROP_TRUMPET_10') {
-                    rewardSubText = '大喇叭+${r.coins}币';
-                  } else if (r.prop == 'GIFT_ROSE_20') {
-                    rewardSubText = '玫瑰x20+${r.coins}币';
-                  } else if (r.diamonds > 0) {
-                    rewardSubText = '${r.coins}币+${r.diamonds}钻';
-                  } else {
-                    rewardSubText = '${r.coins}金币';
-                  }
-
-                  return Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: isPastClaimed
-                          ? AppColors.bgDark
-                          : (isTodayTarget ? const Color(0xFFEC4899).withAlpha(25) : AppColors.bgElevated),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isTodayTarget
-                            ? const Color(0xFFEC4899)
-                            : (isPastClaimed ? AppColors.border : (isDay7 ? Colors.amber : AppColors.border)),
-                        width: isTodayTarget || isDay7 ? 1.5 : 1,
+            // 7天签到内容：1-6天 3x2 网格 + 第7天全宽黄金大奖横幅
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 0.90,
                       ),
+                      itemCount: gridRewards.length,
+                      itemBuilder: (ctx, idx) {
+                        final r = gridRewards[idx];
+                        final isPastClaimed = (isSignedToday && idx < currentDay) || (!isSignedToday && idx < (currentDay - 1));
+                        final isTodayTarget = !isSignedToday && (idx == (currentDay - 1));
+
+                        String rewardSubText = '';
+                        if (r.prop == 'PROP_TRUMPET_10') {
+                          rewardSubText = '大喇叭+${r.coins}币';
+                        } else if (r.prop == 'GIFT_ROSE_20') {
+                          rewardSubText = '玫瑰x20+${r.coins}币';
+                        } else if (r.diamonds > 0) {
+                          rewardSubText = '${r.coins}币+${r.diamonds}钻';
+                        } else {
+                          rewardSubText = '${r.coins}金币';
+                        }
+
+                        return Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isPastClaimed
+                                ? AppColors.adaptiveBgDark(context)
+                                : (isTodayTarget ? const Color(0xFFEC4899).withAlpha(25) : AppColors.adaptiveElevated(context)),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isTodayTarget
+                                  ? const Color(0xFFEC4899)
+                                  : AppColors.adaptiveBorder(context),
+                              width: isTodayTarget ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '第${r.day}天',
+                                style: TextStyle(
+                                  color: isPastClaimed ? AppColors.adaptiveTextMuted(context) : AppColors.adaptiveTextPrimary(context),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                r.displayIcon,
+                                style: const TextStyle(fontSize: 22),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                rewardSubText,
+                                style: TextStyle(
+                                  color: isPastClaimed ? AppColors.adaptiveTextMuted(context) : AppColors.adaptiveAccent(context),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              if (isPastClaimed)
+                                const Text('已领取', style: TextStyle(color: Color(0xFF10B981), fontSize: 9, fontWeight: FontWeight.bold))
+                              else if (isTodayTarget)
+                                const Text('今日可领', style: TextStyle(color: Color(0xFFEC4899), fontSize: 9, fontWeight: FontWeight.bold))
+                              else
+                                Text('未解锁', style: TextStyle(color: AppColors.adaptiveTextMuted(context), fontSize: 9)),
+                            ],
+                          ),
+                        );
+                      },
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '第${r.day}天',
-                          style: TextStyle(
-                            color: isPastClaimed ? AppColors.textMuted : AppColors.textPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                    if (day7Reward != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isDay7Past
+                                ? [AppColors.adaptiveBgDark(context), AppColors.adaptiveElevated(context)]
+                                : const [Color(0xFF78350F), Color(0xFFB45309)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDay7Today ? const Color(0xFFEC4899) : Colors.amber,
+                            width: 1.5,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          r.displayIcon,
-                          style: const TextStyle(fontSize: 22),
+                        child: Row(
+                          children: [
+                            Text(day7Reward.displayIcon, style: const TextStyle(fontSize: 28)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '第 7 天终极大奖 · 荣耀黄金框',
+                                    style: TextStyle(
+                                      color: isDay7Past ? AppColors.adaptiveTextMuted(context) : const Color(0xFFFEF08A),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${day7Reward.coins} 金币 + ${day7Reward.diamonds} 钻石 + 传说礼盒',
+                                    style: TextStyle(
+                                      color: isDay7Past ? AppColors.adaptiveTextMuted(context) : Colors.white,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isDay7Past ? AppColors.adaptiveCard(context) : Colors.amber,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                isDay7Past ? '已领取' : (isDay7Today ? '今日可领' : '满7天解锁'),
+                                style: TextStyle(
+                                  color: isDay7Past ? AppColors.adaptiveTextMuted(context) : Colors.black,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          rewardSubText,
-                          style: TextStyle(
-                            color: isDay7 ? Colors.amber : (isPastClaimed ? AppColors.textMuted : AppColors.accent),
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        if (isPastClaimed)
-                          const Text('已领取', style: TextStyle(color: Color(0xFF10B981), fontSize: 9, fontWeight: FontWeight.bold))
-                        else if (isTodayTarget)
-                          const Text('今日可领', style: TextStyle(color: Color(0xFFEC4899), fontSize: 9, fontWeight: FontWeight.bold))
-                        else
-                          const Text('未解锁', style: TextStyle(color: AppColors.textMuted, fontSize: 9)),
-                      ],
-                    ),
-                  );
-                },
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
 
@@ -217,13 +289,15 @@ class _DailySignInDialogState extends State<DailySignInDialog> {
                     height: 44,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isSignedToday ? AppColors.bgElevated : const Color(0xFFDB2777),
-                        foregroundColor: isSignedToday ? AppColors.textMuted : Colors.white,
+                        backgroundColor: isSignedToday ? AppColors.adaptiveElevated(context) : const Color(0xFFDB2777),
+                        foregroundColor: isSignedToday ? AppColors.adaptiveTextMuted(context) : Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       icon: Icon(isSignedToday ? Icons.check_circle : Icons.card_giftcard),
                       label: Text(
                         isSignedToday ? '今日已签到打卡，明日再来' : '立即签到领取第 $currentDay 天奖励',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                       onPressed: (isSignedToday || _isLoading)
@@ -270,6 +344,8 @@ class _DailySignInDialogState extends State<DailySignInDialog> {
                         icon: const Icon(Icons.play_circle_fill, color: Colors.black, size: 18),
                         label: Text(
                           '看视频广告 · 双倍领第 $currentDay 天奖励 (🪙 ${rewards[(currentDay - 1).clamp(0, rewards.length - 1)].coins * 2})',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                         onPressed: _isLoading

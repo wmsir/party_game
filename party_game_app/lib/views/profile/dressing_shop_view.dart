@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/commercial_ui_kit.dart';
 import '../../models/shop_models.dart';
 import '../../providers/auth_provider.dart';
 import '../shop/widgets/recharge_dialog.dart';
@@ -441,9 +442,9 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
     final vipLevel = user?.vipLevel ?? 0;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: AppColors.adaptiveBgDark(context),
       appBar: AppBar(
-        backgroundColor: AppColors.cardSurface,
+        backgroundColor: AppColors.adaptiveCardSurface(context),
         elevation: 0,
         titleSpacing: 8,
         title: const Text('🛍️ 聚会装扮商城', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -456,7 +457,7 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
               margin: const EdgeInsets.symmetric(vertical: 11, horizontal: 3),
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
-                color: AppColors.bgElevated,
+                color: AppColors.adaptiveElevated(context),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: const Color(0xFF38BDF8).withAlpha(120)),
               ),
@@ -479,9 +480,9 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
               margin: const EdgeInsets.symmetric(vertical: 11, horizontal: 5),
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
-                color: AppColors.bgElevated,
+                color: AppColors.adaptiveElevated(context),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: AppColors.adaptiveBorder(context)),
               ),
               child: Row(
                 children: [
@@ -502,8 +503,8 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
           indicatorColor: AppColors.primary,
           indicatorWeight: 3,
           labelPadding: const EdgeInsets.symmetric(horizontal: 14),
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
+          labelColor: AppColors.adaptivePrimary(context),
+          unselectedLabelColor: AppColors.adaptiveTextSecondary(context),
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
           tabs: const [
@@ -559,44 +560,57 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: const BoxDecoration(
-          color: AppColors.cardSurface,
-          border: Border(top: BorderSide(color: AppColors.border)),
+        decoration: BoxDecoration(
+          color: AppColors.adaptiveCardSurface(context),
+          border: Border(top: BorderSide(color: AppColors.adaptiveBorder(context))),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.amber,
-                  side: const BorderSide(color: Colors.amber),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.amber,
+                    side: const BorderSide(color: Colors.amber),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  ),
+                  icon: const Icon(Icons.workspace_premium, size: 18),
+                  label: Text(
+                    'VIP Lv.$vipLevel',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  onPressed: () {
+                    showDialog(context: context, builder: (_) => const VipCenterDialog());
+                  },
                 ),
-                icon: const Icon(Icons.workspace_premium),
-                label: Text('👑 VIP 俱乐部 (Lv.$vipLevel)', style: const TextStyle(fontWeight: FontWeight.bold)),
-                onPressed: () {
-                  showDialog(context: context, builder: (_) => const VipCenterDialog());
-                },
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD97706),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD97706),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  ),
+                  icon: const Icon(Icons.diamond_outlined, size: 18),
+                  label: const Text(
+                    '充值中心·特惠',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  onPressed: () {
+                    showDialog(context: context, builder: (_) => const RechargeDialog());
+                  },
                 ),
-                icon: const Icon(Icons.diamond_outlined),
-                label: const Text('充值中心 · 首充特惠', style: TextStyle(fontWeight: FontWeight.bold)),
-                onPressed: () {
-                  showDialog(context: context, builder: (_) => const RechargeDialog());
-                },
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -611,7 +625,9 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
   }) {
     final user = auth.user;
 
-    return ListView.separated(
+    return ResponsiveContentFrame(
+      maxWidth: 960,
+      child: ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -638,10 +654,10 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
           child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.cardSurface,
+            color: AppColors.adaptiveCardSurface(context),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isEquipped ? AppColors.primary : AppColors.border,
+              color: isEquipped ? AppColors.primary : AppColors.adaptiveBorder(context),
               width: isEquipped ? 2 : 1,
             ),
             boxShadow: isEquipped
@@ -672,7 +688,7 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
                           style: TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.bold,
-                            color: ChatMessageModel.getTextColorFromCode(item.id, defaultColor: AppColors.textPrimary),
+                            color: ChatMessageModel.getTextColorFromCode(item.id, defaultColor: Colors.white),
                           ),
                         )
                       : Text(item.icon, style: const TextStyle(fontSize: 28)),
@@ -689,7 +705,7 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
                         Flexible(
                           child: Text(
                             item.name,
-                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: AppColors.adaptiveTextPrimary(context), fontSize: 15, fontWeight: FontWeight.bold),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -722,21 +738,21 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(item.desc, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                    Text(item.desc, style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 11)),
                     if (slot == 'chat_text_color') ...[
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: AppColors.bgElevated,
+                          color: AppColors.adaptiveElevated(context),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: AppColors.adaptiveBorder(context)),
                         ),
                         child: Text(
                           '💬 发言: 聚会开启，决战到天亮！',
                           style: TextStyle(
                             fontSize: 10.5,
-                            color: ChatMessageModel.getTextColorFromCode(item.id, defaultColor: AppColors.textPrimary),
+                            color: ChatMessageModel.getTextColorFromCode(item.id, defaultColor: AppColors.adaptiveTextPrimary(context)),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -760,17 +776,17 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                             decoration: BoxDecoration(
-                              color: (user?.getItemCount(item.id) ?? 0) > 0 ? AppColors.accent.withAlpha(25) : AppColors.bgElevated,
+                              color: (user?.getItemCount(item.id) ?? 0) > 0 ? AppColors.accent.withAlpha(25) : AppColors.adaptiveElevated(context),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: (user?.getItemCount(item.id) ?? 0) > 0 ? AppColors.accent : AppColors.border,
+                                color: (user?.getItemCount(item.id) ?? 0) > 0 ? AppColors.accent : AppColors.adaptiveBorder(context),
                               ),
                             ),
                             child: Text(
                               '拥有 ×${user?.getItemCount(item.id) ?? 0}',
                               style: TextStyle(
                                 fontSize: 10,
-                                color: (user?.getItemCount(item.id) ?? 0) > 0 ? AppColors.accent : AppColors.textMuted,
+                                color: (user?.getItemCount(item.id) ?? 0) > 0 ? AppColors.accent : AppColors.adaptiveTextMuted(context),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -786,8 +802,8 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
               if (slot == 'gift_prop')
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isVipLocked ? AppColors.bgElevated : (item.isDiamondItem ? const Color(0xFF2563EB) : AppColors.primary),
-                    foregroundColor: isVipLocked ? AppColors.textMuted : Colors.white,
+                    backgroundColor: isVipLocked ? AppColors.adaptiveElevated(context) : (item.isDiamondItem ? const Color(0xFF2563EB) : AppColors.primary),
+                    foregroundColor: isVipLocked ? AppColors.adaptiveTextMuted(context) : Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: isVipLocked
@@ -887,8 +903,8 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
                       ),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isVipLocked ? AppColors.bgElevated : (item.isDiamondItem ? const Color(0xFF2563EB) : AppColors.primary),
-                        foregroundColor: isVipLocked ? AppColors.textMuted : Colors.white,
+                        backgroundColor: isVipLocked ? AppColors.adaptiveElevated(context) : (item.isDiamondItem ? const Color(0xFF2563EB) : AppColors.primary),
+                        foregroundColor: isVipLocked ? AppColors.adaptiveTextMuted(context) : Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       onPressed: isVipLocked
@@ -944,6 +960,7 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
         ),
       );
       },
+    ),
     );
   }
 
@@ -958,7 +975,7 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: AppColors.adaptiveCardSurface(context),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) {
@@ -985,9 +1002,9 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
                         width: 52,
                         height: 52,
                         decoration: BoxDecoration(
-                          color: AppColors.bgElevated,
+                          color: AppColors.adaptiveElevated(ctx),
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: AppColors.adaptiveBorder(ctx)),
                         ),
                         child: Center(child: Text(item.icon, style: const TextStyle(fontSize: 28))),
                       ),
@@ -998,7 +1015,7 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
                           children: [
                             Text(
                               '选购【${item.name}】互动道具',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.adaptiveTextPrimary(ctx)),
                             ),
                             const SizedBox(height: 2),
                             Text(
@@ -1011,7 +1028,7 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
                     ],
                   ),
                   const SizedBox(height: 18),
-                  const Text('选择购买套餐：', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                  Text('选择购买套餐：', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.adaptiveTextSecondary(ctx))),
                   const SizedBox(height: 10),
                   Row(
                     children: List.generate(packs.length, (idx) {
@@ -1024,10 +1041,10 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
                             margin: EdgeInsets.only(right: idx < packs.length - 1 ? 8 : 0),
                             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
                             decoration: BoxDecoration(
-                              color: isSel ? AppColors.primary.withAlpha(25) : AppColors.bgElevated,
+                              color: isSel ? AppColors.primary.withAlpha(25) : AppColors.adaptiveElevated(ctx),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: isSel ? AppColors.primary : AppColors.border,
+                                color: isSel ? AppColors.primary : AppColors.adaptiveBorder(ctx),
                                 width: isSel ? 2 : 1,
                               ),
                             ),
@@ -1038,13 +1055,13 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: isSel ? AppColors.primary : AppColors.textPrimary,
+                                    color: isSel ? AppColors.primary : AppColors.adaptiveTextPrimary(ctx),
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   p['title'] as String,
-                                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                  style: TextStyle(fontSize: 11, color: AppColors.adaptiveTextSecondary(ctx)),
                                 ),
                                 const SizedBox(height: 4),
                                 Container(
@@ -1083,7 +1100,7 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
                       ),
                       Text(
                         '当前余额: ${item.isDiamondItem ? "💎 ${user?.diamonds ?? 0}" : "🪙 ${user?.coins ?? 0}"}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        style: TextStyle(fontSize: 12, color: AppColors.adaptiveTextSecondary(ctx)),
                       ),
                     ],
                   ),
@@ -1222,9 +1239,9 @@ class _DressingShopViewState extends State<DressingShopView> with SingleTickerPr
           ),
         ),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           '全服特效档位一览（点击任意卡片即可配置并发送）：',
-          style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+          style: TextStyle(color: AppColors.adaptiveTextPrimary(context), fontSize: 13, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         ...blessings.map((b) {

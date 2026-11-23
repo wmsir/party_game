@@ -17,10 +17,11 @@ class DiceChallengeResult {
   final String challengerName;
   final DiceBid challengedBid;
   final int actualMatchCount;
-  final bool isChallengerWon; // 开盅者是否获胜 (若实际点数 < 叫点，则开盅者胜，叫点者输；反之开盅者输)
+  final bool isChallengerWon; // 开盅者/劈准者是否获胜
   final String loserId;
   final String loserName;
   final String details;
+  final bool isSpotOn;
 
   const DiceChallengeResult({
     required this.challengerId,
@@ -31,6 +32,7 @@ class DiceChallengeResult {
     required this.loserId,
     required this.loserName,
     required this.details,
+    this.isSpotOn = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -42,6 +44,7 @@ class DiceChallengeResult {
     'loserId': loserId,
     'loserName': loserName,
     'details': details,
+    'isSpotOn': isSpotOn,
   };
 }
 
@@ -57,6 +60,7 @@ class DiceState extends GameBaseState {
   DiceChallengeResult? lastResult; // 最近一次开盅结果
   final Map<String, int> chipsScore; // 玩家筹码/胜负积分
   final List<String> eventLogs;
+  final Set<String> rerolledPlayerIds;
 
   DiceState({
     required super.roundId,
@@ -70,10 +74,12 @@ class DiceState extends GameBaseState {
     this.lastResult,
     Map<String, int>? chipsScore,
     List<String>? eventLogs,
+    Set<String>? rerolledPlayerIds,
     super.gameCode = 'LIARS_DICE',
   })  : bidHistory = bidHistory ?? [],
         chipsScore = chipsScore ?? {for (var p in players) p.id: 100},
-        eventLogs = eventLogs ?? [];
+        eventLogs = eventLogs ?? [],
+        rerolledPlayerIds = rerolledPlayerIds ?? {};
 
   GamePlayer get currentPlayer => players[currentTurnIndex];
 
@@ -98,6 +104,7 @@ class DiceState extends GameBaseState {
       lastResult: lastResult,
       chipsScore: Map<String, int>.from(chipsScore),
       eventLogs: List<String>.from(eventLogs),
+      rerolledPlayerIds: Set<String>.from(rerolledPlayerIds),
       gameCode: gameCode,
     );
   }

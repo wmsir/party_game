@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/commercial_ui_kit.dart';
 import '../../models/friend_model.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/friend_provider.dart';
@@ -60,15 +61,17 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
             final isKeywordEmpty = searchCtrl.text.trim().isEmpty;
 
           return AlertDialog(
-            backgroundColor: AppColors.cardSurface,
+            backgroundColor: AppColors.adaptiveCard(ctx),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
-              children: const [
-                Icon(Icons.person_search, color: AppColors.primary, size: 22),
-                SizedBox(width: 8),
-                Text(
-                  '查找并添加聚会好友',
-                  style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
+              children: [
+                Icon(Icons.person_search, color: AppColors.adaptivePrimary(ctx), size: 22),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    '查找并添加聚会好友',
+                    style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                 ),
               ],
             ),
@@ -78,9 +81,9 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '支持输入玩家【手机号】、【昵称】或【游戏号】精准查找：',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 12),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -89,14 +92,14 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                         child: TextField(
                           controller: searchCtrl,
                           autofocus: true,
-                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                          style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontSize: 14),
                           decoration: InputDecoration(
                             hintText: '请输入玩家手机号 / 昵称 / 游戏ID',
-                            hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-                            prefixIcon: const Icon(Icons.search, color: AppColors.textMuted, size: 20),
+                            hintStyle: TextStyle(color: AppColors.adaptiveTextMuted(ctx), fontSize: 12),
+                            prefixIcon: Icon(Icons.search, color: AppColors.adaptiveTextMuted(ctx), size: 20),
                             suffixIcon: searchCtrl.text.isNotEmpty
                                 ? IconButton(
-                                    icon: const Icon(Icons.clear, color: AppColors.textMuted, size: 16),
+                                    icon: Icon(Icons.clear, color: AppColors.adaptiveTextMuted(ctx), size: 16),
                                     onPressed: () {
                                       searchCtrl.clear();
                                       friendProv.clearSearchResults();
@@ -105,11 +108,11 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                                   )
                                 : null,
                             filled: true,
-                            fillColor: AppColors.backgroundDark,
+                            fillColor: AppColors.adaptiveBg(ctx),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: AppColors.border),
+                              borderSide: BorderSide(color: AppColors.adaptiveBorder(ctx)),
                             ),
                           ),
                           onChanged: (val) async {
@@ -159,11 +162,11 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                   if (!isKeywordEmpty)
                     Row(
                       children: [
-                        const Icon(Icons.search, color: AppColors.primary, size: 16),
+                        Icon(Icons.search, color: AppColors.adaptivePrimary(ctx), size: 16),
                         const SizedBox(width: 4),
                         Text(
                           '匹配玩家 (${searchResults.length})：',
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -179,18 +182,18 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
                             decoration: BoxDecoration(
-                              color: AppColors.backgroundDark,
+                              color: AppColors.adaptiveBg(ctx),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(Icons.person_search_outlined, color: AppColors.textMuted, size: 40),
-                                SizedBox(height: 10),
+                              children: [
+                                Icon(Icons.person_search_outlined, color: AppColors.adaptiveTextMuted(ctx), size: 40),
+                                const SizedBox(height: 10),
                                 Text(
                                   '请输入目标玩家的手机号、昵称或游戏ID\n点击“查找”即可找到该玩家并添加好友',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+                                  style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 13, height: 1.4),
                                 ),
                               ],
                             ),
@@ -211,18 +214,18 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: AppColors.backgroundDark,
+                              color: AppColors.adaptiveBg(ctx),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(Icons.sentiment_dissatisfied, color: AppColors.textMuted, size: 36),
-                                SizedBox(height: 8),
+                              children: [
+                                Icon(Icons.sentiment_dissatisfied, color: AppColors.adaptiveTextMuted(ctx), size: 36),
+                                const SizedBox(height: 8),
                                 Text(
                                   '未找到匹配的聚会玩家\n请确认输入的手机号或昵称正确',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                  style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 12),
                                 ),
                               ],
                             ),
@@ -232,7 +235,7 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                         return ListView.separated(
                           shrinkWrap: true,
                           itemCount: searchResults.length,
-                          separatorBuilder: (_, __) => const Divider(color: AppColors.border, height: 1),
+                          separatorBuilder: (_, __) => Divider(color: AppColors.adaptiveBorder(ctx), height: 1),
                           itemBuilder: (ctx, idx) {
                             final user = searchResults[idx];
                             final isMe = myUser != null && (user.id == myUser.id || (user.phone != null && user.phone == myUser.phone));
@@ -242,14 +245,14 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                               margin: const EdgeInsets.symmetric(vertical: 4),
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: AppColors.backgroundDark,
+                                color: AppColors.adaptiveBg(ctx),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: AppColors.border, width: 0.8),
+                                border: Border.all(color: AppColors.adaptiveBorder(ctx), width: 0.8),
                               ),
                               child: Row(
                                 children: [
                                   CircleAvatar(
-                                    backgroundColor: AppColors.primary.withOpacity(0.15),
+                                    backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                                     child: Text(user.avatar, style: const TextStyle(fontSize: 20)),
                                   ),
                                   const SizedBox(width: 10),
@@ -262,8 +265,8 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                                             Flexible(
                                               child: Text(
                                                 user.nickname,
-                                                style: const TextStyle(
-                                                  color: AppColors.textPrimary,
+                                                style: TextStyle(
+                                                  color: AppColors.adaptiveTextPrimary(ctx),
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 14,
                                                 ),
@@ -274,12 +277,12 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                               decoration: BoxDecoration(
-                                                color: AppColors.primary.withOpacity(0.15),
+                                                color: AppColors.primary.withValues(alpha: 0.15),
                                                 borderRadius: BorderRadius.circular(4),
                                               ),
                                               child: Text(
                                                 user.levelTitle,
-                                                style: const TextStyle(color: AppColors.primary, fontSize: 9, fontWeight: FontWeight.bold),
+                                                style: TextStyle(color: AppColors.adaptivePrimary(ctx), fontSize: 9, fontWeight: FontWeight.bold),
                                               ),
                                             ),
                                           ],
@@ -287,7 +290,9 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                                         const SizedBox(height: 2),
                                         Text(
                                           'ID: ${user.id} ${user.phone != null && user.phone!.isNotEmpty ? " · 📱 ${user.phone}" : ""}',
-                                          style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                                          style: TextStyle(color: AppColors.adaptiveTextMuted(ctx), fontSize: 11),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
                                     ),
@@ -297,10 +302,10 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: Colors.grey.withOpacity(0.2),
+                                        color: Colors.grey.withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: const Text('本人', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                                      child: Text('本人', style: TextStyle(color: AppColors.adaptiveTextMuted(ctx), fontSize: 11)),
                                     )
                                   else if (isFriend)
                                     Container(
@@ -353,7 +358,7 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogCtx),
-                child: const Text('关闭', style: TextStyle(color: AppColors.textSecondary)),
+                child: Text('关闭', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx))),
               ),
             ],
           );
@@ -400,20 +405,20 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildStatCard(String title, String val, IconData icon, Color color) {
+  Widget _buildStatCard(BuildContext context, String title, String val, IconData icon, Color color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.25)),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
         ),
         child: Column(
           children: [
             Icon(icon, size: 16, color: color),
             const SizedBox(height: 3),
-            Text(title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+            Text(title, style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 10)),
             const SizedBox(height: 2),
             Text(
               val,
@@ -434,18 +439,19 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: AppColors.adaptiveCard(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.only(top: 4, bottom: 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const CommercialSheetHandle(),
                 // Header: Avatar, Name, VIP, UID + Copy
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -472,8 +478,8 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                                 Flexible(
                                   child: Text(
                                     friend.displayNickname,
-                                    style: const TextStyle(
-                                      color: AppColors.textPrimary,
+                                    style: TextStyle(
+                                      color: AppColors.adaptiveTextPrimary(ctx),
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                     ),
@@ -488,9 +494,12 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                Text(
-                                  'UID: ${friend.cleanId}',
-                                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                Flexible(
+                                  child: Text(
+                                    'UID: ${friend.cleanId}',
+                                    style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 12),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                                 const SizedBox(width: 6),
                                 InkWell(
@@ -507,16 +516,16 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppColors.bgElevated,
+                                      color: AppColors.adaptiveElevated(ctx),
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: AppColors.border),
+                                      border: Border.all(color: AppColors.adaptiveBorder(ctx)),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
-                                      children: const [
-                                        Icon(Icons.copy_rounded, size: 10, color: AppColors.primary),
-                                        SizedBox(width: 2),
-                                        Text('复制', style: TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
+                                      children: [
+                                        Icon(Icons.copy_rounded, size: 10, color: AppColors.adaptivePrimary(ctx)),
+                                        const SizedBox(width: 2),
+                                        Text('复制', style: TextStyle(color: AppColors.adaptivePrimary(ctx), fontSize: 10, fontWeight: FontWeight.bold)),
                                       ],
                                     ),
                                   ),
@@ -542,14 +551,14 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.edit_note, color: AppColors.primary, size: 18),
+                      Icon(Icons.edit_note, color: AppColors.adaptivePrimary(ctx), size: 18),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           (friend.remark != null && friend.remark!.trim().isNotEmpty)
                               ? '备注: ${friend.remark}'
                               : '备注: 暂无 (点击修改)',
-                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                          style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                       ),
                       InkWell(
@@ -575,20 +584,20 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Row(
                     children: [
-                      _buildStatCard('排位段位', friend.rankTier, Icons.military_tech, const Color(0xFFF59E0B)),
+                      _buildStatCard(ctx, '排位段位', friend.rankTier, Icons.military_tech, const Color(0xFFF59E0B)),
                       const SizedBox(width: 8),
-                      _buildStatCard('对战胜率', '${friend.winRate.toStringAsFixed(0)}%', Icons.show_chart, const Color(0xFF10B981)),
+                      _buildStatCard(ctx, '对战胜率', '${friend.winRate.toStringAsFixed(0)}%', Icons.show_chart, const Color(0xFF10B981)),
                       const SizedBox(width: 8),
-                      _buildStatCard('总对局', '${friend.totalGames}场', Icons.sports_esports, const Color(0xFF6366F1)),
+                      _buildStatCard(ctx, '总对局', '${friend.totalGames}场', Icons.sports_esports, const Color(0xFF6366F1)),
                     ],
                   ),
                 ),
-                const Divider(color: AppColors.border, height: 16),
+                Divider(color: AppColors.adaptiveBorder(ctx), height: 16),
 
                 // Actions
                 ListTile(
-                  leading: const Icon(Icons.chat, color: AppColors.primary),
-                  title: const Text('发送私聊消息', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+                  leading: Icon(Icons.chat, color: AppColors.adaptivePrimary(ctx)),
+                  title: Text('发送私聊消息', style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold)),
                   onTap: () {
                     Navigator.pop(ctx);
                     Navigator.push(context, MaterialPageRoute(builder: (_) => DirectChatView(friend: friend)));
@@ -596,7 +605,7 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                 ),
                 ListTile(
                   leading: const Icon(Icons.celebration, color: AppColors.secondary),
-                  title: const Text('投掷整蛊道具', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+                  title: Text('投掷整蛊道具', style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold)),
                   onTap: () {
                     Navigator.pop(ctx);
                     if (user == null) return;
@@ -620,32 +629,32 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
     showDialog(
       context: context,
       builder: (dlgCtx) => AlertDialog(
-        backgroundColor: AppColors.cardSurface,
+        backgroundColor: AppColors.adaptiveCard(dlgCtx),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
-          children: const [
-            Icon(Icons.drive_file_rename_outline, color: AppColors.primary, size: 20),
-            SizedBox(width: 8),
-            Text('修改好友备注', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+          children: [
+            Icon(Icons.drive_file_rename_outline, color: AppColors.adaptivePrimary(dlgCtx), size: 20),
+            const SizedBox(width: 8),
+            Text('修改好友备注', style: TextStyle(color: AppColors.adaptiveTextPrimary(dlgCtx), fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
         content: TextField(
           controller: ctrl,
           autofocus: true,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+          style: TextStyle(color: AppColors.adaptiveTextPrimary(dlgCtx), fontSize: 14),
           decoration: InputDecoration(
             hintText: '请输入新备注名 (留空可清空备注)',
-            hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+            hintStyle: TextStyle(color: AppColors.adaptiveTextMuted(dlgCtx), fontSize: 13),
             filled: true,
-            fillColor: AppColors.backgroundDark,
+            fillColor: AppColors.adaptiveBg(dlgCtx),
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.border)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.adaptiveBorder(dlgCtx))),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dlgCtx),
-            child: const Text('取消', style: TextStyle(color: AppColors.textMuted)),
+            child: Text('取消', style: TextStyle(color: AppColors.adaptiveTextMuted(dlgCtx))),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -690,18 +699,19 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: AppColors.adaptiveCard(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('向【${friend.nickname}】投掷互动道具：', style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+              const CommercialSheetHandle(),
+              Text('向【${friend.displayNickname}】投掷互动道具：', style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 12,
@@ -728,19 +738,23 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                       width: 90,
                       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                       decoration: BoxDecoration(
-                        color: AppColors.cardSurface,
+                        color: AppColors.adaptiveElevated(ctx),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
-                        boxShadow: const [
-                          BoxShadow(color: AppColors.shadow, blurRadius: 4, offset: Offset(0, 2)),
+                        border: Border.all(color: AppColors.adaptiveBorder(ctx)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.isDarkMode(ctx) ? AppColors.darkShadow : AppColors.shadow,
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
                         ],
                       ),
                       child: Column(
                         children: [
                           Text(item['emoji']!, style: const TextStyle(fontSize: 28)),
                           const SizedBox(height: 4),
-                          Text(item['name']!, style: const TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
-                          Text('${item['cost']}金币', style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+                          Text(item['name']!, style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontSize: 12, fontWeight: FontWeight.bold)),
+                          Text('${item['cost']}金币', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 10)),
                         ],
                       ),
                     ),
@@ -760,18 +774,19 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
     final friends = friendProv.friends;
     final requests = friendProv.pendingRequests;
     final reqCount = friendProv.pendingRequestsCount;
+    final primaryColor = AppColors.adaptivePrimary(context);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: AppColors.adaptiveBg(context),
       appBar: AppBar(
-        backgroundColor: AppColors.cardSurface,
+        backgroundColor: AppColors.adaptiveCard(context),
         elevation: 0.5,
-        title: const Text('聚会好友', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text('聚会好友', style: TextStyle(color: AppColors.adaptiveTextPrimary(context), fontWeight: FontWeight.bold, fontSize: 18)),
         actions: [
           TextButton.icon(
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              backgroundColor: AppColors.primary.withOpacity(0.08),
+              foregroundColor: primaryColor,
+              backgroundColor: primaryColor.withValues(alpha: 0.10),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () => _showSearchAndAddDialog(context),
@@ -782,9 +797,9 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          indicatorColor: AppColors.primary,
+          labelColor: primaryColor,
+          unselectedLabelColor: AppColors.adaptiveTextSecondary(context),
+          indicatorColor: primaryColor,
           indicatorWeight: 3,
           tabs: [
             Tab(text: '我的好友 (${friends.length})'),
@@ -813,20 +828,25 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Tab 1: 我的好友列表
-          _buildFriendsList(context, friends),
+      body: ResponsiveContentFrame(
+        maxWidth: 920,
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            // Tab 1: 我的好友列表
+            _buildFriendsList(context, friends),
 
-          // Tab 2: 好友申请待处理列表
-          _buildRequestsList(context, requests),
-        ],
+            // Tab 2: 好友申请待处理列表
+            _buildRequestsList(context, requests),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildFriendsList(BuildContext context, List<FriendModel> friends) {
+    final primaryColor = AppColors.adaptivePrimary(context);
+    final isDark = AppColors.isDarkMode(context);
     return Column(
       children: [
         // 顶部高亮真实好友/玩家搜索栏
@@ -838,12 +858,12 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: AppColors.cardSurface,
+                color: AppColors.adaptiveCard(context),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.primary.withOpacity(0.35)),
+                border: Border.all(color: primaryColor.withValues(alpha: 0.35)),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.06),
+                    color: primaryColor.withValues(alpha: 0.06),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -851,14 +871,17 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.person_search, color: AppColors.primary, size: 22),
+                  Icon(Icons.person_search, color: primaryColor, size: 22),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       '🔍 输入手机号 / 昵称 / 游戏ID 搜索真实玩家...',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
@@ -886,27 +909,12 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                 ? ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     children: [
-                      SizedBox(height: MediaQuery.of(context).size.height * 0.2),
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.people_outline, size: 56, color: AppColors.textMuted),
-                            const SizedBox(height: 12),
-                            const Text('暂无好友，快去搜索添加志同道合的牌友吧！', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                            const SizedBox(height: 14),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                              onPressed: () => _showSearchAndAddDialog(context),
-                              icon: const Icon(Icons.person_add, size: 18),
-                              label: const Text('查找推荐好友'),
-                            ),
-                          ],
-                        ),
+                      CommercialEmptyState(
+                        icon: Icons.people_outline,
+                        title: '暂无好友，快去结识牌友吧',
+                        subtitle: '支持通过手机号、游戏昵称或 UID 精准搜索真实玩家，一起开局对决！',
+                        actionLabel: '查找推荐好友',
+                        onAction: () => _showSearchAndAddDialog(context),
                       ),
                     ],
                   )
@@ -919,10 +927,10 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
           return Card(
             elevation: 0.8,
             margin: const EdgeInsets.only(bottom: 8),
-            color: AppColors.cardSurface,
+            color: AppColors.adaptiveCard(ctx),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: const BorderSide(color: AppColors.border, width: 0.8),
+              side: BorderSide(color: AppColors.adaptiveBorder(ctx), width: 0.8),
             ),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -931,7 +939,7 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                 children: [
                   CircleAvatar(
                     radius: 22,
-                    backgroundColor: AppColors.primary.withAlpha(25),
+                    backgroundColor: primaryColor.withAlpha(25),
                     child: Text(friend.avatar, style: const TextStyle(fontSize: 22)),
                   ),
                   if (friend.isOnline)
@@ -944,7 +952,7 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                         decoration: BoxDecoration(
                           color: const Color(0xFF10B981),
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
+                          border: Border.all(color: isDark ? AppColors.darkCard : Colors.white, width: 1.5),
                         ),
                       ),
                     ),
@@ -977,7 +985,7 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                   Flexible(
                     child: Text(
                       friend.displayNickname,
-                      style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 15),
+                      style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 15),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -988,12 +996,12 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: primaryColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       friend.levelTitle,
-                      style: const TextStyle(color: AppColors.primary, fontSize: 9.5, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: primaryColor, fontSize: 9.5, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -1003,7 +1011,7 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: friend.unreadCount > 0 ? AppColors.textPrimary : AppColors.textSecondary,
+                  color: friend.unreadCount > 0 ? AppColors.adaptiveTextPrimary(ctx) : AppColors.adaptiveTextSecondary(ctx),
                   fontWeight: friend.unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
                   fontSize: 12,
                 ),
@@ -1016,9 +1024,9 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                       margin: const EdgeInsets.only(right: 6),
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.redAccent.withOpacity(0.15),
+                        color: Colors.redAccent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
                       ),
                       child: Text(
                         '${friend.unreadCount}条未读',
@@ -1027,14 +1035,14 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                     ),
                   ],
                   IconButton(
-                    icon: const Icon(Icons.chat_outlined, color: AppColors.primary, size: 20),
+                    icon: Icon(Icons.chat_outlined, color: primaryColor, size: 20),
                     tooltip: '发消息',
                     onPressed: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => DirectChatView(friend: friend)));
                     },
                   ),
                   IconButton(
-                    icon: const Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
+                    icon: Icon(Icons.more_vert, color: AppColors.adaptiveTextMuted(ctx), size: 20),
                     tooltip: '更多',
                     onPressed: () => _showFriendOptions(context, friend),
                   ),
@@ -1055,15 +1063,10 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
 
   Widget _buildRequestsList(BuildContext context, List<FriendRequestModel> requests) {
     if (requests.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.mark_email_read_outlined, size: 64, color: AppColors.textMuted),
-            SizedBox(height: 12),
-            Text('暂无待处理的好友申请', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-          ],
-        ),
+      return const CommercialEmptyState(
+        icon: Icons.mark_email_read_outlined,
+        title: '暂无待处理的好友申请',
+        subtitle: '当其他玩家通过昵称或 UID 申请加你为好友时，会第一时间出现在这里。',
       );
     }
 
@@ -1075,13 +1078,14 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
       itemCount: requests.length,
       itemBuilder: (ctx, idx) {
         final req = requests[idx];
+        final primaryColor = AppColors.adaptivePrimary(ctx);
         return Card(
           elevation: 0.8,
           margin: const EdgeInsets.only(bottom: 10),
-          color: AppColors.cardSurface,
+          color: AppColors.adaptiveCard(ctx),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: AppColors.border, width: 0.8),
+            side: BorderSide(color: AppColors.adaptiveBorder(ctx), width: 0.8),
           ),
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -1089,7 +1093,7 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
               children: [
                 CircleAvatar(
                   radius: 22,
-                  backgroundColor: AppColors.primary.withAlpha(25),
+                  backgroundColor: primaryColor.withAlpha(25),
                   child: Text(req.avatar, style: const TextStyle(fontSize: 22)),
                 ),
                 const SizedBox(width: 12),
@@ -1099,20 +1103,24 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                     children: [
                       Row(
                         children: [
-                          Text(
-                            req.nickname,
-                            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
+                          Flexible(
+                            child: Text(
+                              req.nickname,
+                              style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 14),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.12),
+                              color: primaryColor.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               req.levelTitle,
-                              style: const TextStyle(color: AppColors.primary, fontSize: 9, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: primaryColor, fontSize: 9, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
@@ -1120,7 +1128,9 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                       const SizedBox(height: 3),
                       Text(
                         '游戏号: ${req.fromUserId} · 申请添加您为好友',
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                        style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -1131,7 +1141,7 @@ class _FriendsViewState extends State<FriendsView> with SingleTickerProviderStat
                   children: [
                     TextButton(
                       style: TextButton.styleFrom(
-                        foregroundColor: AppColors.textMuted,
+                        foregroundColor: AppColors.adaptiveTextMuted(ctx),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         minimumSize: const Size(0, 32),
                       ),

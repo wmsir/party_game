@@ -119,35 +119,35 @@ class _RechargeDialogState extends State<RechargeDialog> with SingleTickerProvid
                 showDialog(
                   context: parentContext,
                   builder: (receiptCtx) => AlertDialog(
-                    backgroundColor: AppColors.cardSurface,
+                    backgroundColor: AppColors.adaptiveCard(receiptCtx),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFF10B981))),
                     title: Row(
-                      children: const [
-                        Icon(Icons.check_circle, color: Color(0xFF10B981), size: 28),
-                        SizedBox(width: 8),
-                        Text('支付成功 · 资产已入账', style: TextStyle(color: Colors.white, fontSize: 16)),
+                      children: [
+                        const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 28),
+                        const SizedBox(width: 8),
+                        Flexible(child: Text('支付成功 · 资产已入账', style: TextStyle(color: AppColors.adaptiveTextPrimary(receiptCtx), fontSize: 16, fontWeight: FontWeight.bold))),
                       ],
                     ),
                     content: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('已通过 $channelName 完成模拟支付 ¥${tier.priceRmb}.00', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                        Text('已通过 $channelName 完成模拟支付 ¥${tier.priceRmb}.00', style: TextStyle(color: AppColors.adaptiveTextSecondary(receiptCtx), fontSize: 13)),
                         const SizedBox(height: 12),
                         Container(
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: AppColors.bgDark, borderRadius: BorderRadius.circular(10)),
+                          decoration: BoxDecoration(color: AppColors.adaptiveBg(receiptCtx), borderRadius: BorderRadius.circular(10)),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('💎 到账钻石: +$diamondsAward 颗', style: const TextStyle(color: AppColors.cyan, fontWeight: FontWeight.bold, fontSize: 13)),
                               const SizedBox(height: 4),
-                              Text('🪙 赠送金币: +${tier.coins} 聚会金币', style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 13)),
+                              Text('🪙 赠送金币: +${tier.coins} 聚会金币', style: TextStyle(color: AppColors.adaptiveAccent(receiptCtx), fontWeight: FontWeight.bold, fontSize: 13)),
                               const SizedBox(height: 4),
-                              Text('⭐ VIP成长值: +${tier.vipExp} Exp', style: const TextStyle(color: Colors.amber, fontSize: 13)),
+                              Text('⭐ VIP成长值: +${tier.vipExp} Exp', style: TextStyle(color: AppColors.adaptiveAccent(receiptCtx), fontSize: 13)),
                               if (newVip > oldVip) ...[
                                 const SizedBox(height: 6),
-                                Text('👑 恭喜！尊贵 VIP 等级升级为 Lv.$newVip！', style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 13)),
+                                Text('👑 恭喜！尊贵 VIP 等级升级为 Lv.$newVip！', style: TextStyle(color: AppColors.adaptivePrimary(receiptCtx), fontWeight: FontWeight.bold, fontSize: 13)),
                               ],
                             ],
                           ),
@@ -168,166 +168,183 @@ class _RechargeDialogState extends State<RechargeDialog> with SingleTickerProvid
 
             return Dialog(
               backgroundColor: Colors.transparent,
-              insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               child: Container(
-                constraints: const BoxConstraints(maxWidth: 400),
-                padding: const EdgeInsets.all(22),
+                constraints: BoxConstraints(
+                  maxWidth: 400,
+                  maxHeight: (MediaQuery.sizeOf(ctx).height * 0.86).clamp(360.0, 640.0),
+                ),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.cardSurface,
+                  color: AppColors.adaptiveCard(ctx),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: const Color(0xFF38BDF8), width: 1.5),
                   boxShadow: [
-                    BoxShadow(color: const Color(0xFF38BDF8).withOpacity(0.2), blurRadius: 20, spreadRadius: 2),
+                    BoxShadow(color: const Color(0xFF38BDF8).withValues(alpha: 0.2), blurRadius: 20, spreadRadius: 2),
                   ],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: const [
-                            Text('💳', style: TextStyle(fontSize: 24)),
-                            SizedBox(width: 8),
-                            Text('聚会收银台 · 【演示体验通道】', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: AppColors.textSecondary, size: 20),
-                          onPressed: () => Navigator.pop(cashierCtx),
-                        ),
-                      ],
-                    ),
-                    const Divider(color: AppColors.border),
-                    const SizedBox(height: 8),
-                    // 订单信息
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(tier.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                        Text('¥ ${tier.priceRmb}.00', style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.w900, fontSize: 18)),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text('到账 $diamondsAward 钻石 + ${tier.coins} 金币 (+${tier.vipExp} VIP成长值)', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.amber.withOpacity(0.12), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.amber.withOpacity(0.3))),
-                      child: const Text('⚠️ 【演示体验提示】：测试联调通道无需真实扣费，点击即可模拟入账体验。虚拟道具不可反向兑换法定货币或转让；未成年人严禁充值。', style: TextStyle(color: Colors.amberAccent, fontSize: 10.5, height: 1.4)),
-                    ),
-                    const SizedBox(height: 14),
-                    const Text('选择支付方式 (支持模拟入账测试):', style: TextStyle(color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-
-                    // 微信支付选项
-                    InkWell(
-                      onTap: () => setCashierState(() => selectedChannel = 'WXPAY'),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: selectedChannel == 'WXPAY' ? const Color(0xFF10B981).withOpacity(0.12) : AppColors.bgDark,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: selectedChannel == 'WXPAY' ? const Color(0xFF10B981) : AppColors.border,
-                            width: selectedChannel == 'WXPAY' ? 1.5 : 1,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Row(
+                              children: [
+                                const Text('💳', style: TextStyle(fontSize: 24)),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    '聚会收银台 · 演示体验',
+                                    style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontSize: 16, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(color: const Color(0xFF07C160), borderRadius: BorderRadius.circular(8)),
-                              alignment: Alignment.center,
-                              child: const Text('💬', style: TextStyle(fontSize: 18)),
-                            ),
-                            const SizedBox(width: 12),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('微信支付 (WeChat Pay)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                                  Text('亿万用户的首选支付方式', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              selectedChannel == 'WXPAY' ? Icons.check_circle : Icons.radio_button_unchecked,
-                              color: selectedChannel == 'WXPAY' ? const Color(0xFF10B981) : AppColors.textMuted,
-                              size: 20,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // 支付宝选项
-                    InkWell(
-                      onTap: () => setCashierState(() => selectedChannel = 'ALIPAY'),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: selectedChannel == 'ALIPAY' ? const Color(0xFF1677FF).withOpacity(0.12) : AppColors.bgDark,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: selectedChannel == 'ALIPAY' ? const Color(0xFF1677FF) : AppColors.border,
-                            width: selectedChannel == 'ALIPAY' ? 1.5 : 1,
+                          IconButton(
+                            icon: Icon(Icons.close, color: AppColors.adaptiveTextSecondary(ctx), size: 20),
+                            onPressed: () => Navigator.pop(cashierCtx),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(color: const Color(0xFF1677FF), borderRadius: BorderRadius.circular(8)),
-                              alignment: Alignment.center,
-                              child: const Text('支', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
-                            ),
-                            const SizedBox(width: 12),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('支付宝支付 (Alipay)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                                  Text('数亿用户的快速安全支付', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              selectedChannel == 'ALIPAY' ? Icons.check_circle : Icons.radio_button_unchecked,
-                              color: selectedChannel == 'ALIPAY' ? const Color(0xFF1677FF) : AppColors.textMuted,
-                              size: 20,
-                            ),
-                          ],
-                        ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // 立即支付按钮
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: selectedChannel == 'WXPAY' ? const Color(0xFF07C160) : const Color(0xFF1677FF),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        onPressed: doSimulatedPay,
+                      Divider(color: AppColors.adaptiveBorder(ctx)),
+                      const SizedBox(height: 8),
+                      // 订单信息
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(child: Text(tier.title, style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)),
+                          const SizedBox(width: 8),
+                          Text('¥ ${tier.priceRmb}.00', style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.w900, fontSize: 18)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text('到账 $diamondsAward 钻石 + ${tier.coins} 金币 (+${tier.vipExp} VIP成长值)', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 11)),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.amber.withValues(alpha: 0.35))),
                         child: Text(
-                          '立即支付 ¥${tier.priceRmb}.00 (模拟到账)',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          '⚠️ 【演示体验提示】：测试联调通道无需真实扣费，点击即可模拟入账体验。虚拟道具不可反向兑换法定货币或转让；未成年人严禁充值。',
+                          style: TextStyle(color: AppColors.adaptiveAccent(ctx), fontSize: 10.5, height: 1.4),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 14),
+                      Text('选择支付方式 (支持模拟入账测试):', style: TextStyle(color: AppColors.adaptiveTextMuted(ctx), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+
+                      // 微信支付选项
+                      InkWell(
+                        onTap: () => setCashierState(() => selectedChannel = 'WXPAY'),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: selectedChannel == 'WXPAY' ? const Color(0xFF10B981).withValues(alpha: 0.12) : AppColors.adaptiveBg(ctx),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: selectedChannel == 'WXPAY' ? const Color(0xFF10B981) : AppColors.adaptiveBorder(ctx),
+                              width: selectedChannel == 'WXPAY' ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(color: const Color(0xFF07C160), borderRadius: BorderRadius.circular(8)),
+                                alignment: Alignment.center,
+                                child: const Text('💬', style: TextStyle(fontSize: 18)),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('微信支付 (WeChat Pay)', style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 13)),
+                                    Text('亿万用户的首选支付方式', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                selectedChannel == 'WXPAY' ? Icons.check_circle : Icons.radio_button_unchecked,
+                                color: selectedChannel == 'WXPAY' ? const Color(0xFF10B981) : AppColors.adaptiveTextMuted(ctx),
+                                size: 20,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // 支付宝选项
+                      InkWell(
+                        onTap: () => setCashierState(() => selectedChannel = 'ALIPAY'),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: selectedChannel == 'ALIPAY' ? const Color(0xFF1677FF).withValues(alpha: 0.12) : AppColors.adaptiveBg(ctx),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: selectedChannel == 'ALIPAY' ? const Color(0xFF1677FF) : AppColors.adaptiveBorder(ctx),
+                              width: selectedChannel == 'ALIPAY' ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(color: const Color(0xFF1677FF), borderRadius: BorderRadius.circular(8)),
+                                alignment: Alignment.center,
+                                child: const Text('支', style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('支付宝支付 (Alipay)', style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 13)),
+                                    Text('数亿用户的快速安全支付', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                selectedChannel == 'ALIPAY' ? Icons.check_circle : Icons.radio_button_unchecked,
+                                color: selectedChannel == 'ALIPAY' ? const Color(0xFF1677FF) : AppColors.adaptiveTextMuted(ctx),
+                                size: 20,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // 立即支付按钮
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: selectedChannel == 'WXPAY' ? const Color(0xFF07C160) : const Color(0xFF1677FF),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: doSimulatedPay,
+                          child: Text(
+                            '立即支付 ¥${tier.priceRmb}.00 (模拟到账)',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -342,13 +359,16 @@ class _RechargeDialogState extends State<RechargeDialog> with SingleTickerProvid
     final auth = Provider.of<AuthProvider>(context);
     final user = auth.user;
 
+    final maxDialogHeight = (MediaQuery.sizeOf(context).height * 0.86).clamp(400.0, 660.0);
+    final tabViewHeight = (MediaQuery.sizeOf(context).height * 0.45).clamp(240.0, 380.0);
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 480),
+        constraints: BoxConstraints(maxWidth: 480, maxHeight: maxDialogHeight),
         decoration: BoxDecoration(
-          color: AppColors.cardSurface,
+          color: AppColors.adaptiveCard(context),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
           boxShadow: [
@@ -404,34 +424,55 @@ class _RechargeDialogState extends State<RechargeDialog> with SingleTickerProvid
             // 当前资产栏
             Container(
               margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               decoration: BoxDecoration(
-                color: AppColors.bgDark,
+                color: AppColors.adaptiveBg(context),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: AppColors.adaptiveBorder(context)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  Row(
-                    children: [
-                      const Text('💎 钻石: ', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                      Text('${user?.diamonds ?? 0}', style: const TextStyle(color: AppColors.cyan, fontWeight: FontWeight.bold, fontSize: 14)),
-                    ],
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('💎 ', style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 12)),
+                        Flexible(
+                          child: Text(
+                            '${user?.diamonds ?? 0}',
+                            style: const TextStyle(color: AppColors.cyan, fontWeight: FontWeight.bold, fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  Container(height: 14, width: 1, color: AppColors.border),
-                  Row(
-                    children: [
-                      const Text('🪙 金币: ', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                      Text('${user?.coins ?? 0}', style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 14)),
-                    ],
+                  Container(height: 14, width: 1, color: AppColors.adaptiveBorder(context)),
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('🪙 ', style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 12)),
+                        Flexible(
+                          child: Text(
+                            '${user?.coins ?? 0}',
+                            style: TextStyle(color: AppColors.adaptiveAccent(context), fontWeight: FontWeight.bold, fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  Container(height: 14, width: 1, color: AppColors.border),
-                  Row(
-                    children: [
-                      const Text('👑 VIP: ', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-                      Text('Lv.${user?.vipLevel ?? 0}', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 14)),
-                    ],
+                  Container(height: 14, width: 1, color: AppColors.adaptiveBorder(context)),
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('👑 ', style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 12)),
+                        Text('Lv.${user?.vipLevel ?? 0}', style: TextStyle(color: AppColors.adaptiveAccent(context), fontWeight: FontWeight.bold, fontSize: 14)),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -441,19 +482,19 @@ class _RechargeDialogState extends State<RechargeDialog> with SingleTickerProvid
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: AppColors.bgElevated,
+                color: AppColors.adaptiveElevated(context),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: AppColors.adaptiveBorder(context)),
               ),
               child: TabBar(
                 controller: _tabController,
                 indicatorColor: const Color(0xFFF59E0B),
                 indicatorWeight: 3,
-                labelColor: const Color(0xFFF59E0B),
-                unselectedLabelColor: AppColors.textMuted,
+                labelColor: const Color(0xFFD97706),
+                unselectedLabelColor: AppColors.adaptiveTextMuted(context),
                 tabs: const [
-                  Tab(text: '💎 钻石充值 (送双倍)'),
-                  Tab(text: '🪙 钻石兑换金币 (1:100)'),
+                  Tab(text: '💎 钻石充值'),
+                  Tab(text: '🪙 钻石换金币'),
                 ],
               ),
             ),
@@ -461,7 +502,7 @@ class _RechargeDialogState extends State<RechargeDialog> with SingleTickerProvid
             // Tab 内容
             Flexible(
               child: SizedBox(
-                height: 380,
+                height: tabViewHeight,
                 child: TabBarView(
                   controller: _tabController,
                   children: [
@@ -477,9 +518,9 @@ class _RechargeDialogState extends State<RechargeDialog> with SingleTickerProvid
                         return Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.bgElevated,
+                            color: AppColors.adaptiveElevated(ctx),
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.border),
+                            border: Border.all(color: AppColors.adaptiveBorder(ctx)),
                           ),
                           child: Row(
                             children: [
@@ -508,7 +549,13 @@ class _RechargeDialogState extends State<RechargeDialog> with SingleTickerProvid
                                   children: [
                                     Row(
                                       children: [
-                                        Text(t.title, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
+                                        Flexible(
+                                          child: Text(
+                                            t.title,
+                                            style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 13),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
                                         const SizedBox(width: 6),
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
@@ -524,7 +571,7 @@ class _RechargeDialogState extends State<RechargeDialog> with SingleTickerProvid
                                     const SizedBox(height: 3),
                                     Text(
                                       '获得 $diamondsShow 钻石 + ${t.coins} 金币 (+${t.vipExp} VIP成长值)',
-                                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                                      style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 11),
                                     ),
                                   ],
                                 ),
@@ -555,25 +602,25 @@ class _RechargeDialogState extends State<RechargeDialog> with SingleTickerProvid
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF59E0B).withOpacity(0.1),
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.35)),
                             ),
                             child: Row(
-                              children: const [
-                                Icon(Icons.swap_horiz, color: Color(0xFFF59E0B), size: 24),
-                                SizedBox(width: 10),
+                              children: [
+                                const Icon(Icons.swap_horiz, color: Color(0xFFF59E0B), size: 24),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     '官方固定兑换比例：1 颗钻石 = 100 聚会金币。\n金币可用于普通装扮购买、对局筹码与互动道具。',
-                                    style: TextStyle(color: Colors.amber, fontSize: 12, height: 1.4),
+                                    style: TextStyle(color: AppColors.adaptiveAccent(context), fontSize: 12, height: 1.4),
                                   ),
                                 ),
                               ],
                             ),
                           ),
                           const SizedBox(height: 16),
-                          const Text('快捷选择兑换钻石数量:', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                          Text('快捷选择兑换钻石数量:', style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 12, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 8,
@@ -585,11 +632,11 @@ class _RechargeDialogState extends State<RechargeDialog> with SingleTickerProvid
                                 selected: isSel,
                                 selectedColor: const Color(0xFFF59E0B),
                                 labelStyle: TextStyle(
-                                  color: isSel ? Colors.black : Colors.white70,
+                                  color: isSel ? Colors.black : AppColors.adaptiveTextPrimary(context),
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
-                                backgroundColor: AppColors.bgElevated,
+                                backgroundColor: AppColors.adaptiveElevated(context),
                                 onSelected: (val) {
                                   if (val) {
                                     setState(() {
@@ -620,7 +667,7 @@ class _RechargeDialogState extends State<RechargeDialog> with SingleTickerProvid
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('预计可获得金币:', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                              Text('预计可获得金币:', style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 13)),
                               Text(
                                 '${_selectedConvertDiamonds * 100} 🪙 聚会金币',
                                 style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 16),

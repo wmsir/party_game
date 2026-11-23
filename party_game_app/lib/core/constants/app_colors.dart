@@ -93,4 +93,44 @@ class AppColors {
 
   static Color adaptiveTextMuted(BuildContext context) =>
       isDarkMode(context) ? darkTextMuted : textMuted;
+
+  static Color adaptivePrimary(BuildContext context) =>
+      isDarkMode(context) ? darkPrimary : primary;
+
+  static Color adaptiveAccent(BuildContext context) =>
+      isDarkMode(context) ? darkAccent : accent;
+
+  // ===== 商业化品牌渐变色系 (Hero / 桌布 / 琥珀金) =====
+  static const List<Color> heroGradientLight = [
+    Color(0xFF0E6B47),
+    Color(0xFF1B8354),
+    Color(0xFF0F766E),
+  ];
+
+  static const List<Color> heroGradientDark = [
+    Color(0xFF0B2239),
+    Color(0xFF134E4A),
+    Color(0xFF0F172A),
+  ];
+
+  static const List<Color> feltGradientLight = [
+    Color(0xFF135C41),
+    Color(0xFF0B4631),
+  ];
+
+  static const List<Color> feltGradientDark = [
+    Color(0xFF0B3A2A),
+    Color(0xFF07231A),
+  ];
+
+  static const List<Color> goldGradient = [
+    Color(0xFFF59E0B),
+    Color(0xFFD97706),
+  ];
+
+  static List<Color> adaptiveHeroGradient(BuildContext context) =>
+      isDarkMode(context) ? heroGradientDark : heroGradientLight;
+
+  static List<Color> adaptiveFeltGradient(BuildContext context) =>
+      isDarkMode(context) ? feltGradientDark : feltGradientLight;
 }

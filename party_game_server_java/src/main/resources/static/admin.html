@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        window.tailwind = window.tailwind || {};
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -88,15 +89,15 @@
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-apple-textSecondary mb-1.5 ml-0.5">开发者账号</label>
-                    <input id="adminUser" type="text" value="" placeholder="输入管理员或 FWPT 通行证账号" class="w-full px-3.5 py-2.5 bg-[#EBEBEF] dark:bg-[#2C2C2E] border border-transparent focus:border-apple-blue rounded-xl text-sm outline-none transition">
+                    <label class="block text-xs font-semibold text-apple-textSecondary mb-1.5 ml-0.5">管理员账号</label>
+                    <input id="adminUser" type="text" value="" onkeydown="if(event.key==='Enter') doLogin()" placeholder="输入管理员账号" class="w-full px-3.5 py-2.5 bg-[#EBEBEF] dark:bg-[#2C2C2E] border border-transparent focus:border-apple-blue rounded-xl text-sm outline-none transition">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-apple-textSecondary mb-1.5 ml-0.5">管理凭据密码</label>
-                    <input id="adminPwd" type="password" value="" placeholder="输入管理凭据密码" class="w-full px-3.5 py-2.5 bg-[#EBEBEF] dark:bg-[#2C2C2E] border border-transparent focus:border-apple-blue rounded-xl text-sm outline-none transition">
+                    <input id="adminPwd" type="password" value="" onkeydown="if(event.key==='Enter') doLogin()" placeholder="输入管理凭据密码" class="w-full px-3.5 py-2.5 bg-[#EBEBEF] dark:bg-[#2C2C2E] border border-transparent focus:border-apple-blue rounded-xl text-sm outline-none transition">
                 </div>
                 <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
-                    💡 请输入已授权的管理账号或 FWPT 统一通行证凭证
+                    🔒 服务端已启用会话令牌认证，登录后所有管理请求均通过 Bearer Token 鉴权。
                 </div>
                 <button onclick="doLogin()" class="w-full py-3 bg-apple-blue hover:bg-apple-blueHover text-white font-semibold rounded-xl text-sm shadow-md shadow-apple-blue/20 transition-all active:scale-[0.98]">
                     验证并进入主控制台
@@ -139,12 +140,18 @@
     <main class="max-w-7xl mx-auto p-6 space-y-6">
 
         <!-- 苹果分段胶囊导航条 (Segmented Control) -->
-        <div class="bg-[#E5E5EA] dark:bg-[#242428] p-1.5 rounded-2xl inline-flex flex-wrap gap-1 shadow-inner border border-black/5 dark:border-white/5">
+        <div class="bg-[#E5E5EA] dark:bg-[#242428] p-1.5 rounded-2xl inline-flex flex-wrap gap-1 shadow-inner border border-black/5 dark:border-white/5 max-w-full">
             <button onclick="switchTab('analytics')" id="tabBtn-analytics" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold apple-tab-active transition-all">
                 📊 实时大盘与高峰分析
             </button>
             <button onclick="switchTab('users')" id="tabBtn-users" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
                 👥 玩家档案与分页检索
+            </button>
+            <button onclick="switchTab('orders')" id="tabBtn-orders" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
+                🧾 充值订单台账
+            </button>
+            <button onclick="switchTab('rooms')" id="tabBtn-rooms" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
+                🏠 实时在线房间
             </button>
             <button onclick="switchTab('sms')" id="tabBtn-sms" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
                 📱 阿里云/腾讯云短信网关
@@ -192,19 +199,23 @@
                         <span class="text-base">💰</span>
                     </div>
                     <div id="kpi-totalRecharge" class="text-3xl font-extrabold tracking-tight text-amber-500 mt-1.5">¥0</div>
-                    <div class="text-[11px] text-apple-textSecondary mt-2">
-                        换算钻石池: <b id="kpi-totalDiamonds" class="text-cyan-500 font-bold">0</b> 钻 (1:10)
+                    <div class="text-[11px] text-apple-textSecondary mt-2 flex flex-wrap gap-x-3 gap-y-0.5">
+                        <span>钻石池: <b id="kpi-totalDiamonds" class="text-cyan-500 font-bold">0</b></span>
+                        <span>今日营收: <b id="kpi-todayRevenue" class="text-emerald-500 font-bold">¥0</b></span>
+                        <span>总订单: <b id="kpi-totalOrders" class="text-apple-blue font-bold">0</b></span>
                     </div>
                 </div>
 
                 <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-2xl border border-black/5 dark:border-white/10 apple-card-shadow">
                     <div class="flex items-center justify-between text-xs text-apple-textSecondary">
-                        <span>累计对局局数</span>
+                        <span>累计对局与实时负载</span>
                         <span class="text-base">🎲</span>
                     </div>
                     <div id="kpi-totalBattles" class="text-3xl font-extrabold tracking-tight text-purple-500 mt-1.5">--</div>
-                    <div class="text-[11px] text-apple-textSecondary mt-2">
-                        今日对局: <b id="kpi-todayBattles" class="text-purple-600 dark:text-purple-400 font-bold">--</b> 场
+                    <div class="text-[11px] text-apple-textSecondary mt-2 flex flex-wrap gap-x-3 gap-y-0.5">
+                        <span>今日对局: <b id="kpi-todayBattles" class="text-purple-600 dark:text-purple-400 font-bold">--</b> 场</span>
+                        <span>活跃房: <b id="kpi-activeRooms" class="text-emerald-500 font-bold">0</b></span>
+                        <span>WS在线: <b id="kpi-onlineSockets" class="text-apple-blue font-bold">0</b></span>
                     </div>
                 </div>
             </div>
@@ -536,6 +547,88 @@
                     </div>
                 </div>
             </div>
+        <!-- ========================================== -->
+        <!-- 6. 商业充值订单台账 PANEL -->
+        <!-- ========================================== -->
+        <div id="tab-orders" class="space-y-4 hidden">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-2xl border border-black/5 dark:border-white/10 apple-card-shadow">
+                    <div class="text-xs text-apple-textSecondary">已结算订单总额 (PAID)</div>
+                    <div id="orders-paidRevenue" class="text-2xl font-extrabold text-emerald-500 mt-1">¥0</div>
+                </div>
+                <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-2xl border border-black/5 dark:border-white/10 apple-card-shadow">
+                    <div class="text-xs text-apple-textSecondary">已支付成功笔数</div>
+                    <div id="orders-paidCount" class="text-2xl font-extrabold text-apple-blue mt-1">0</div>
+                </div>
+                <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-2xl border border-black/5 dark:border-white/10 apple-card-shadow">
+                    <div class="text-xs text-apple-textSecondary">待支付 / 处理中笔数</div>
+                    <div id="orders-pendingCount" class="text-2xl font-extrabold text-amber-500 mt-1">0</div>
+                </div>
+            </div>
+
+            <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-3">
+                    <div>
+                        <h3 class="text-base font-bold tracking-tight">🧾 支付订单流水台账</h3>
+                        <p class="text-xs text-apple-textSecondary mt-0.5">支持按状态筛选服务端落库支付订单，沙箱与实付订单明确标识</p>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 text-xs">
+                        <button onclick="filterOrders('ALL', this)" class="order-filter-btn px-3 py-1.5 rounded-xl font-semibold bg-apple-blue text-white">全部</button>
+                        <button onclick="filterOrders('PAID', this)" class="order-filter-btn px-3 py-1.5 rounded-xl font-semibold bg-[#EFEFF2] dark:bg-[#2C2C2E] text-apple-textSecondary">已支付</button>
+                        <button onclick="filterOrders('PENDING', this)" class="order-filter-btn px-3 py-1.5 rounded-xl font-semibold bg-[#EFEFF2] dark:bg-[#2C2C2E] text-apple-textSecondary">待支付</button>
+                        <button onclick="filterOrders('FAILED', this)" class="order-filter-btn px-3 py-1.5 rounded-xl font-semibold bg-[#EFEFF2] dark:bg-[#2C2C2E] text-apple-textSecondary">失败</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-black/10 dark:border-white/10 text-apple-textSecondary">
+                                <th class="py-2.5 px-3">订单号</th>
+                                <th class="py-2.5 px-3">玩家 ID</th>
+                                <th class="py-2.5 px-3">档位 / 渠道</th>
+                                <th class="py-2.5 px-3">金额</th>
+                                <th class="py-2.5 px-3">发放奖励</th>
+                                <th class="py-2.5 px-3">状态</th>
+                                <th class="py-2.5 px-3">渠道流水号</th>
+                                <th class="py-2.5 px-3">创建时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody" class="divide-y divide-black/5 dark:divide-white/5">
+                            <tr><td colspan="8" class="p-8 text-center text-apple-textSecondary">点击加载订单流水...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex flex-wrap justify-between items-center gap-3 pt-2 border-t border-black/5 dark:border-white/5 text-xs">
+                    <span id="ordersPaginationSummary" class="text-apple-textSecondary">共 0 笔订单</span>
+                    <div class="flex gap-2">
+                        <button id="ordersPrevBtn" onclick="loadOrdersData(ordersCurrentPage - 1, ordersFilterStatus)" class="px-3 py-1.5 rounded-lg bg-[#EFEFF2] dark:bg-[#2C2C2E] font-semibold">‹ 上一页</button>
+                        <button id="ordersNextBtn" onclick="loadOrdersData(ordersCurrentPage + 1, ordersFilterStatus)" class="px-3 py-1.5 rounded-lg bg-[#EFEFF2] dark:bg-[#2C2C2E] font-semibold">下一页 ›</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 7. 实时在线房间与长连接监控 PANEL -->
+        <!-- ========================================== -->
+        <div id="tab-rooms" class="space-y-4 hidden">
+            <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow flex flex-wrap justify-between items-center gap-4">
+                <div>
+                    <h3 class="text-base font-bold tracking-tight">🏠 实时活跃房间与 WebSocket 连接监控</h3>
+                    <p class="text-xs text-apple-textSecondary mt-0.5">
+                        当前活跃房间数：<b id="rooms-activeCount" class="text-emerald-500">0</b> 间 ·
+                        在线 WebSocket 会话：<b id="rooms-onlineSockets" class="text-apple-blue">0</b> 个
+                    </p>
+                </div>
+                <button onclick="loadLiveRooms()" class="px-4 py-2 rounded-xl bg-apple-blue hover:bg-apple-blueHover text-white text-xs font-semibold shadow-sm transition active:scale-95">
+                    🔄 立即刷新监控
+                </button>
+            </div>
+            <div id="liveRoomsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="p-8 text-center text-xs text-apple-textSecondary bg-apple-cardLight dark:bg-apple-cardDark rounded-2xl border border-black/5 dark:border-white/10 col-span-full">
+                    正在获取实时房间状态...
+                </div>
+            </div>
         </div>
     </main>
 
@@ -715,23 +808,36 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        // 身份验证检查（支持 FWPT OneID sso_token 单点免密直达）
-        function checkAuth() {
-            try {
-                const urlParams = new URLSearchParams(window.location.search);
-                const ssoToken = urlParams.get('sso_token');
-                if (ssoToken) {
-                    localStorage.setItem('party_admin_token', ssoToken);
-                    localStorage.setItem('fwpt_token', ssoToken);
-                    urlParams.delete('sso_token');
-                    const newSearch = urlParams.toString();
-                    window.history.replaceState({}, document.title, window.location.pathname + (newSearch ? '?' + newSearch : ''));
-                }
-            } catch (e) {}
+        let ordersCurrentPage = 1;
+        let ordersFilterStatus = 'ALL';
 
-            const token = localStorage.getItem('party_admin_token') || localStorage.getItem('fwpt_token');
+        function getAdminToken() {
+            return localStorage.getItem('party_admin_token') || '';
+        }
+
+        async function adminFetch(path, options = {}) {
+            const token = getAdminToken();
+            const headers = Object.assign({}, options.headers || {});
             if (token) {
-                localStorage.setItem('party_admin_token', token);
+                headers['Authorization'] = 'Bearer ' + token;
+            }
+            if (options.body && !headers['Content-Type']) {
+                headers['Content-Type'] = 'application/json';
+            }
+            const res = await fetch(getApiBase() + path, Object.assign({}, options, { headers }));
+            if (res.status === 401) {
+                localStorage.removeItem('party_admin_token');
+                document.getElementById('loginModal').classList.remove('hidden');
+                showToast('管理会话已过期，请重新登录认证', '🔒');
+                throw new Error('Unauthorized');
+            }
+            return res;
+        }
+
+        // 身份验证检查
+        function checkAuth() {
+            const token = getAdminToken();
+            if (token) {
                 document.getElementById('loginModal').classList.add('hidden');
                 refreshActiveData();
             } else {
@@ -749,7 +855,7 @@
                     body: JSON.stringify({username: u, password: p})
                 });
                 const data = await res.json();
-                if (data.code === 0) {
+                if (data.code === 0 && data.data && data.data.token) {
                     localStorage.setItem('party_admin_token', data.data.token);
                     document.getElementById('loginModal').classList.add('hidden');
                     showToast('通行证认证通过，已登入控制台');
@@ -762,7 +868,16 @@
             }
         }
 
-        function logout() {
+        async function logout() {
+            const token = getAdminToken();
+            try {
+                if (token) {
+                    await fetch(getApiBase() + '/logout', {
+                        method: 'POST',
+                        headers: {'Authorization': 'Bearer ' + token}
+                    });
+                }
+            } catch (e) {}
             localStorage.removeItem('party_admin_token');
             localStorage.removeItem('fwpt_token');
             location.reload();
@@ -771,9 +886,10 @@
         // 标签切换
         function switchTab(tabId) {
             activeTab = tabId;
-            ['analytics', 'users', 'sms', 'marketing', 'rules'].forEach(id => {
+            ['analytics', 'users', 'orders', 'rooms', 'sms', 'marketing', 'rules'].forEach(id => {
                 const el = document.getElementById('tab-' + id);
                 const btn = document.getElementById('tabBtn-' + id);
+                if (!el || !btn) return;
                 if (id === tabId) {
                     el.classList.remove('hidden');
                     btn.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold apple-tab-active transition-all';
@@ -786,8 +902,11 @@
         }
 
         function refreshActiveData() {
+            if (!getAdminToken()) return;
             if (activeTab === 'analytics') loadAnalyticsData();
             if (activeTab === 'users') searchUsers(userCurrentPage);
+            if (activeTab === 'orders') loadOrdersData(ordersCurrentPage, ordersFilterStatus);
+            if (activeTab === 'rooms') loadLiveRooms();
             if (activeTab === 'sms') loadSmsConfig();
             if (activeTab === 'marketing') loadMarketingBanners();
         }
@@ -797,9 +916,9 @@
         // ==========================================
         async function loadAnalyticsData() {
             try {
-                const res = await fetch(getApiBase() + '/analytics');
+                const res = await adminFetch('/analytics');
                 const json = await res.json();
-                if (json.code !== 0) return;
+                if (json.code !== 0 || !json.data) return;
                 const d = json.data;
 
                 // KPI 渲染
@@ -810,8 +929,12 @@
                 document.getElementById('kpi-todayNew').innerText = d.kpis.todayNewUsers;
                 document.getElementById('kpi-totalRecharge').innerText = '¥' + d.kpis.totalRechargeRmb;
                 document.getElementById('kpi-totalDiamonds').innerText = d.kpis.totalRechargeDiamonds;
+                document.getElementById('kpi-todayRevenue').innerText = '¥' + (d.kpis.todayRevenueRmb != null ? d.kpis.todayRevenueRmb : 0);
+                document.getElementById('kpi-totalOrders').innerText = d.kpis.totalOrderCount != null ? d.kpis.totalOrderCount : 0;
                 document.getElementById('kpi-totalBattles').innerText = d.kpis.totalBattles;
                 document.getElementById('kpi-todayBattles').innerText = d.kpis.todayBattles;
+                document.getElementById('kpi-activeRooms').innerText = d.kpis.activeRooms != null ? d.kpis.activeRooms : 0;
+                document.getElementById('kpi-onlineSockets').innerText = d.kpis.onlineSockets != null ? d.kpis.onlineSockets : 0;
 
                 const isDark = document.documentElement.classList.contains('dark');
                 renderPeakHourChart(d.peakHourDistribution, isDark);
@@ -988,7 +1111,7 @@
             if (kw) params.append('keyword', kw);
 
             try {
-                const res = await fetch(getApiBase() + '/users/page?' + params.toString());
+                const res = await adminFetch('/users/page?' + params.toString());
                 const json = await res.json();
                 if (json.code === 0 && json.data) {
                     const d = json.data;
@@ -1161,9 +1284,8 @@
             };
 
             try {
-                const res = await fetch(getApiBase() + '/users/update', {
+                const res = await adminFetch('/users/update', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(body)
                 });
                 const j = await res.json();
@@ -1172,19 +1294,130 @@
                     closeUserModal();
                     searchUsers(userCurrentPage);
                 } else {
-                    alert(j.message || '更新失败');
+                    showToast(j.message || '更新失败', '⚠️');
                 }
             } catch(e) {
-                alert('网络异常: ' + e);
+                showToast('网络异常: ' + e, '❌');
             }
         }
 
         // ==========================================
-        // 3. 短信配置
+        // 3. 充值订单台账 & 实时在线房间监控
+        // ==========================================
+        function filterOrders(status, btnEl) {
+            ordersFilterStatus = status || 'ALL';
+            document.querySelectorAll('.order-filter-btn').forEach(b => {
+                b.className = 'order-filter-btn px-3 py-1.5 rounded-xl font-semibold bg-[#EFEFF2] dark:bg-[#2C2C2E] text-apple-textSecondary';
+            });
+            if (btnEl) {
+                btnEl.className = 'order-filter-btn px-3 py-1.5 rounded-xl font-semibold bg-apple-blue text-white';
+            }
+            loadOrdersData(1, ordersFilterStatus);
+        }
+
+        async function loadOrdersData(page = 1, status = 'ALL') {
+            ordersCurrentPage = Math.max(1, page);
+            ordersFilterStatus = status || 'ALL';
+            try {
+                const params = new URLSearchParams({
+                    page: String(ordersCurrentPage),
+                    size: '20',
+                    status: ordersFilterStatus
+                });
+                const res = await adminFetch('/orders?' + params.toString());
+                const json = await res.json();
+                if (json.code !== 0 || !json.data) return;
+                const d = json.data;
+                document.getElementById('orders-paidRevenue').innerText = '¥' + (d.paidRevenueRmb || 0);
+                document.getElementById('orders-paidCount').innerText = d.paidCount || 0;
+                document.getElementById('orders-pendingCount').innerText = d.pendingCount || 0;
+                document.getElementById('ordersPaginationSummary').innerText =
+                    `共 ${d.totalElements || 0} 笔订单 · 第 ${d.currentPage || 1} / ${Math.max(1, d.totalPages || 1)} 页`;
+
+                const prevBtn = document.getElementById('ordersPrevBtn');
+                const nextBtn = document.getElementById('ordersNextBtn');
+                if (prevBtn) prevBtn.disabled = (d.currentPage || 1) <= 1;
+                if (nextBtn) nextBtn.disabled = (d.currentPage || 1) >= Math.max(1, d.totalPages || 1);
+
+                const tbody = document.getElementById('ordersTableBody');
+                const items = Array.isArray(d.items) ? d.items : [];
+                if (items.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-apple-textSecondary">暂无符合条件的订单记录</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = items.map(o => {
+                    const statusBadge = o.status === 'PAID'
+                        ? '<span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold">已支付</span>'
+                        : (o.status === 'PENDING'
+                            ? '<span class="px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold">待支付</span>'
+                            : `<span class="px-2 py-0.5 rounded bg-red-500/15 text-red-500 font-bold">${escapeHtml(o.status || '异常')}</span>`);
+                    const sandboxTag = o.sandboxMode ? '<span class="ml-1 px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-500 text-[10px]">沙箱</span>' : '';
+                    return `
+                        <tr class="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
+                            <td class="py-2.5 px-3 font-mono">${escapeHtml(o.orderId || '-')}</td>
+                            <td class="py-2.5 px-3 font-mono">${escapeHtml(o.userId || '-')}</td>
+                            <td class="py-2.5 px-3">${escapeHtml(o.tierId || '-')} · ${escapeHtml(o.payChannel || '-')}</td>
+                            <td class="py-2.5 px-3 font-bold text-amber-600 dark:text-amber-400">¥${o.amountRmb || 0}</td>
+                            <td class="py-2.5 px-3">💎${o.diamondsAward || 0} / 🪙${(o.coinsAward || 0).toLocaleString()}</td>
+                            <td class="py-2.5 px-3">${statusBadge}${sandboxTag}</td>
+                            <td class="py-2.5 px-3 font-mono text-[11px] text-apple-textSecondary">${escapeHtml(o.tradeNo || '-')}</td>
+                            <td class="py-2.5 px-3 font-mono text-[11px] text-apple-textSecondary">${escapeHtml(String(o.createdAt || '-').replace('T', ' ').substring(0, 19))}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('加载订单台账失败:', e);
+            }
+        }
+
+        async function loadLiveRooms() {
+            try {
+                const res = await adminFetch('/rooms/live');
+                const json = await res.json();
+                if (json.code !== 0 || !json.data) return;
+                const d = json.data;
+                document.getElementById('rooms-activeCount').innerText = d.activeRoomCount || 0;
+                document.getElementById('rooms-onlineSockets').innerText = d.onlineSockets || 0;
+                const box = document.getElementById('liveRoomsContainer');
+                const rooms = Array.isArray(d.rooms) ? d.rooms : [];
+                if (rooms.length === 0) {
+                    box.innerHTML = '<div class="p-8 text-center text-xs text-apple-textSecondary bg-apple-cardLight dark:bg-apple-cardDark rounded-2xl border border-black/5 dark:border-white/10 col-span-full">当前无活跃房间</div>';
+                    return;
+                }
+                const gameNames = {
+                    take6: '🐂 谁是牛头王',
+                    liars_dice: '🎲 大话骰吹牛',
+                    party_wheel: '🎡 大冒险转盘',
+                    undercover: '🕵️ 谁是卧底'
+                };
+                box.innerHTML = rooms.map(r => {
+                    const isPlaying = String(r.status).toUpperCase() === 'PLAYING';
+                    return `
+                        <div class="bg-apple-cardLight dark:bg-apple-cardDark p-4 rounded-2xl border border-black/5 dark:border-white/10 apple-card-shadow space-y-2">
+                            <div class="flex justify-between items-center gap-2">
+                                <span class="font-mono font-bold text-sm text-apple-blue">#${escapeHtml(r.roomCode)}</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isPlaying ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'}">${isPlaying ? '对局中' : '等待中'}</span>
+                            </div>
+                            <div class="font-bold text-sm truncate">${escapeHtml(r.roomName || '')}</div>
+                            <div class="text-xs text-apple-textSecondary">${escapeHtml(gameNames[r.gameType] || r.gameType || 'liars_dice')}</div>
+                            <div class="pt-2 border-t border-black/5 dark:border-white/5 flex justify-between text-[11px] text-apple-textSecondary">
+                                <span>座位数: <b>${r.playerCount || 0}</b> (真人 ${r.humanCount || 0})</span>
+                                <span>旁观: <b>${r.spectatorCount || 0}</b></span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('加载实时房间失败:', e);
+            }
+        }
+
+        // ==========================================
+        // 4. 短信配置
         // ==========================================
         async function loadSmsConfig() {
             try {
-                const res = await fetch(getApiBase() + '/config/sms');
+                const res = await adminFetch('/config/sms');
                 const json = await res.json();
                 if (json.code === 0 && json.data) {
                     const c = json.data;
@@ -1224,9 +1457,8 @@
                 tencentSignName: document.getElementById('tencentSignName').value,
                 tencentTemplateId: document.getElementById('tencentTemplateId').value
             };
-            const res = await fetch(getApiBase() + '/config/sms', {
+            const res = await adminFetch('/config/sms', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(body)
             });
             const j = await res.json();
@@ -1235,14 +1467,13 @@
 
         async function sendTestSms() {
             const phone = document.getElementById('testPhone').value.trim();
-            if (!phone) return alert('请输入手机号');
+            if (!phone) return showToast('请输入手机号', '⚠️');
             const resBox = document.getElementById('testSmsResult');
             resBox.classList.remove('hidden');
             resBox.innerText = '正在派发测试短信...';
             try {
-                const res = await fetch(getApiBase() + '/config/sms/test', {
+                const res = await adminFetch('/config/sms/test', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({phone: phone})
                 });
                 const j = await res.json();
@@ -1254,11 +1485,11 @@
         }
 
         // ==========================================
-        // 4. 营销横幅
+        // 5. 营销横幅
         // ==========================================
         async function loadMarketingBanners() {
             try {
-                const res = await fetch(getApiBase() + '/config/marketing');
+                const res = await adminFetch('/config/marketing');
                 const json = await res.json();
                 if (json.code === 0 && json.data) {
                     currentBanners = json.data;
@@ -1329,9 +1560,8 @@
         }
 
         async function saveBannersToServer() {
-            const res = await fetch(getApiBase() + '/config/marketing', {
+            const res = await adminFetch('/config/marketing', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(currentBanners)
             });
             const j = await res.json();

@@ -12,6 +12,9 @@ class BidDialWidget extends StatefulWidget {
   final bool isMyTurn;
   final Function(int count, int face, bool isPure) onBid;
   final VoidCallback onChallenge;
+  final VoidCallback? onSpotOn;
+  final bool canRerollStraight;
+  final VoidCallback? onRerollStraight;
 
   const BidDialWidget({
     Key? key,
@@ -21,6 +24,9 @@ class BidDialWidget extends StatefulWidget {
     required this.isMyTurn,
     required this.onBid,
     required this.onChallenge,
+    this.onSpotOn,
+    this.canRerollStraight = false,
+    this.onRerollStraight,
   }) : super(key: key);
 
   @override
@@ -53,8 +59,22 @@ class _BidDialWidgetState extends State<BidDialWidget> {
       _selectedCount = max(2, widget.totalPlayers + 1);
       _selectedFace = 2;
       _isPure = false;
+    } else if (prev.isPure || !widget.isWild1Active) {
+      // 斋局序列：2 < 3 < 4 < 5 < 6 < 1
+      _isPure = true;
+      if (prev.face == 1) {
+        _selectedCount = prev.count + 1;
+        _selectedFace = 2;
+      } else if (prev.face == 6) {
+        _selectedCount = prev.count;
+        _selectedFace = 1;
+      } else {
+        _selectedCount = prev.count;
+        _selectedFace = prev.face + 1;
+      }
     } else {
-      // 默认在上一家的基础上建议出价
+      // 飞局序列：2 < 3 < 4 < 5 < 6，满6升数量
+      _isPure = false;
       if (prev.face == 6) {
         _selectedCount = prev.count + 1;
         _selectedFace = 2;
@@ -62,7 +82,6 @@ class _BidDialWidgetState extends State<BidDialWidget> {
         _selectedCount = prev.count;
         _selectedFace = prev.face + 1;
       }
-      _isPure = prev.isPure || !widget.isWild1Active;
     }
   }
 
@@ -126,81 +145,103 @@ class _BidDialWidgetState extends State<BidDialWidget> {
             ),
             const SizedBox(height: 10),
 
-            // 出价数量与点数调节器
+            // 出价数量与点数调节器 (紧凑防溢出布局)
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // 数量调节 (- / Count / +)
-                Column(
-                  children: [
-                    const Text('叫点个数', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
-                    const SizedBox(height: 4),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF334155)),
-                      ),
-                      child: Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove, color: Color(0xFFF59E0B), size: 18),
-                            onPressed: () {
-                              if (_selectedCount > 2) {
-                                HapticFeedback.selectionClick();
-                                setState(() => _selectedCount--);
-                              }
-                            },
-                          ),
-                          Text(
-                            '$_selectedCount 个',
-                            style: const TextStyle(
-                              color: Color(0xFFF8FAFC),
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Column(
+                    children: [
+                      const Text('叫点个数', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                      const SizedBox(height: 4),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF334155)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(Icons.remove, color: Color(0xFFF59E0B), size: 18),
+                              onPressed: () {
+                                if (_selectedCount > 2) {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _selectedCount--);
+                                }
+                              },
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add, color: Color(0xFFF59E0B), size: 18),
-                            onPressed: () {
-                              if (_selectedCount < widget.totalPlayers * 5) {
-                                HapticFeedback.selectionClick();
-                                setState(() => _selectedCount++);
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                // 斋 / 纯 切换
-                Column(
-                  children: [
-                    const Text('规则状态', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
-                    const SizedBox(height: 4),
-                    FilterChip(
-                      selected: _isPure || !widget.isWild1Active,
-                      label: Text(
-                        _isPure || !widget.isWild1Active ? '🎯 斋 (1点无通配)' : '🕊️ 飞 (1点可当任意)',
-                        style: TextStyle(
-                          color: _isPure ? const Color(0xFFFDE68A) : const Color(0xFF5EEAD4),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              child: Text(
+                                '$_selectedCount 个',
+                                style: const TextStyle(
+                                  color: Color(0xFFF8FAFC),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(Icons.add, color: Color(0xFFF59E0B), size: 18),
+                              onPressed: () {
+                                if (_selectedCount < widget.totalPlayers * 5) {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _selectedCount++);
+                                }
+                              },
+                            ),
+                          ],
                         ),
                       ),
-                      backgroundColor: const Color(0xFF0F172A),
-                      selectedColor: const Color(0xFF78350F).withOpacity(0.7),
-                      side: BorderSide(
-                        color: _isPure ? const Color(0xFFF59E0B) : const Color(0xFF14B8A6),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // 斋 / 纯 切换
+                Flexible(
+                  child: Column(
+                    children: [
+                      const Text('规则状态', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                      const SizedBox(height: 4),
+                      FilterChip(
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        selected: _isPure || !widget.isWild1Active,
+                        label: Text(
+                          _isPure || !widget.isWild1Active ? '🎯 斋 (无通配)' : '🕊️ 飞 (1点万能)',
+                          style: TextStyle(
+                            color: _isPure ? const Color(0xFFFDE68A) : const Color(0xFF5EEAD4),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        backgroundColor: const Color(0xFF0F172A),
+                        selectedColor: const Color(0xFF78350F).withValues(alpha: 0.7),
+                        side: BorderSide(
+                          color: _isPure ? const Color(0xFFF59E0B) : const Color(0xFF14B8A6),
+                        ),
+                        onSelected: (!widget.isWild1Active || (prev?.isPure ?? false))
+                            ? null
+                            : (val) {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  if (_selectedFace == 1) {
+                                    _isPure = true;
+                                  } else {
+                                    _isPure = val;
+                                  }
+                                });
+                              },
                       ),
-                      onSelected: (val) {
-                        HapticFeedback.selectionClick();
-                        setState(() => _isPure = val);
-                      },
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -244,7 +285,27 @@ class _BidDialWidgetState extends State<BidDialWidget> {
             ),
             const SizedBox(height: 12),
 
-            // 操作按钮群：开/劈 vs 叫点确认
+            if (widget.canRerollStraight && widget.onRerollStraight != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: widget.onRerollStraight,
+                    icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFFBBF24)),
+                    label: const Text('✨ 顺子手牌 · 免费重摇一次', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFFDE68A),
+                      backgroundColor: const Color(0xFF78350F).withValues(alpha: 0.35),
+                      side: const BorderSide(color: Color(0xFFF59E0B)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+              ),
+
+            // 操作按钮群：开/劈 vs 劈准 vs 叫点确认
             Row(
               children: [
                 // 开/劈 按钮
@@ -252,20 +313,40 @@ class _BidDialWidgetState extends State<BidDialWidget> {
                   flex: 2,
                   child: ElevatedButton.icon(
                     onPressed: canChallenge ? widget.onChallenge : null,
-                    icon: const Icon(Icons.flash_on, color: Colors.white),
-                    label: const Text('开！(劈他)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    icon: const Icon(Icons.flash_on, color: Colors.white, size: 17),
+                    label: const Text('开！(劈他)', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFDC2626),
                       foregroundColor: Colors.white,
                       disabledBackgroundColor: const Color(0xFF334155),
                       disabledForegroundColor: Colors.white38,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
                       elevation: 1,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                if (widget.onSpotOn != null) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: canChallenge ? widget.onSpotOn : null,
+                      icon: const Icon(Icons.my_location, color: Colors.white, size: 15),
+                      label: const Text('劈准(2x)', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD97706),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFF334155),
+                        disabledForegroundColor: Colors.white38,
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+                        elevation: 1,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 8),
 
                 // 叫点 按钮
                 Expanded(
@@ -277,13 +358,15 @@ class _BidDialWidgetState extends State<BidDialWidget> {
                             widget.onBid(_selectedCount, _selectedFace, _isPure);
                           }
                         : null,
-                    icon: const Icon(Icons.volume_up, color: Colors.white),
+                    icon: const Icon(Icons.volume_up, color: Colors.white, size: 17),
                     label: Text(
-                      widget.isMyTurn ? '叫：$_selectedCount 个 $_selectedFace' : '等待其他玩家叫点...',
+                      widget.isMyTurn ? '叫：$_selectedCount个$_selectedFace' : '等待他叫点...',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                        fontSize: 13.5,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -291,7 +374,7 @@ class _BidDialWidgetState extends State<BidDialWidget> {
                       foregroundColor: Colors.white,
                       disabledBackgroundColor: const Color(0xFF334155),
                       disabledForegroundColor: Colors.white38,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                       elevation: 1,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),

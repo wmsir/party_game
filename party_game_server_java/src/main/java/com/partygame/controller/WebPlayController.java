@@ -2,12 +2,16 @@ package com.partygame.controller;
 
 import com.partygame.entity.User;
 import com.partygame.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -184,7 +188,20 @@ public class WebPlayController {
         CAPTCHA_STORE.entrySet().removeIf(e -> now > e.getValue().expireAt);
     }
 
-            @GetMapping(value = {
+    @GetMapping(value = {"/css/webplay-pro.css", "/party-game/css/webplay-pro.css"}, produces = "text/css;charset=UTF-8")
+    public ResponseEntity<String> getWebPlayProCss() {
+        try {
+            ClassPathResource res = new ClassPathResource("static/css/webplay-pro.css");
+            String css = StreamUtils.copyToString(res.getInputStream(), StandardCharsets.UTF_8);
+            return ResponseEntity.ok()
+                    .header("Cache-Control", "public, max-age=300")
+                    .body(css);
+        } catch (Exception e) {
+            return ResponseEntity.ok("/* webplay-pro fallback */");
+        }
+    }
+
+    @GetMapping(value = {
             "/play", "/party-game/play",
             "/lobby", "/party-game/lobby",
             "/web", "/party-game/web",
@@ -192,6 +209,7 @@ public class WebPlayController {
             "/", "/party-game"
     }, produces = MediaType.TEXT_HTML_VALUE + ";charset=UTF-8")
     public ResponseEntity<String> playPage(
+            HttpServletRequest request,
             @RequestParam(value = "roomId", required = false, defaultValue = "") String roomId,
             @RequestParam(value = "gameType", required = false, defaultValue = "") String gameType,
             @RequestParam(value = "tab", required = false, defaultValue = "games") String tab,
@@ -210,11 +228,13 @@ public class WebPlayController {
         }
         String cleanTab = (tab != null && !tab.trim().isEmpty()) ? tab.trim() : "games";
         String cleanView = (view != null && !view.trim().isEmpty()) ? view.trim() : "";
-        String html = getWebPlayHtml(cleanRoom, cleanGameType, cleanTab, cleanView);
+        String uri = (request != null && request.getRequestURI() != null) ? request.getRequestURI() : "";
+        String assetPrefix = uri.startsWith("/party-game") ? "/party-game" : "";
+        String html = getWebPlayHtml(cleanRoom, cleanGameType, cleanTab, cleanView, assetPrefix);
         return ResponseEntity.ok(html);
     }
 
-    private String getWebPlayHtml(String roomId, String gameType, String tab, String view) {
+    private String getWebPlayHtml(String roomId, String gameType, String tab, String view, String assetPrefix) {
         boolean isTake6 = "take6".equalsIgnoreCase(gameType);
         boolean isWheel = "party_wheel".equalsIgnoreCase(gameType);
         boolean isUndercover = "undercover".equalsIgnoreCase(gameType);
@@ -224,9 +244,9 @@ public class WebPlayController {
         String gameIcon = isTake6 ? "🐂" : (isWheel ? "🎡" : (isUndercover ? "🕵️" : "🎲"));
         String gameBadge = isTake6 ? "谁是牛头王" : (isWheel ? "聚会大转盘" : (isUndercover ? "谁是卧底" : "大话骰吹牛"));
 
-        StringBuilder sb = new StringBuilder(48000);
-        sb.append(buildHtmlHead(isTake6, gameTitle, gameBadge, roomId));
-        sb.append(buildHtmlViews(isTake6, gameTitle, gameIcon, roomId));
+        StringBuilder sb = new StringBuilder(52000);
+        sb.append(buildHtmlHead(isTake6, gameTitle, gameBadge, roomId, assetPrefix));
+        sb.append(buildHtmlViews(isTake6, gameTitle, gameIcon, roomId, assetPrefix));
         sb.append(buildHtmlScriptHeader(roomId, gameType, isTake6, gameTitle, tab, view));
         sb.append(buildHtmlScriptAuthAndWs(isTake6));
         sb.append(buildHtmlScriptTake6());
@@ -236,7 +256,7 @@ public class WebPlayController {
         sb.append(buildHtmlScriptTail(isTake6));
         return sb.toString();
     }
-    private String buildHtmlHead(boolean isTake6, String gameTitle, String gameBadge, String roomId) {
+    private String buildHtmlHead(boolean isTake6, String gameTitle, String gameBadge, String roomId, String assetPrefix) {
         StringBuilder sb = new StringBuilder(16000);
         sb.append("<!DOCTYPE html>\n");
         sb.append("<html lang='zh-CN'>\n");
@@ -674,13 +694,14 @@ public class WebPlayController {
         sb.append("        .spinner-inline { display: inline-block; width: 14px; height: 14px; border: 2px solid #ffffff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -2px; margin-right: 6px; }\n");
         sb.append("        @keyframes spin { to { transform: rotate(360deg); } }\n");
         sb.append("    </style>\n");
+        sb.append("    <link rel='stylesheet' href='" + assetPrefix + "/css/webplay-pro.css?v=2.0'>\n");
         sb.append("</head>\n");
         sb.append("<body>\n");
         return sb.toString();
     }
 
-    private String buildHtmlViews(boolean isTake6, String gameTitle, String gameIcon, String roomId) {
-        StringBuilder sb = new StringBuilder(18000);
+    private String buildHtmlViews(boolean isTake6, String gameTitle, String gameIcon, String roomId, String assetPrefix) {
+        StringBuilder sb = new StringBuilder(20000);
         sb.append("<div class='global-marquee-bar' id='globalMarqueeBar'>\n" +
                   "    <div class='marquee-top-row'>\n" +
                   "        <span id='marqueeIcon' style='font-size:14px;'></span>\n" +
@@ -695,82 +716,101 @@ public class WebPlayController {
 
         sb.append("<div class='app-view active' id='viewLogin'>\n");
         sb.append("    <div class='login-wrap'>\n");
-        sb.append("        <div class='login-card'>\n");
-        sb.append("            <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>\n");
-        sb.append("                <a href='/' style='display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:bold; color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; padding:4px 10px; border-radius:9999px; text-decoration:none;'>🌐 返回 FWPT 门户</a>\n");
-        sb.append("                <span style='font-size:11px; color:#64748b; font-weight:600;'>FWPT 统一生态</span>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div class='login-logo'>🎮</div>\n");
-        sb.append("            <h2>聚会桌游吧 · 官方网页版</h2>\n");
-        sb.append("            <p>免安装即开即玩 · 跨端联机 · 手机APP数据实时互通</p>\n");
-        sb.append("            <div style='background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:10px; padding:10px 14px; font-size:12px; color:#d97706; margin-bottom:14px; text-align:left; line-height:1.5;'>\n");
-        sb.append("                🔐 <b>登录提示</b>：聚会桌游吧需登录通行证或游戏账号后开启联机对战！\n");
-        sb.append("            </div>\n");
-        sb.append("            <a href='/?action=login&redirect=/party-game/' style='display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-bottom:14px; padding:11px 16px; border-radius:10px; background:linear-gradient(135deg,#2563eb,#3b82f6); color:#fff; text-decoration:none; font-weight:bold; font-size:13px; box-shadow:0 3px 10px rgba(37,99,235,0.25);'>🛡️ FWPT 通行证一键快捷授权登录</a>\n");
-        sb.append("            <div class='auth-tabs'>\n");
-        sb.append("                <button class='auth-tab-btn active' id='tabBtnPwd' onclick='switchAuthTab(\"pwd\")'>🔑 账号密码</button>\n");
-        sb.append("                <button class='auth-tab-btn' id='tabBtnQr' onclick='switchAuthTab(\"qr\")'>📱 扫码登录</button>\n");
-        sb.append("                <button class='auth-tab-btn' id='tabBtnGuest' onclick='switchAuthTab(\"guest\")'>⚡ 手机验证</button>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div id='tabContentPwd'>\n");
-        sb.append("                <div class='form-group'>\n");
-        sb.append("                    <label class='form-label'>账号 / 手机号</label>\n");
-        sb.append("                    <input type='text' id='inputPwdAccount' class='form-input' placeholder='请输入账号或11位手机号'>\n");
-        sb.append("                </div>\n");
-        sb.append("                <div class='form-group'>\n");
-        sb.append("                    <label class='form-label'>登录密码</label>\n");
-        sb.append("                    <input type='password' id='inputPwdPass' class='form-input' placeholder='请输入密码 (默认 123)'>\n");
-        sb.append("                </div>\n");
-        sb.append("                <div class='remember-row'>\n");
-        sb.append("                    <label class='remember-label'>\n");
-        sb.append("                        <input type='checkbox' id='chkRememberPwd' class='remember-checkbox' checked>\n");
-        sb.append("                        <span>保存密码，下次直接免密登录</span>\n");
-        sb.append("                    </label>\n");
-        sb.append("                    <span style='color: #38bdf8; cursor: pointer;' onclick='toggleRegisterBox()'>快速注册账号</span>\n");
-        sb.append("                </div>\n");
-        sb.append("                <div id='registerExtraBox' style='display: none; margin-bottom: 14px; background: rgba(59,130,246,0.1); border: 1px dashed #3b82f6; border-radius: 10px; padding: 12px; text-align: left;'>\n");
-        sb.append("                    <label class='form-label' style='color: #60a5fa;'>设置您的新游戏昵称</label>\n");
-        sb.append("                    <input type='text' id='inputRegNickname' class='form-input' placeholder='请输入昵称 (如: 智慧小天才)' style='margin-bottom: 10px;'>\n");
-        sb.append("                    <button style='width: 100%; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;' onclick='submitRegister()'>✨ 完成注册并登录</button>\n");
-        sb.append("                </div>\n");
-        sb.append("                <button class='btn-enter' id='btnPwdEnter' onclick='submitPasswordLogin(false)'>🚀 立即登录并进入大厅</button>\n");
-        sb.append("                <div class='auth-tip'>💡 开启保存密码后，下次打开浏览器将自动免密秒登！</div>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div id='tabContentQr' style='display: none;'>\n");
-        sb.append("                <div class='qr-container'>\n");
-        sb.append("                    <div class='qr-frame'>\n");
-        sb.append("                        <img id='qrImg' class='qr-img' src='' alt='扫码登录二维码'>\n");
-        sb.append("                        <div id='qrLoading' style='position: absolute; color: #64748b; font-size: 12px;'>正在生成二维码...</div>\n");
+        sb.append("        <div class='login-shell'>\n");
+        sb.append("            <aside class='login-hero-panel'>\n");
+        sb.append("                <div>\n");
+        sb.append("                    <div class='login-hero-eyebrow'>✨ 聚会桌游吧 · 官方跨端派对平台</div>\n");
+        sb.append("                    <h1 class='login-hero-title'>聚在一起，下一局更好玩</h1>\n");
+        sb.append("                    <p class='login-hero-sub'>免下载打开即玩，支持 6 人实时房内对战、手机 APP 扫码一键互通与全服社交广播。</p>\n");
+        sb.append("                    <div class='login-hero-games'>\n");
+        sb.append("                        <span class='login-game-pill'>🐂 谁是牛头王</span>\n");
+        sb.append("                        <span class='login-game-pill'>🎲 大话骰吹牛</span>\n");
+        sb.append("                        <span class='login-game-pill'>🎡 聚会大转盘</span>\n");
+        sb.append("                        <span class='login-game-pill'>🕵️ 谁是卧底</span>\n");
         sb.append("                    </div>\n");
-        sb.append("                    <div id='qrStatusTip' style='font-size: 12px; color: #38bdf8; font-weight: bold; margin-bottom: 8px;'>\n");
-        sb.append("                        📱 手机 APP 扫一扫或输入授权口令秒登\n");
-        sb.append("                    </div>\n");
-        sb.append("                    <div style='display: flex; gap: 8px; justify-content: center; width: 100%; max-width: 280px;'>\n");
-        sb.append("                        <button class='qr-refresh-btn' onclick='initQrLogin(true)' style='flex:1; margin:0;'>🔄 刷新二维码</button>\n");
-        sb.append("                        <button class='qr-refresh-btn' onclick='copyQrAuthToken()' style='flex:1; margin:0; background:#3b82f6; border-color:#2563eb; color:#ffffff;' title='一键复制口令，在APP扫一扫中直接粘贴授权'>📋 复制口令</button>\n");
+        sb.append("                    <div class='login-hero-features'>\n");
+        sb.append("                        <div>🛡️ <b>服务端权威裁决</b> · 发牌/摇骰/底词防外挂防偷看</div>\n");
+        sb.append("                        <div>⚡ <b>断线智能托管</b> · 掉线自动补位与秒级状态恢复</div>\n");
+        sb.append("                        <div>💎 <b>Web + Android 互通</b> · 战绩、好友、资产实时同步</div>\n");
         sb.append("                    </div>\n");
         sb.append("                </div>\n");
-        sb.append("                <div class='auth-tip' style='line-height:1.5; margin-top:10px;'>💡 <b>APP扫码登录指引</b>：打开手机APP -> 首页大厅右上角【扫一扫】，或进入底部【我的】->【扫一扫 / 登录电脑网页端】，扫描上方二维码或粘贴口令即可秒级授权登录！</div>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div id='tabContentGuest' style='display: none;'>\n");
-        sb.append("                <div class='form-group'>\n");
-        sb.append("                    <label class='form-label'>临时游戏昵称</label>\n");
-        sb.append("                    <input type='text' id='inputName' class='form-input' placeholder='请输入昵称' maxlength='12' value='试玩大侠_888'>\n");
+        sb.append("                <div class='login-hero-links'>\n");
+        sb.append("                    <a class='login-hero-cta primary' href='" + assetPrefix + "/download/app'>📲 下载 Android 客户端</a>\n");
+        sb.append("                    <a class='login-hero-cta ghost' href='" + assetPrefix + "/landing'>🌐 查看玩法官网</a>\n");
         sb.append("                </div>\n");
-        sb.append("                <div class='form-group'>\n");
-        sb.append("                    <label class='form-label'>手机号码 (接收短信验证码)</label>\n");
-        sb.append("                    <input type='tel' id='inputPhone' class='form-input' placeholder='请输入11位大陆手机号' maxlength='11' value='13888886666'>\n");
+        sb.append("            </aside>\n");
+        sb.append("            <div class='login-card'>\n");
+        sb.append("                <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>\n");
+        sb.append("                    <span style='font-size:12px; font-weight:800; color:#10b981;'>🎮 PARTY GAME · 网页即玩端</span>\n");
+        sb.append("                    <button type='button' class='btn-theme-toggle' onclick='toggleWebTheme()'>🌓 切换护眼/暗黑</button>\n");
         sb.append("                </div>\n");
-        sb.append("                <div class='form-group'>\n");
-        sb.append("                    <label class='form-label'>短信验证码</label>\n");
-        sb.append("                    <div style='display:flex; gap:8px;'>\n");
-        sb.append("                        <input type='text' id='inputSmsCode' class='form-input' placeholder='请输入6位短信验证码' maxlength='6' style='flex:1;'>\n");
-        sb.append("                        <button id='btnSendSms' type='button' onclick='sendTrialSms()' style='background:#3b82f6; color:#fff; border:none; border-radius:10px; padding:0 12px; font-size:12px; font-weight:bold; cursor:pointer; white-space:nowrap;'>获取验证码</button>\n");
-        
+        sb.append("                <div class='login-logo'>🎲</div>\n");
+        sb.append("                <h2>欢迎回到聚会牌桌</h2>\n");
+        sb.append("                <p>支持账号密码、手机短信及 APP 扫码安全登录</p>\n");
+        sb.append("                <div class='auth-tabs'>\n");
+        sb.append("                    <button class='auth-tab-btn active' id='tabBtnPwd' onclick='switchAuthTab(\"pwd\")'>🔑 账号密码</button>\n");
+        sb.append("                    <button class='auth-tab-btn' id='tabBtnQr' onclick='switchAuthTab(\"qr\")'>📱 扫码登录</button>\n");
+        sb.append("                    <button class='auth-tab-btn' id='tabBtnGuest' onclick='switchAuthTab(\"guest\")'>⚡ 手机验证</button>\n");
+        sb.append("                </div>\n");
+        sb.append("                <div id='tabContentPwd'>\n");
+        sb.append("                    <div class='form-group'>\n");
+        sb.append("                        <label class='form-label'>账号 / 手机号</label>\n");
+        sb.append("                        <input type='text' id='inputPwdAccount' class='form-input' placeholder='请输入账号或11位手机号'>\n");
         sb.append("                    </div>\n");
+        sb.append("                    <div class='form-group'>\n");
+        sb.append("                        <label class='form-label'>登录密码</label>\n");
+        sb.append("                        <input type='password' id='inputPwdPass' class='form-input' placeholder='请输入登录密码'>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div class='remember-row'>\n");
+        sb.append("                        <label class='remember-label'>\n");
+        sb.append("                            <input type='checkbox' id='chkRememberPwd' class='remember-checkbox' checked>\n");
+        sb.append("                            <span>记住登录状态</span>\n");
+        sb.append("                        </label>\n");
+        sb.append("                        <span style='color: #2563eb; font-weight:700; cursor: pointer;' onclick='toggleRegisterBox()'>快速注册新账号</span>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div id='registerExtraBox' style='display: none; margin-bottom: 14px; background: rgba(59,130,246,0.1); border: 1px dashed #3b82f6; border-radius: 10px; padding: 12px; text-align: left;'>\n");
+        sb.append("                        <label class='form-label' style='color: #2563eb;'>设置您的新游戏昵称</label>\n");
+        sb.append("                        <input type='text' id='inputRegNickname' class='form-input' placeholder='请输入昵称 (如: 派对达人)' style='margin-bottom: 10px;'>\n");
+        sb.append("                        <button style='width: 100%; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;' onclick='submitRegister()'>✨ 完成注册并登录</button>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <button class='btn-enter' id='btnPwdEnter' onclick='submitPasswordLogin(false)'>🚀 立即登录并进入大厅</button>\n");
+        sb.append("                    <div class='auth-tip'>💡 新朋友可点击上方【快速注册新账号】或切换【手机验证】秒速开局</div>\n");
         sb.append("                </div>\n");
-        sb.append("                <button class='btn-enter' id='btnEnter' onclick='submitTrialSmsAuth()'>⚡ 验证并立即试玩</button>\n");
-        sb.append("                <div class='auth-tip'>💡 输入手机号即可接收短信验证码，首次验证自动创建并登录试玩！</div>\n");
+        sb.append("                <div id='tabContentQr' style='display: none;'>\n");
+        sb.append("                    <div class='qr-container'>\n");
+        sb.append("                        <div class='qr-frame'>\n");
+        sb.append("                            <img id='qrImg' class='qr-img' src='' alt='扫码登录二维码'>\n");
+        sb.append("                            <div id='qrLoading' style='position: absolute; color: #64748b; font-size: 12px;'>正在生成二维码...</div>\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <div id='qrStatusTip' style='font-size: 12px; color: #0284c7; font-weight: bold; margin-bottom: 8px;'>\n");
+        sb.append("                            📱 手机 APP 扫一扫或输入授权口令秒登\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <div style='display: flex; gap: 8px; justify-content: center; width: 100%; max-width: 280px;'>\n");
+        sb.append("                            <button class='qr-refresh-btn' onclick='initQrLogin(true)' style='flex:1; margin:0;'>🔄 刷新二维码</button>\n");
+        sb.append("                            <button class='qr-refresh-btn' onclick='copyQrAuthToken()' style='flex:1; margin:0; background:#3b82f6; border-color:#2563eb; color:#ffffff;' title='一键复制口令，在APP扫一扫中直接粘贴授权'>📋 复制口令</button>\n");
+        sb.append("                        </div>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div class='auth-tip' style='line-height:1.5; margin-top:10px;'>💡 <b>APP扫码登录指引</b>：打开手机APP -> 首页大厅右上角【扫一扫】，或进入底部【我的】->【扫一扫 / 登录电脑网页端】，扫描上方二维码或粘贴口令即可秒级授权登录！</div>\n");
+        sb.append("                </div>\n");
+        sb.append("                <div id='tabContentGuest' style='display: none;'>\n");
+        sb.append("                    <div class='form-group'>\n");
+        sb.append("                        <label class='form-label'>游戏昵称</label>\n");
+        sb.append("                        <input type='text' id='inputName' class='form-input' placeholder='请输入游戏昵称 (如: 桌游侠客)' maxlength='12'>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div class='form-group'>\n");
+        sb.append("                        <label class='form-label'>手机号码 (接收短信验证码)</label>\n");
+        sb.append("                        <input type='tel' id='inputPhone' class='form-input' placeholder='请输入11位手机号码' maxlength='11'>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div class='form-group'>\n");
+        sb.append("                        <label class='form-label'>短信验证码</label>\n");
+        sb.append("                        <div style='display:flex; gap:8px;'>\n");
+        sb.append("                            <input type='text' id='inputSmsCode' class='form-input' placeholder='请输入6位短信验证码' maxlength='6' style='flex:1;'>\n");
+        sb.append("                            <button id='btnSendSms' type='button' onclick='sendTrialSms()' style='background:#3b82f6; color:#fff; border:none; border-radius:10px; padding:0 12px; font-size:12px; font-weight:bold; cursor:pointer; white-space:nowrap;'>获取验证码</button>\n");
+        sb.append("                        </div>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <button class='btn-enter' id='btnEnter' onclick='submitTrialSmsAuth()'>⚡ 验证并立即进入游戏</button>\n");
+        sb.append("                    <div class='auth-tip'>💡 输入手机号接收短信验证码，首次验证自动开通游戏账号！</div>\n");
+        sb.append("                </div>\n");
         sb.append("            </div>\n");
         sb.append("        </div>\n");
         sb.append("    </div>\n");
@@ -815,14 +855,14 @@ public class WebPlayController {
         sb.append("    <div class='lobby-content'>\n");
         sb.append("        <div id='lobbyTabGames' class='lobby-tab-content'>\n");
         /* 首屏核心：快速开局与游戏列表 */
-        sb.append("            <div style='background:linear-gradient(135deg,#0f172a,#1e293b); color:#ffffff; border-radius:16px; padding:16px 18px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:0 4px 14px rgba(15,23,42,0.12);'>\n" +
+        sb.append("            <div class='lobby-hero-card'>\n" +
                   "                <div>\n" +
-                  "                    <div style='font-size:16px; font-weight:800;'>快速开局 · 实时联机对战</div>\n" +
-                  "                    <div style='font-size:12px; color:#94a3b8; margin-top:2px;'>选择下方任意桌游模式，支持一键匹配、创建房间或输入 6 位房间号加入</div>\n" +
+                  "                    <div style='font-size:17px; font-weight:900;'>快速开局 · 实时联机对战</div>\n" +
+                  "                    <div style='font-size:12px; color:#cbd5e1; margin-top:4px;'>选择下方任意桌游模式，支持一键匹配、创建房间或输入 6 位房间号加入</div>\n" +
                   "                </div>\n" +
                   "                <div style='display:flex; gap:8px; flex-shrink:0;'>\n" +
                   "                    <button style='background:rgba(255,255,255,0.15); color:#ffffff; border:1px solid rgba(255,255,255,0.25); padding:10px 14px; border-radius:10px; font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap;' onclick='openGameRulesModal(\"take6\")'>📖 玩法宝典</button>\n" +
-                  "                    <button style='background:#10b981; color:#ffffff; border:none; padding:10px 18px; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap;' onclick='quickPlayGame(\"take6\")'>快速开局</button>\n" +
+                  "                    <button style='background:#10b981; color:#ffffff; border:none; padding:10px 18px; border-radius:10px; font-size:13px; font-weight:800; cursor:pointer; white-space:nowrap;' onclick='quickPlayGame(\"take6\")'>⚡ 快速开局</button>\n" +
                   "                </div>\n" +
                   "            </div>\n");
         sb.append("            <div class='category-filter-bar'>\n" +
@@ -831,52 +871,54 @@ public class WebPlayController {
                   "                <button class='cat-pill' data-cat='party' onclick='filterLobbyGameCategory(\"party\", this)'>🎡 酒桌破冰</button>\n" +
                   "                <button class='cat-pill' data-cat='deduction' onclick='filterLobbyGameCategory(\"deduction\", this)'>🕵️ 推理猜词</button>\n" +
                   "            </div>\n");
-        sb.append("            <div class='game-mode-card take6' data-cat='strategy'>\n");
-        sb.append("                <div class='game-mode-top'>\n");
-        sb.append("                    <div class='game-mode-title'><span>🐂 谁是牛头王 (Take 6!)</span></div>\n");
-        sb.append("                    <span class='game-mode-badge' style='background:#f59e0b; color:#1e293b;'>德式策略 · 6人开黑</span>\n");
+        sb.append("            <div class='game-modes-grid'>\n");
+        sb.append("                <div class='game-mode-card take6' data-cat='strategy'>\n");
+        sb.append("                    <div class='game-mode-top'>\n");
+        sb.append("                        <div class='game-mode-title'><span>🐂 谁是牛头王 (Take 6!)</span></div>\n");
+        sb.append("                        <span class='game-mode-badge' style='background:#f59e0b; color:#1e293b;'>德式策略 · 6人开黑</span>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div class='game-mode-desc'>每轮盲选一张卡牌同时亮出，按从小到大顺序入行；放进第6张牌的玩家收走整行牛头！支持落位风险预览～</div>\n");
+        sb.append("                    <div class='game-mode-actions'>\n");
+        sb.append("                        <button class='btn-mode-quick' onclick='quickPlayGame(\"take6\")'>⚡ 快速匹配开局</button>\n");
+        sb.append("                        <button class='btn-mode-create' onclick='createRoomQuick(\"take6\")'>➕ 创建新房间</button>\n");
+        sb.append("                        <button class='btn-mode-rules' onclick='openGameRulesModal(\"take6\")'>📖 规则</button>\n");
+        sb.append("                    </div>\n");
         sb.append("                </div>\n");
-        sb.append("                <div class='game-mode-desc'>每轮盲选一张卡牌同时亮出，按从小到大顺序入行；放进第6张牌的玩家收走整行牛头！惩罚牛头越少排名越高～</div>\n");
-        sb.append("                <div class='game-mode-actions'>\n");
-        sb.append("                    <button class='btn-mode-quick' onclick='quickPlayGame(\"take6\")'>⚡ 快速匹配开局</button>\n");
-        sb.append("                    <button class='btn-mode-create' onclick='createRoomQuick(\"take6\")'>➕ 创建新房间</button>\n");
-        sb.append("                    <button class='btn-mode-rules' onclick='openGameRulesModal(\"take6\")'>📖 规则</button>\n");
-        sb.append("                </div>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div class='game-mode-card dice' data-cat='strategy'>\n" +
-                  "                <div class='game-mode-top'>\n" +
-                  "                    <div class='game-mode-title'><span>🎲 大话骰吹牛 (Liar's Dice)</span></div>\n" +
-                  "                    <span class='game-mode-badge' style='background:#3b82f6; color:#fff;'>酒吧经典 · 心理博弈</span>\n" +
+        sb.append("                <div class='game-mode-card dice' data-cat='strategy'>\n" +
+                  "                    <div class='game-mode-top'>\n" +
+                  "                        <div class='game-mode-title'><span>🎲 大话骰吹牛 (Liar's Dice)</span></div>\n" +
+                  "                        <span class='game-mode-badge' style='background:#3b82f6; color:#fff;'>酒吧经典 · 精准2x</span>\n" +
+                  "                    </div>\n" +
+                  "                    <div class='game-mode-desc'>支持1点万能飞与叫【斋】、纯1大于6、顺子重摇、豹子加码及“刚好 (Spot On)”双倍绝杀裁决！</div>\n" +
+                  "                    <div class='game-mode-actions'>\n" +
+                  "                        <button class='btn-mode-quick' style='background:linear-gradient(135deg,#3b82f6,#2563eb);' onclick='quickPlayGame(\"liars_dice\")'>⚡ 快速匹配开局</button>\n" +
+                  "                        <button class='btn-mode-create' onclick='createRoomQuick(\"liars_dice\")'>➕ 创建新房间</button>\n" +
+                  "                        <button class='btn-mode-rules' onclick='openGameRulesModal(\"liars_dice\")'>📖 规则</button>\n" +
+                  "                    </div>\n" +
                   "                </div>\n" +
-                  "                <div class='game-mode-desc'>摇动专属骰盅，遮挡点数防偷看，根据全桌点数虚实叫点，抓吹牛开盅决战到天亮！</div>\n" +
-                  "                <div class='game-mode-actions'>\n" +
-                  "                    <button class='btn-mode-quick' style='background:linear-gradient(135deg,#3b82f6,#2563eb);' onclick='quickPlayGame(\"liars_dice\")'>⚡ 快速匹配开局</button>\n" +
-                  "                    <button class='btn-mode-create' onclick='createRoomQuick(\"liars_dice\")'>➕ 创建新房间</button>\n" +
-                  "                    <button class='btn-mode-rules' onclick='openGameRulesModal(\"liars_dice\")'>📖 规则</button>\n" +
+                  "                <div class='game-mode-card wheel' data-cat='party'>\n" +
+                  "                    <div class='game-mode-top'>\n" +
+                  "                        <div class='game-mode-title'><span>🎡 聚会大冒险大转盘 (Party Wheel)</span></div>\n" +
+                  "                        <span class='game-mode-badge' style='background:#ec4899; color:#fff;'>四大题库 · 酒桌破冰</span>\n" +
+                  "                    </div>\n" +
+                  "                    <div class='game-mode-desc'>破冰、老友、心动、才艺四套分场景不重样题库，全桌同步高速轮盘与实时历史记录！</div>\n" +
+                  "                    <div class='game-mode-actions'>\n" +
+                  "                        <button class='btn-mode-quick' style='background:linear-gradient(135deg,#ec4899,#be185d);' onclick='quickPlayGame(\"party_wheel\")'>⚡ 快速匹配开局</button>\n" +
+                  "                        <button class='btn-mode-create' onclick='createRoomQuick(\"party_wheel\")'>➕ 创建新房间</button>\n" +
+                  "                        <button class='btn-mode-rules' onclick='openGameRulesModal(\"party_wheel\")'>📖 规则</button>\n" +
+                  "                    </div>\n" +
                   "                </div>\n" +
-                  "            </div>\n" +
-                  "            <div class='game-mode-card wheel' data-cat='party' style='border-left: 4px solid #ec4899;'>\n" +
-                  "                <div class='game-mode-top'>\n" +
-                  "                    <div class='game-mode-title'><span>🎡 聚会大冒险大转盘 (Party Wheel)</span></div>\n" +
-                  "                    <span class='game-mode-badge' style='background:#ec4899; color:#fff;'>酒桌破冰 · 真心话大冒险</span>\n" +
-                  "                </div>\n" +
-                  "                <div class='game-mode-desc'>物理交互大转盘，随机抽取真心话大冒险与酒桌罚酒任务，支持自动连转托管，聚会破冰首选！</div>\n" +
-                  "                <div class='game-mode-actions'>\n" +
-                  "                    <button class='btn-mode-quick' style='background:linear-gradient(135deg,#ec4899,#be185d);' onclick='quickPlayGame(\"party_wheel\")'>⚡ 快速匹配开局</button>\n" +
-                  "                    <button class='btn-mode-create' onclick='createRoomQuick(\"party_wheel\")'>➕ 创建新房间</button>\n" +
-                  "                    <button class='btn-mode-rules' onclick='openGameRulesModal(\"party_wheel\")'>📖 规则</button>\n" +
-                  "                </div>\n" +
-                  "            </div>\n" +
-                  "            <div class='game-mode-card undercover' data-cat='deduction' style='border-left: 4px solid #10b981;'>\n" +
-                  "                <div class='game-mode-top'>\n" +
-                  "                    <div class='game-mode-title'><span>🕵️ 谁是卧底 (Undercover)</span></div>\n" +
-                  "                    <span class='game-mode-badge' style='background:#10b981; color:#fff;'>经典推理 · 猜词抓卧底</span>\n" +
-                  "                </div>\n" +
-                  "                <div class='game-mode-desc'>平民与卧底各执相似词语，轮流发言描述，抽丝剥茧投票放逐，找出隐藏在身边的真凶！</div>\n" +
-                  "                <div class='game-mode-actions'>\n" +
-                  "                    <button class='btn-mode-quick' style='background:linear-gradient(135deg,#10b981,#047857);' onclick='quickPlayGame(\"undercover\")'>⚡ 快速匹配开局</button>\n" +
-                  "                    <button class='btn-mode-create' onclick='createRoomQuick(\"undercover\")'>➕ 创建新房间</button>\n" +
-                  "                    <button class='btn-mode-rules' onclick='openGameRulesModal(\"undercover\")'>📖 规则</button>\n" +
+                  "                <div class='game-mode-card undercover' data-cat='deduction'>\n" +
+                  "                    <div class='game-mode-top'>\n" +
+                  "                        <div class='game-mode-title'><span>🕵️ 谁是卧底 (Undercover)</span></div>\n" +
+                  "                        <span class='game-mode-badge' style='background:#10b981; color:#fff;'>经典推理 · 平票PK</span>\n" +
+                  "                    </div>\n" +
+                  "                    <div class='game-mode-desc'>随机词库盲盒发词、麦序轮流发言、平票 PK 复投机制与局终全部阵营揭晓，聚会推理必备！</div>\n" +
+                  "                    <div class='game-mode-actions'>\n" +
+                  "                        <button class='btn-mode-quick' style='background:linear-gradient(135deg,#10b981,#047857);' onclick='quickPlayGame(\"undercover\")'>⚡ 快速匹配开局</button>\n" +
+                  "                        <button class='btn-mode-create' onclick='createRoomQuick(\"undercover\")'>➕ 创建新房间</button>\n" +
+                  "                        <button class='btn-mode-rules' onclick='openGameRulesModal(\"undercover\")'>📖 规则</button>\n" +
+                  "                    </div>\n" +
                   "                </div>\n" +
                   "            </div>\n");
         sb.append("            <div class='search-room-bar'>\n");
@@ -1548,6 +1590,7 @@ public class WebPlayController {
 "            <div id='take6ChoiceAlert' style='display: none; background: #ef4444; color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: bold; margin-bottom: 8px;'>\n" +
 "                ⚠️ 您的牌小于所有行的末尾牌！请点击下方任意一行收走牛头！\n" +
 "            </div>\n" +
+"            <div id='take6PreviewBanner' class='take6-preview-banner'></div>\n" +
 "            <div class='take6-rows-container' id='take6RowsContainer'></div>\n" +
 "            <div class='take6-revealed-row'>\n" +
 "                <span class='revealed-tag'>本轮亮牌:</span>\n" +
@@ -1575,8 +1618,10 @@ public class WebPlayController {
 "                <div class='waiting-status-desc'>请各位玩家点击上方【⚡ 点击准备】，房主开局后自动投掷点数！</div>\n" +
 "            </div>\n" +
 "            <div class='bid-status-board' id='bidStatusBoard' style='display: none;'></div>\n" +
+"            <div class='dice-bid-history-bar' id='diceBidHistoryBar'></div>\n" +
 "            <div class='cup-box' id='diceCup' onclick='actionRollDice()' title='点击摇骰'>🎲</div>\n" +
-"            <div style='font-size: 12px; color: #94a3b8; margin-bottom: 8px;' id='turnTip'>对局开始后点击骰盅或【摇一摇】投掷专属点数</div>\n" +
+"            <div style='font-size: 12px; color: #475569; font-weight: 600; margin-bottom: 8px;' id='turnTip'>对局开始后由服务端权威派发 5 颗手骰，支持叫【斋】与【刚好(2x)】</div>\n" +
+"            <div class='dice-badge-bar' id='diceHandBadgeBar'></div>\n" +
 "            <div class='dice-container'>\n" +
 "                <div class='dice-row' id='myDiceRow'></div>\n" +
 "                <div class='dice-tally-bar'>\n" +
@@ -1586,8 +1631,10 @@ public class WebPlayController {
 "            </div>\n" +
 "            <div class='action-row'>\n" +
 "                <button class='btn-act btn-shake' id='btnDiceShake' onclick='actionRollDice()' disabled>🎲 摇一摇</button>\n" +
+"                <button class='btn-act btn-reroll-straight' id='btnDiceRerollStraight' onclick='actionRerollStraightDice()' style='display:none;'>🌀 顺子重摇</button>\n" +
 "                <button class='btn-act btn-call' id='btnDiceCall' onclick='actionBidDialog()' disabled>📢 叫点数</button>\n" +
 "                <button class='btn-act btn-open' id='btnDiceOpen' onclick='actionCallLiar()' disabled>⚡ 抓 / 开！</button>\n" +
+"                <button class='btn-act btn-spot-on' id='btnDiceSpotOn' onclick='actionSpotOnCall()' disabled>🎯 刚好(2x)</button>\n" +
 "            </div>\n" +
 "        </div>\n" +
 "        <div class='dice-bid-modal' id='diceBidModal' style='display:none;'>\n" +
@@ -1634,18 +1681,28 @@ public class WebPlayController {
         sb.append("        <div class='game-board' id='wheelBoard' style='display:none;'>\n" +
 "            <div class='waiting-status-banner' id='wheelWaitingStage'>\n" +
 "                <div class='waiting-status-title'>⏳ 房间组队准备中</div>\n" +
-"                <div class='waiting-status-desc'>聚会大冒险大转盘，点击【🎯 开始旋转】抽取精彩任务！</div>\n" +
+"                <div class='waiting-status-desc'>选择场景题库包后点击【🎯 开始旋转】，全桌实时同步停盘！</div>\n" +
 "            </div>\n" +
-"            <div style='display:flex; flex-direction:column; align-items:center; margin:16px 0;'>\n" +
-"                <div style='position:relative; width:260px; height:260px;'>\n" +
-"                    <canvas id='wheelCanvas' width='260' height='260' style='border-radius:50%; box-shadow:0 0 20px rgba(236,72,153,0.4);'></canvas>\n" +
-"                    <div id='wheelPointer' style='position:absolute; top:-12px; left:50%; transform:translateX(-50%); font-size:24px;'>🔻</div>\n" +
+"            <div class='wheel-pack-bar' id='wheelPackBar'>\n" +
+"                <button type='button' class='wheel-pack-btn active' data-pack='icebreaker' onclick='selectWheelPack(\"icebreaker\", this)'>🤝 破冰初识</button>\n" +
+"                <button type='button' class='wheel-pack-btn' data-pack='friends' onclick='selectWheelPack(\"friends\", this)'>🍻 老友狂欢</button>\n" +
+"                <button type='button' class='wheel-pack-btn' data-pack='couple' onclick='selectWheelPack(\"couple\", this)'>💘 心动微醺</button>\n" +
+"                <button type='button' class='wheel-pack-btn' data-pack='talent' onclick='selectWheelPack(\"talent\", this)'>🎤 才艺高能</button>\n" +
+"            </div>\n" +
+"            <div style='display:flex; flex-direction:column; align-items:center; margin:14px 0;'>\n" +
+"                <div class='wheel-rim-ring'>\n" +
+"                    <canvas id='wheelCanvas' width='260' height='260' style='width:260px; height:260px; border-radius:50%; background:#0f172a;'></canvas>\n" +
+"                    <div id='wheelPointer' style='position:absolute; top:-14px; left:50%; transform:translateX(-50%); font-size:26px; filter:drop-shadow(0 2px 6px rgba(0,0,0,0.45));'>🔻</div>\n" +
 "                </div>\n" +
-"                <div style='margin-top:16px; display:flex; gap:10px;'>\n" +
-"                    <button id='btnSpinWheel' onclick='actionSpinWheel()' style='background:linear-gradient(135deg,#ec4899,#be185d); color:#fff; border:none; padding:10px 24px; border-radius:20px; font-weight:800; font-size:14px; cursor:pointer;'>🎯 开始旋转</button>\n" +
-"                    <button id='btnAutoWheel' onclick='toggleAutoWheel()' style='background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:10px 16px; border-radius:20px; font-size:13px; cursor:pointer;'>🤖 自动连转</button>\n" +
+"                <div style='margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; justify-content:center;'>\n" +
+"                    <button id='btnSpinWheel' onclick='actionSpinWheel()' style='background:linear-gradient(135deg,#ec4899,#be185d); color:#fff; border:none; padding:10px 24px; border-radius:20px; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 6px 18px rgba(236,72,153,0.35);'>🎯 开始旋转</button>\n" +
+"                    <button id='btnAutoWheel' onclick='toggleAutoWheel()' style='background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:10px 16px; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer;'>🤖 自动连转</button>\n" +
 "                </div>\n" +
-"                <div id='wheelResultCard' style='display:none; margin-top:14px; background:rgba(236,72,153,0.15); border:1px solid #ec4899; border-radius:10px; padding:10px 16px; color:#f472b6; font-weight:bold; font-size:13px; text-align:center;'>\n" +
+"                <div id='wheelResultCard' style='display:none; margin-top:14px; width:100%; max-width:440px; background:rgba(236,72,153,0.14); border:1.5px solid #ec4899; border-radius:14px; padding:12px 16px; color:#be185d; font-weight:bold; font-size:13px; text-align:left;'>\n" +
+"                </div>\n" +
+"                <div id='wheelHistoryBox' class='wheel-history-box'>\n" +
+"                    <div style='font-weight:800; margin-bottom:4px;'>📜 本房转盘记录</div>\n" +
+"                    <div id='wheelHistoryList'>暂无旋转记录，点击开始体验！</div>\n" +
 "                </div>\n" +
 "            </div>\n" +
 "        </div>\n");
@@ -1654,28 +1711,30 @@ public class WebPlayController {
         sb.append("        <div class='game-board' id='undercoverBoard' style='display:none;'>\n" +
 "            <div class='waiting-status-banner' id='undercoverWaitingStage'>\n" +
 "                <div class='waiting-status-title'>⏳ 房间组队准备中</div>\n" +
-"                <div class='waiting-status-desc'>谁是卧底 · 词语推理 · 投票抓凶！</div>\n" +
+"                <div class='waiting-status-desc'>谁是卧底 · 词语推理 · 平票 PK 与投票抓凶！</div>\n" +
 "            </div>\n" +
-"            <div style='margin:16px 0; display:flex; flex-direction:column; gap:10px;'>\n" +
-"                <div id='undercoverSpeakerBanner' style='background:linear-gradient(135deg,#eff6ff,#dbeafe); border:1.5px solid #93c5fd; border-radius:12px; padding:12px; display:flex; justify-content:space-between; align-items:center;'>\n" +
+"            <div style='margin:14px 0; display:flex; flex-direction:column; gap:10px;'>\n" +
+"                <div id='undercoverSpeakerBanner' style='background:linear-gradient(135deg,#eff6ff,#dbeafe); border:1.5px solid #93c5fd; border-radius:12px; padding:12px; display:flex; justify-content:space-between; align-items:center; gap:8px;'>\n" +
 "                    <div style='text-align:left;'>\n" +
 "                        <div style='font-size:11px; color:#1e40af; font-weight:bold;'>📢 当前发言麦序 (请依次描述)</div>\n" +
 "                        <div id='undercoverCurrentSpeakerText' style='font-size:14px; font-weight:900; color:#1e3a8a; margin-top:2px;'>等待房主开局...</div>\n" +
 "                    </div>\n" +
-"                    <button id='btnUndercoverFinishSpeech' onclick='actionUndercoverFinishSpeech()' style='display:none; background:#2563eb; color:#fff; border:none; padding:8px 14px; border-radius:8px; font-weight:bold; font-size:12px; cursor:pointer;'>🎤 我发言完毕</button>\n" +
+"                    <button id='btnUndercoverFinishSpeech' onclick='actionUndercoverFinishSpeech()' style='display:none; background:#2563eb; color:#fff; border:none; padding:8px 14px; border-radius:8px; font-weight:bold; font-size:12px; cursor:pointer; flex-shrink:0;'>🎤 我发言完毕</button>\n" +
 "                </div>\n" +
-"                <div style='background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.02);'>\n" +
-"                    <div style='font-size:12px; color:#94a3b8; margin-bottom:6px;'>我的秘密词底 (防偷窥)</div>\n" +
-"                    <div id='undercoverWordBox' onclick='toggleUndercoverWord()' style='background:#f8fafc; border:1.5px dashed #3b82f6; border-radius:8px; padding:14px; font-size:18px; font-weight:bold; color:#2563eb; cursor:pointer;'>\n" +
+"                <div id='undercoverPkBanner' class='uc-pk-banner'></div>\n" +
+"                <div id='undercoverResultBanner' class='uc-result-banner'></div>\n" +
+"                <div class='uc-word-card' style='background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.02);'>\n" +
+"                    <div style='font-size:12px; color:#64748b; margin-bottom:6px; font-weight:600;'>我的秘密词底 (仅自己可见 · 防偷窥)</div>\n" +
+"                    <div id='undercoverWordBox' onclick='toggleUndercoverWord()' style='background:#f8fafc; border:1.5px dashed #3b82f6; border-radius:10px; padding:14px; font-size:18px; font-weight:bold; color:#2563eb; cursor:pointer;'>\n" +
 "                        🙈 点击揭开词底\n" +
 "                    </div>\n" +
 "                </div>\n" +
 "                <div id='undercoverVoteSection' style='background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.02);'>\n" +
-"                    <div style='font-size:12px; color:#fbbf24; font-weight:bold; margin-bottom:8px;'>🗳️ 投票指认卧底：</div>\n" +
+"                    <div style='font-size:12px; color:#d97706; font-weight:bold; margin-bottom:8px; text-align:left;'>🗳️ 投票指认卧底：</div>\n" +
 "                    <div id='undercoverVoteButtons' style='display:flex; flex-wrap:wrap; gap:8px;'></div>\n" +
 "                </div>\n" +
-"                <div id='undercoverClueLog' style='background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; font-size:11px; color:#475569; max-height:100px; overflow-y:auto;'>\n" +
-"                    💡 游戏提示：平民拿到相同词，卧底拿到相似词。轮流简要描述自己的词，不要直接说出词面！\n" +
+"                <div id='undercoverClueLog' style='background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px; font-size:11.5px; color:#475569; max-height:130px; overflow-y:auto; text-align:left;'>\n" +
+"                    💡 游戏提示：平民拿到相同词，卧底拿到相似词（或白板无词）。轮流描述底词，切勿直接说出原词！\n" +
 "                </div>\n" +
 "            </div>\n" +
 "        </div>\n");
@@ -2143,27 +2202,33 @@ public class WebPlayController {
                "\n" +
                "    /* 大话骰全桌自动验点与裁决弹窗 */\n" +
                "    window.showDiceSettlementModal = function(data) {\n" +
-               "        const m = document.getElementById('diceSettlementModal'); if (!m) return;\n" +
+               "        const m = document.getElementById('diceSettlementModal'); if (!m || !data) return;\n" +
                "        const titleEl = document.getElementById('diceSettleTitle');\n" +
                "        const sumEl = document.getElementById('diceSettleSummary');\n" +
                "        const listEl = document.getElementById('diceSettleHandsList');\n" +
                "        \n" +
                "        playVictoryFanfare();\n" +
                "        if (titleEl) {\n" +
-               "            titleEl.innerText = data.isBluffCaught ? '💥 抓吹牛成功！叫点者被抓！' : '⚡ 质疑失败！叫点者没吹牛！';\n" +
-               "            titleEl.style.color = data.isBluffCaught ? '#dc2626' : '#16a34a';\n" +
+               "            if (data.isSpotOn) {\n" +
+               "                titleEl.innerText = data.isChallengerWon ? '🎯 精准喊刚好成功！(2x双倍)' : '💥 精准喊刚好翻车！(2x双倍)';\n" +
+               "            } else {\n" +
+               "                titleEl.innerText = data.isBluffCaught ? '💥 抓吹牛成功！叫点者被抓！' : '⚡ 质疑失败！叫点者没吹牛！';\n" +
+               "            }\n" +
+               "            titleEl.style.color = data.isChallengerWon ? '#16a34a' : '#dc2626';\n" +
                "        }\n" +
                "        if (sumEl) {\n" +
                "            const pureTag = data.isPure ? '【斋】' : '';\n" +
-               "            sumEl.innerHTML = `底盘叫点：<b>${data.bidCount}</b> 个 <b>${data.targetFace}</b> 点${pureTag}<br>` +\n" +
-               "                              `全桌实际总计：<b style=\"color:#2563eb; font-size:16px;\">${data.actualCount}</b> 个 ${data.targetFace} 点！<br>` +\n" +
+               "            const spotTag = data.isSpotOn ? ' · <b style=\"color:#7c3aed;\">精准2x双倍</b>' : '';\n" +
+               "            const baoziTag = (data.baoziBonusCount && data.baoziBonusCount > 0) ? ` (含豹子+${data.baoziBonusCount}加成)` : '';\n" +
+               "            sumEl.innerHTML = `底盘叫点：<b>${data.bidCount}</b> 个 <b>${data.targetFace}</b> 点${pureTag}${spotTag}<br>` +\n" +
+               "                              `全桌实际总计：<b style=\"color:#2563eb; font-size:16px;\">${data.actualCount}</b> 个 ${data.targetFace} 点${baoziTag}！<br>` +\n" +
                "                              `🏆 获胜者：<b>【${data.winnerName}】</b> (+${data.rewardCoins || 200} 金币)`;\n" +
                "        }\n" +
                "        if (listEl && data.allHands) {\n" +
                "            listEl.innerHTML = Object.entries(data.allHands).map(([pid, dice]) => {\n" +
                "                const isWinner = pid === data.winnerId;\n" +
                "                const pInfo = (players && players.find(p => p.id === pid)) || { name: '玩家' };\n" +
-               "                const diceHtml = dice.map(d => {\n" +
+               "                const diceHtml = (Array.isArray(dice) ? dice : []).map(d => {\n" +
                "                    const isHit = (data.isPure || data.targetFace === 1) ? (d === data.targetFace) : (d === data.targetFace || d === 1);\n" +
                "                    const hitStyle = isHit ? 'border:2px solid #f59e0b; background:#fffbeb; box-shadow:0 0 6px rgba(245,158,11,0.6);' : 'border:1px solid #cbd5e1; background:#f8fafc;';\n" +
                "                    return `<div style='width:28px; height:28px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; margin:0 2px; ${hitStyle}'>` +\n" +
@@ -2183,8 +2248,11 @@ public class WebPlayController {
                "    };\n" +
                "    window.actionDiceNextRound = function() {\n" +
                "        closeDiceSettlementModal();\n" +
-               "        if (ws && ws.readyState === WebSocket.OPEN) {\n" +
-               "            ws.send(JSON.stringify({ type: 'GAME_ACTION', action: 'GAME_STARTED', roomCode: currentRoomId, payload: { gameType: 'liars_dice' } }));\n" +
+               "        if (typeof resetDiceRoundUi === 'function') resetDiceRoundUi();\n" +
+               "        if (ws && ws.readyState === WebSocket.OPEN && currentRoomId) {\n" +
+               "            ws.send(JSON.stringify({ type: 'GAME_ACTION', action: 'ROUND_RESTART', roomCode: currentRoomId, senderId: myUserId, payload: { gameType: 'liars_dice' } }));\n" +
+               "        } else if (typeof actionRollDice === 'function') {\n" +
+               "            actionRollDice();\n" +
                "        }\n" +
                "    };\n" +
                "\n" +
@@ -2193,11 +2261,17 @@ public class WebPlayController {
                "        if (!payload) return;\n" +
                "        window.hasServerUndercoverRole = true;\n" +
                "        const uCard = document.getElementById('undercoverWaitingStage'); if (uCard) uCard.style.display = 'none';\n" +
-               "        myUndercoverWord = payload.myWord || '保密';\n" +
-               "        isUndercoverRole = !!payload.isUndercover;\n" +
+               "        isBlankRole = !!payload.isBlank;\n" +
+               "        myUndercoverWord = payload.myWord || (isBlankRole ? '【空白牌 · 无底词】' : '保密');\n" +
                "        isUndercoverWordRevealed = false;\n" +
+               "        window.undercoverRunoffCandidates = null;\n" +
+               "        window.undercoverAliveIds = (players || []).map(p => p.id);\n" +
+               "        const pkEl = document.getElementById('undercoverPkBanner'); if (pkEl) pkEl.style.display = 'none';\n" +
+               "        const resEl = document.getElementById('undercoverResultBanner'); if (resEl) resEl.style.display = 'none';\n" +
+               "        const clueEl = document.getElementById('undercoverClueLog');\n" +
+               "        if (clueEl) clueEl.innerHTML = '💡 游戏提示：第 ' + (payload.round || 1) + ' 轮开始（共 ' + (payload.totalPlayers || (players ? players.length : 4)) + ' 人），请点击上方卡片暗中查看底词！';\n" +
                "        const box = document.getElementById('undercoverWordBox');\n" +
-               "        if (box) box.innerText = '🙈 点击揭开词底 (暗中查看)';\n" +
+               "        if (box) box.innerText = '🙈 点击揭开词底 (仅自己可见)';\n" +
                "        const banner = document.getElementById('undercoverCurrentSpeakerText');\n" +
                "        if (banner) banner.innerText = '游戏开始！请按麦序依次发言～';\n" +
                "        renderUndercoverVoteButtons();\n" +
@@ -2207,8 +2281,9 @@ public class WebPlayController {
                "        if (!payload) return;\n" +
                "        const banner = document.getElementById('undercoverCurrentSpeakerText');\n" +
                "        const btn = document.getElementById('btnUndercoverFinishSpeech');\n" +
+               "        const pkEl = document.getElementById('undercoverPkBanner'); if (pkEl) pkEl.style.display = 'none';\n" +
                "        const pInfo = (players && players.find(p => p.id === payload.speakerId)) || { name: '玩家' };\n" +
-               "        if (banner) banner.innerText = '👉 当前发言：【' + (pInfo.name || '玩家') + '】(请描述底词，勿直接暴露)';\n" +
+               "        if (banner) banner.innerText = '👉 第' + (payload.round || 1) + '轮发言：【' + (pInfo.name || '玩家') + '】(请描述底词，勿直接暴露)';\n" +
                "        if (btn) btn.style.display = (payload.speakerId === myUserId) ? 'inline-block' : 'none';\n" +
                "        if (payload.speakerId === myUserId) {\n" +
                "            showToast('🎤 轮到您发言啦！请简要描述您的底词～');\n" +
@@ -2223,30 +2298,67 @@ public class WebPlayController {
                "        }\n" +
                "    };\n" +
                "    window.handleUndercoverPhaseVoting = function(payload) {\n" +
+               "        window.undercoverRunoffCandidates = null;\n" +
+               "        const pkEl = document.getElementById('undercoverPkBanner'); if (pkEl) pkEl.style.display = 'none';\n" +
                "        const banner = document.getElementById('undercoverCurrentSpeakerText');\n" +
                "        if (banner) banner.innerText = '🗳️ 全员发言完毕！请在下方指认您怀疑的卧底玩家！';\n" +
                "        renderUndercoverVoteButtons();\n" +
                "        playBeep(920, 0.25);\n" +
                "    };\n" +
+               "    window.handleUndercoverTieBreaker = function(payload) {\n" +
+               "        if (!payload) return;\n" +
+               "        window.undercoverRunoffCandidates = Array.isArray(payload.tiedPlayerIds) ? payload.tiedPlayerIds : [];\n" +
+               "        const names = window.undercoverRunoffCandidates.map(id => {\n" +
+               "            const p = (players || []).find(x => x.id === id);\n" +
+               "            return p ? p.name : id;\n" +
+               "        });\n" +
+               "        const pkEl = document.getElementById('undercoverPkBanner');\n" +
+               "        if (pkEl) {\n" +
+               "            pkEl.style.display = 'block';\n" +
+               "            pkEl.innerHTML = '⚖️ 票数持平进入 PK 复投！平票候选人：<b>' + names.join(' vs ') + '</b>（限时 ' + (payload.timeoutSeconds || 20) + 's，请重新投票！）';\n" +
+               "        }\n" +
+               "        const banner = document.getElementById('undercoverCurrentSpeakerText');\n" +
+               "        if (banner) banner.innerText = '⚖️ 平票 PK 复投阶段 · 请从平票人中决出淘汰者！';\n" +
+               "        renderUndercoverVoteButtons();\n" +
+               "        playBeep(880, 0.2);\n" +
+               "    };\n" +
                "    window.handleUndercoverVoteResult = function(payload) {\n" +
                "        if (!payload) return;\n" +
-               "        const outName = payload.outPlayerName || '玩家';\n" +
-               "        const roleStr = payload.wasUndercover ? '【🎭 卧底】' : '【🛡️ 平民】';\n" +
+               "        window.undercoverRunoffCandidates = null;\n" +
+               "        if (Array.isArray(payload.remainingAlive)) window.undercoverAliveIds = payload.remainingAlive;\n" +
+               "        const pkEl = document.getElementById('undercoverPkBanner'); if (pkEl) pkEl.style.display = 'none';\n" +
+               "        const resEl = document.getElementById('undercoverResultBanner');\n" +
                "        playSlamSound();\n" +
-               "        let msg = `🗳️ 公投结果：【${outName}】被指认出局！其真实身份是：${roleStr}！\n" +
-               "`;\n" +
+               "        let html = '';\n" +
+               "        if (payload.isTieSkip) {\n" +
+               "            html = '<div style=\"font-weight:900; color:#d97706;\">⚖️ PK 复投仍平票！本轮无人出局，进入下一轮发言。</div>';\n" +
+               "        } else {\n" +
+               "            const outName = payload.outPlayerName || '玩家';\n" +
+               "            const roleStr = payload.wasBlank ? '🃏 白板' : (payload.wasUndercover ? '🎭 卧底' : '🛡️ 平民');\n" +
+               "            html = `<div style='font-weight:900; margin-bottom:4px;'>🗳️ 公投结果：【${outName}】出局 · 身份为 <b>${roleStr}</b></div>`;\n" +
+               "        }\n" +
                "        if (payload.gameOver) {\n" +
-               "            const winTeam = payload.winnerTeam === 'CIVILIAN' ? '🎉 平民阵营大获全胜！成功抓出所有卧底！' : '🎭 卧底阵营获胜！成功潜伏并骗过所有人！';\n" +
-               "            msg += `\n" +
-               "${winTeam}`;\n" +
+               "            const winTeam = payload.winnerTeam === 'CIVILIAN' ? '🎉 平民阵营大获全胜！成功抓出所有卧底！' : (payload.winnerTeam === 'BLANK' ? '🃏 白板极限逆袭获胜！' : '🎭 卧底阵营获胜！成功潜伏至最后！');\n" +
+               "            html += `<div style='font-weight:900; color:#7c3aed; margin-top:4px;'>${winTeam}</div>`;\n" +
+               "            if (payload.words) {\n" +
+               "                html += `<div style='font-size:12px; margin-top:6px; padding:6px 8px; border-radius:8px; background:rgba(139,92,246,0.10);'>📖 本局谜底揭晓：平民词【<b>${payload.words.civilian || '-'}</b>】 · 卧底词【<b>${payload.words.undercover || '-'}</b>】</div>`;\n" +
+               "            }\n" +
+               "            if (payload.revealedRoles) {\n" +
+               "                const rolesSummary = Object.values(payload.revealedRoles).map(r => `${r.name || '玩家'}(${r.isBlank ? '白板' : (r.isUndercover ? '卧底' : '平民')})`).join(' · ');\n" +
+               "                html += `<div style='font-size:11.5px; color:#64748b; margin-top:6px;'>👥 全员身份揭晓：${rolesSummary}</div>`;\n" +
+               "            }\n" +
                "            playVictoryFanfare();\n" +
                "        } else {\n" +
-               "            msg += `\n" +
-               "游戏继续，进入下一轮发言！`;\n" +
+               "            html += '<div style=\"font-size:12px; color:#64748b; margin-top:4px;\">游戏继续，进入下一轮麦序发言！</div>';\n" +
+               "            renderUndercoverVoteButtons();\n" +
                "        }\n" +
-               "        alert(msg);\n" +
+               "        if (resEl) {\n" +
+               "            resEl.style.display = 'block';\n" +
+               "            resEl.innerHTML = html;\n" +
+               "        }\n" +
+               "        showToast(payload.gameOver ? '🏆 谁是卧底对局结束！' : '🗳️ 本轮投票结果已公布');\n" +
                "        const banner = document.getElementById('undercoverCurrentSpeakerText');\n" +
-               "        if (banner) banner.innerText = payload.gameOver ? '对局已结束' : '第 2 轮发言准备中...';\n" +
+               "        if (banner) banner.innerText = payload.gameOver ? '🏆 对局已结束 · 身份与底词已揭晓' : '进入下一轮发言准备...';\n" +
                "    };\n" +
                "\n" +
                "    /* 真实高品质音频合成函数 (Web Audio API 真实和弦与击打) */\n" +
@@ -3717,6 +3829,7 @@ public class WebPlayController {
                "            const data = await res.json();\n" +
                "            if (data.code === 0 && data.data) {\n" +
                "                const user = data.data;\n" +
+               "                if (user.token) localStorage.setItem('pg_auth_token', user.token);\n" +
                "                if (remember) {\n" +
                "                    localStorage.setItem('party_saved_user', acc);\n" +
                "                    if (pwd) localStorage.setItem('party_saved_pwd', pwd);\n" +
@@ -3843,32 +3956,27 @@ public class WebPlayController {
                "            const data = await res.json();\n" +
                "            if ((data.code === 200 || data.code === 0) && data.data) {\n" +
                "                const u = data.data;\n" +
+               "                if (u.token) localStorage.setItem('pg_auth_token', u.token);\n" +
                "                if (name && (!u.nickname || u.nickname.startsWith('试玩玩家_'))) {\n" +
                "                    u.nickname = name;\n" +
                "                }\n" +
                "                showToast('🎉 短信验证通过！祝您游戏愉快');\n" +
                "                onAuthSuccess(u);\n" +
                "            } else {\n" +
-               "                alert(data.message || '验证码核验未通过，可使用测试固定码: 888888');\n" +
-               "                if (btn) { btn.disabled = false; btn.innerText = '⚡ 验证并立即试玩'; }\n" +
+               "                alert(data.message || '验证码核验未通过，请重新获取');\n" +
+               "                if (btn) { btn.disabled = false; btn.innerText = '⚡ 验证并立即进入游戏'; }\n" +
                "            }\n" +
                "        } catch(e) {\n" +
-               "            if (code === '888888') {\n" +
-               "                showToast('🎉 短信验证通过(离线试玩模式)');\n" +
-               "                onAuthSuccess({\n" +
-               "                    id: 'TRIAL-' + phone.slice(-4) + '-' + Math.floor(100 + Math.random() * 900),\n" +
-               "                    nickname: name || ('玩家_' + phone.slice(-4)),\n" +
-               "                    avatar: (currentGameType === 'take6' ? '🐂' : '🦊'),\n" +
-               "                    coins: 2000,\n" +
-               "                    diamonds: 50,\n" +
-               "                    vipLevel: 0\n" +
-               "                });\n" +
-               "            } else {\n" +
-               "                alert('网络连接异常，若为测试请填固定验证码 888888');\n" +
-               "                if (btn) { btn.disabled = false; btn.innerText = '⚡ 验证并立即试玩'; }\n" +
-               "            }\n" +
+               "            alert('网络连接异常，请检查网络后重试');\n" +
+               "            if (btn) { btn.disabled = false; btn.innerText = '⚡ 验证并立即进入游戏'; }\n" +
                "        }\n" +
                "    };\n" +
+               "    function getAuthHeaders() {\n" +
+               "        const h = { 'Content-Type': 'application/json' };\n" +
+               "        const tok = localStorage.getItem('pg_auth_token');\n" +
+               "        if (tok) h['Authorization'] = 'Bearer ' + tok;\n" +
+               "        return h;\n" +
+               "    }\n" +
                "    function onAuthSuccess(user) {\n" +
                "        currentUser = user;\n" +
                "        myUserId = user.id || ('U-' + Math.random().toString().substring(2, 8));\n" +
@@ -3889,6 +3997,7 @@ public class WebPlayController {
                "    }\n" +
                "    window.logoutUser = function() {\n" +
                "        localStorage.removeItem('party_auto_login');\n" +
+               "        localStorage.removeItem('pg_auth_token');\n" +
                "        localStorage.removeItem('fwpt_auth_token');\n" +
                "        localStorage.removeItem('fwpt_auth_user');\n" +
                "        currentUser = null;\n" +
@@ -3902,7 +4011,7 @@ public class WebPlayController {
                "        const btnPwd = document.getElementById('btnPwdEnter');\n" +
                "        if (btnPwd) { btnPwd.disabled = false; btnPwd.innerText = '🚀 立即登录并进入大厅'; }\n" +
                "        const btnGuest = document.getElementById('btnEnter');\n" +
-               "        if (btnGuest) { btnGuest.disabled = false; btnGuest.innerText = '⚡ 验证并立即试玩'; }\n" +
+               "        if (btnGuest) { btnGuest.disabled = false; btnGuest.innerText = '⚡ 验证并立即进入游戏'; }\n" +
                "        const prefix = getApiPrefix();\n" +
                "        if (history.pushState) {\n" +
                "            history.pushState(null, '', prefix + '/login');\n" +
@@ -4112,6 +4221,9 @@ public class WebPlayController {
                "                renderSeats(msg.players);\n" +
                "            }\n" +
                "        } else if (msg.type === 'CHAT_MESSAGE') {\n" +
+               "            if (msg.channel !== 'WORLD' && msg.channel !== 'CITY' && currentGameType === 'undercover' && typeof appendUndercoverClue === 'function') {\n" +
+               "                appendUndercoverClue(msg.senderName || '玩家', msg.content || '');\n" +
+               "            }\n" +
                "            const isMe = (myUserId && msg.senderId && String(msg.senderId) === String(myUserId)) || (myNickname && msg.senderName && String(msg.senderName) === String(myNickname));\n" +
                "            if (isMe) { return; }\n" +
                "            if (msg.channel === 'WORLD' || msg.channel === 'CITY') {\n" +
@@ -4129,6 +4241,8 @@ public class WebPlayController {
                "            appendChat('系统', msg.content || '📢 召集广播已发布！');\n" +
                "        } else if (msg.type === 'GLOBAL_BROADCAST_EVENT' || msg.type === 'GLOBAL_BROADCAST') {\n" +
                "            showH5GlobalMarquee(msg);\n" +
+               "        } else if (msg.type === 'ERROR_NOTICE') {\n" +
+               "            showToast('⚠️ ' + (msg.message || '操作不符合规则，请核对后重试'));\n" +
                "        } else if (msg.type === 'ROOM_SETTINGS_UPDATED') {\n" +
                "            if (msg.allowSpectator !== undefined) {\n" +
                "                allowSpectator = !!msg.allowSpectator;\n" +
@@ -4140,15 +4254,19 @@ public class WebPlayController {
                "            if (msg.spectators) {\n" +
                "                window.spectatorsList = msg.spectators;\n" +
                "            }\n" +
-               "} else if (msg.type === 'HEARTBEAT_PING') {\n" +
-               "if (ws && ws.readyState === WebSocket.OPEN) {\n" +
-               "ws.send(JSON.stringify({ type: 'HEARTBEAT_PONG', timestamp: Date.now() }));\n" +
-               "}\n" +
+               "        } else if (msg.type === 'HEARTBEAT_PING') {\n" +
+               "            if (ws && ws.readyState === WebSocket.OPEN) {\n" +
+               "                ws.send(JSON.stringify({ type: 'HEARTBEAT_PONG', timestamp: Date.now() }));\n" +
+               "            }\n" +
                "        } else if (msg.type === 'ROOM_RECONNECT_SYNC') {\n" +
                "            handleRoomReconnectSync(msg);\n" +
                "        } else if (msg.type === 'GAME_ACTION') {\n" +
                "            if (msg.action === 'GAME_STARTED') { onGameStartedTrigger(msg.payload); }\n" +
-               "            else if (msg.action === 'GAME_RESTART') {\n" +
+               "            else if (msg.action === 'ROUND_RESTART') {\n" +
+               "                closeDiceSettlementModal();\n" +
+               "                if (typeof resetDiceRoundUi === 'function') resetDiceRoundUi();\n" +
+               "                appendChat('裁判', '🔄 新一轮已开启！手牌已重新派发，请准备叫点～');\n" +
+               "            } else if (msg.action === 'GAME_RESTART') {\n" +
                "                const overlay = document.getElementById('settlementOverlay'); if (overlay) overlay.style.display = 'none';\n" +
                "                window.isGameOverPhase = true;\n" +
                "                if (typeof resetTake6ToLobbyWaiting === 'function') resetTake6ToLobbyWaiting();\n" +
@@ -4166,26 +4284,36 @@ public class WebPlayController {
                "            } else if (msg.action === 'TAKE_ROW' && currentGameType === 'take6') {\n" +
                "                handleTake6RemoteTakeRow(msg.senderName, msg.payload);\n" +
                "            } else if (msg.action === 'BID' && currentGameType === 'liars_dice') {\n" +
-               "                if (msg.payload) updateBidDisplay(msg.payload.count, msg.payload.face, msg.senderName || '玩家');\n" +
+               "                if (msg.payload) updateBidDisplay(msg.payload.count, msg.payload.face, msg.payload.bidderName || msg.senderName || '玩家', !!msg.payload.isPure, msg.payload.bidderId || msg.senderId);\n" +
                "            } else if (msg.action === 'CHALLENGE' && currentGameType === 'liars_dice') {\n" +
-               "                triggerChallengeDisplay(msg.senderName || '玩家');\n" +
-               "} else if (msg.action === 'DICE_MY_HAND' && currentGameType === 'liars_dice') {\n" +
-               "if (msg.payload && msg.payload.dice) {\n" +
-               "myDice = [...msg.payload.dice];\n" +
-               "renderDiceList();\n" +
-               "}\n" +
-               "} else if (msg.action === 'DICE_SETTLEMENT' && currentGameType === 'liars_dice') {\n" +
-               "showDiceSettlementModal(msg.payload);\n" +
-               "} else if (msg.action === 'UNDERCOVER_ROLE_DEAL') {\n" +
-               "handleUndercoverRoleDeal(msg.payload);\n" +
-               "} else if (msg.action === 'UNDERCOVER_NEXT_SPEAKER') {\n" +
-               "handleUndercoverNextSpeaker(msg.payload);\n" +
-               "} else if (msg.action === 'UNDERCOVER_PHASE_VOTING') {\n" +
-               "handleUndercoverPhaseVoting(msg.payload);\n" +
-               "} else if (msg.action === 'UNDERCOVER_VOTE_RESULT') {\n" +
-               "handleUndercoverVoteResult(msg.payload);\n" +
-               "} else if (msg.action === 'WHEEL_SPIN' && currentGameType === 'party_wheel') {\n" +
-               "if (msg.payload && typeof executeWheelSpinTo === 'function' && String(msg.senderId) !== String(myUserId)) { executeWheelSpinTo(msg.payload.targetIdx, msg.senderName || '桌友', false); }\n" +
+               "                triggerChallengeDisplay(msg.senderName || '玩家', false);\n" +
+               "            } else if (msg.action === 'SPOT_ON' && currentGameType === 'liars_dice') {\n" +
+               "                triggerChallengeDisplay(msg.senderName || '玩家', true);\n" +
+               "            } else if (msg.action === 'DICE_MY_HAND' && currentGameType === 'liars_dice') {\n" +
+               "                if (msg.payload && Array.isArray(msg.payload.dice) && typeof applyServerDiceHand === 'function') {\n" +
+               "                    applyServerDiceHand(msg.payload);\n" +
+               "                }\n" +
+               "            } else if (msg.action === 'DICE_SETTLEMENT' && currentGameType === 'liars_dice') {\n" +
+               "                showDiceSettlementModal(msg.payload);\n" +
+               "            } else if (msg.action === 'UNDERCOVER_ROLE_DEAL') {\n" +
+               "                handleUndercoverRoleDeal(msg.payload);\n" +
+               "            } else if (msg.action === 'UNDERCOVER_NEXT_SPEAKER') {\n" +
+               "                handleUndercoverNextSpeaker(msg.payload);\n" +
+               "            } else if (msg.action === 'UNDERCOVER_PHASE_VOTING') {\n" +
+               "                handleUndercoverPhaseVoting(msg.payload);\n" +
+               "            } else if (msg.action === 'UNDERCOVER_TIE_BREAKER') {\n" +
+               "                handleUndercoverTieBreaker(msg.payload);\n" +
+               "            } else if (msg.action === 'UNDERCOVER_VOTE_RESULT') {\n" +
+               "                handleUndercoverVoteResult(msg.payload);\n" +
+               "            } else if (msg.action === 'WHEEL_SPIN' && currentGameType === 'party_wheel') {\n" +
+               "                if (msg.payload) {\n" +
+               "                    window.lastWheelServerResult = msg.payload;\n" +
+               "                    if (String(msg.senderId) !== String(myUserId) && typeof executeWheelSpinTo === 'function') {\n" +
+               "                        executeWheelSpinTo(msg.payload.targetIdx, msg.senderName || msg.payload.spinnerName || '桌友', false, msg.payload);\n" +
+               "                    } else if (!isWheelSpinning && typeof renderWheelSpinResult === 'function') {\n" +
+               "                        renderWheelSpinResult(msg.payload.targetIdx, msg.senderName || msg.payload.spinnerName || myNickname, msg.payload);\n" +
+               "                    }\n" +
+               "                }\n" +
                "            } else {\n" +
                "                appendChat('对局', (msg.senderName || msg.senderId) + ': ' + msg.action);\n" +
                "            }\n" +
@@ -5306,8 +5434,49 @@ public class WebPlayController {
 "            }\n" +
 "        });\n" +
 "    }\n" +
+"    function computeTake6CardPreview(card) {\n" +
+"        if (!card || !Array.isArray(take6Rows) || take6Rows.length < 4) return null;\n" +
+"        let targetIdx = -1; let minDiff = 9999;\n" +
+"        for (let i = 0; i < 4; i++) {\n" +
+"            const row = take6Rows[i] || [];\n" +
+"            if (row.length === 0) continue;\n" +
+"            const tail = row[row.length - 1];\n" +
+"            if (card > tail) {\n" +
+"                const diff = card - tail;\n" +
+"                if (diff < minDiff) { minDiff = diff; targetIdx = i; }\n" +
+"            }\n" +
+"        }\n" +
+"        if (targetIdx === -1) {\n" +
+"            let minBulls = 999999;\n" +
+"            take6Rows.forEach((r) => {\n" +
+"                let sum = 0; (r || []).forEach(c => sum += getBullheads(c));\n" +
+"                if (sum < minBulls) minBulls = sum;\n" +
+"            });\n" +
+"            return { rowIdx: -1, isSmallest: true, level: 'smallest', message: `⚠️ 小于全部行尾！[${card}号牌] 将需自选收走一行（最少 🐮${minBulls}）` };\n" +
+"        }\n" +
+"        const targetRow = take6Rows[targetIdx] || [];\n" +
+"        let rowBulls = 0; targetRow.forEach(c => rowBulls += getBullheads(c));\n" +
+"        if (targetRow.length >= 5) {\n" +
+"            return { rowIdx: targetIdx, isSmallest: false, level: 'danger', message: `💥 高危爆行！若牌序不变，[${card}号牌] 将成第 ${targetIdx + 1} 行第 6 张（吃 🐮${rowBulls}）` };\n" +
+"        }\n" +
+"        if (targetRow.length === 4) {\n" +
+"            return { rowIdx: targetIdx, isSmallest: false, level: 'warn', message: `⚡ 警戒落位：[${card}号牌] 当前预计落入第 ${targetIdx + 1} 行第 5 位（已累积 🐮${rowBulls}）` };\n" +
+"        }\n" +
+"        return { rowIdx: targetIdx, isSmallest: false, level: 'safe', message: `✅ 安全预判：[${card}号牌] 当前预计落入第 ${targetIdx + 1} 行第 ${targetRow.length + 1} 位（当前 🐮${rowBulls}）` };\n" +
+"    }\n" +
 "    function renderTake6Rows() {\n" +
 "        const container = document.getElementById('take6RowsContainer'); if (!container) return; container.innerHTML = '';\n" +
+"        const previewBanner = document.getElementById('take6PreviewBanner');\n" +
+"        const preview = (!take6AwaitingRowChoice && selectedTake6Card) ? computeTake6CardPreview(selectedTake6Card) : null;\n" +
+"        if (previewBanner) {\n" +
+"            if (preview) {\n" +
+"                previewBanner.className = 'take6-preview-banner ' + preview.level;\n" +
+"                previewBanner.innerText = preview.message;\n" +
+"            } else {\n" +
+"                previewBanner.className = 'take6-preview-banner';\n" +
+"                previewBanner.innerText = '';\n" +
+"            }\n" +
+"        }\n" +
 "        let minRowIdx = -1;\n" +
 "        let minBulls = 999999;\n" +
 "        if (take6AwaitingRowChoice) {\n" +
@@ -5326,6 +5495,10 @@ public class WebPlayController {
 "            else if (isSelectable) rowCls += ' selectable';\n" +
 "            else if (isOverflow) rowCls += ' overflow';\n" +
 "            else if (isDanger) rowCls += ' danger';\n" +
+"            if (preview) {\n" +
+"                if (preview.isSmallest) rowCls += ' preview-smallest';\n" +
+"                else if (preview.rowIdx === idx) rowCls += (preview.level === 'danger' ? ' preview-danger' : ' preview-target');\n" +
+"            }\n" +
 "            rowDiv.className = rowCls;\n" +
 "            if (isSelectable) rowDiv.onclick = () => take6ChooseRowToTake(idx);\n" +
 "            let cardsHtml = row.map(c => renderTake6CardHtml(c)).join('');\n" +
@@ -5374,7 +5547,7 @@ public class WebPlayController {
 "    }\n" +
 "    function take6SelectCard(n) {\n" +
 "        if (take6AwaitingRowChoice || !isGameStarted || take6HasCommittedThisTurn || window.isSpectatorMode) return;\n" +
-"        selectedTake6Card = (selectedTake6Card === n) ? null : n; playBeep(selectedTake6Card ? 650 : 400, 0.08); renderTake6Hand();\n" +
+"        selectedTake6Card = (selectedTake6Card === n) ? null : n; playBeep(selectedTake6Card ? 650 : 400, 0.08); renderTake6Rows(); renderTake6Hand();\n" +
 "    }\n" +
 "    function actionTake6PlayCard() {\n" +
 "        if (!selectedTake6Card || !isGameStarted || take6HasCommittedThisTurn || window.isSpectatorMode) return;\n" +
@@ -5703,6 +5876,72 @@ public class WebPlayController {
         return "    let myDice = [1, 2, 3, 4, 5];\n" +
 "    let isDicePeeking = true;\n" +
 "    let currentBid = null;\n" +
+"    let diceBidHistory = [];\n" +
+"    let hasServerDiceHand = false;\n" +
+"    let diceHasBaozi = false;\n" +
+"    let diceHasStraight = false;\n" +
+"    let diceStraightRerolled = false;\n" +
+"    function computeDiceHandFlags(arr) {\n" +
+"        if (!Array.isArray(arr) || arr.length < 5) return { isBaozi: false, isStraight: false };\n" +
+"        const sorted = [...arr].sort((a, b) => a - b);\n" +
+"        const isBaozi = sorted.every(v => v === sorted[0]);\n" +
+"        const isStraight = (sorted.join(',') === '1,2,3,4,5' || sorted.join(',') === '2,3,4,5,6');\n" +
+"        return { isBaozi, isStraight };\n" +
+"    }\n" +
+"    function renderDiceBadges() {\n" +
+"        const bar = document.getElementById('diceHandBadgeBar');\n" +
+"        const rerollBtn = document.getElementById('btnDiceRerollStraight');\n" +
+"        if (bar) {\n" +
+"            const tags = [];\n" +
+"            if (diceHasBaozi) tags.push('<span class=\"dice-hand-badge baozi\">🔥 豹子手牌 (全同点+1加成)</span>');\n" +
+"            if (diceHasStraight) tags.push('<span class=\"dice-hand-badge straight\">⚡ 顺子手牌 (开叫前可重摇一次)</span>');\n" +
+"            bar.innerHTML = tags.join('');\n" +
+"        }\n" +
+"        if (rerollBtn) {\n" +
+"            const canReroll = isGameStarted && !window.isSpectatorMode && diceHasStraight && !diceStraightRerolled && !currentBid;\n" +
+"            rerollBtn.style.display = canReroll ? 'inline-flex' : 'none';\n" +
+"        }\n" +
+"    }\n" +
+"    function renderDiceBidHistory() {\n" +
+"        const bar = document.getElementById('diceBidHistoryBar');\n" +
+"        if (!bar) return;\n" +
+"        if (!diceBidHistory.length) {\n" +
+"            bar.style.display = 'none';\n" +
+"            bar.innerHTML = '';\n" +
+"            return;\n" +
+"        }\n" +
+"        bar.style.display = 'flex';\n" +
+"        const recent = diceBidHistory.slice(-6);\n" +
+"        bar.innerHTML = '<span style=\"font-size:11px;font-weight:800;color:#64748b;\">叫点轨迹：</span>' + recent.map((b, idx) => {\n" +
+"            const isLast = idx === recent.length - 1;\n" +
+"            const pure = b.isPure ? '·斋' : '';\n" +
+"            return `<span class=\"bid-history-chip ${isLast ? 'latest' : ''}\">${b.bidderName || '玩家'}: ${b.count}个${b.face}点${pure}</span>`;\n" +
+"        }).join('');\n" +
+"    }\n" +
+"    window.resetDiceRoundUi = function() {\n" +
+"        currentBid = null;\n" +
+"        diceBidHistory = [];\n" +
+"        diceStraightRerolled = false;\n" +
+"        hasServerDiceHand = false;\n" +
+"        const board = document.getElementById('bidStatusBoard'); if (board) board.style.display = 'none';\n" +
+"        renderDiceBidHistory();\n" +
+"        renderDiceBadges();\n" +
+"        const tipEl = document.getElementById('turnTip'); if (tipEl) tipEl.innerText = '新一轮已开启！等待服务端派发手骰，可率先叫点！';\n" +
+"        const btnCall = document.getElementById('btnDiceCall'); if (btnCall) btnCall.disabled = !!window.isSpectatorMode;\n" +
+"        const btnOpen = document.getElementById('btnDiceOpen'); if (btnOpen) btnOpen.disabled = true;\n" +
+"        const btnSpot = document.getElementById('btnDiceSpotOn'); if (btnSpot) btnSpot.disabled = true;\n" +
+"    };\n" +
+"    window.applyServerDiceHand = function(payload) {\n" +
+"        hasServerDiceHand = true;\n" +
+"        myDice = [...payload.dice];\n" +
+"        diceHasBaozi = (payload.isBaozi !== undefined) ? !!payload.isBaozi : computeDiceHandFlags(myDice).isBaozi;\n" +
+"        diceHasStraight = (payload.isStraight !== undefined) ? !!payload.isStraight : computeDiceHandFlags(myDice).isStraight;\n" +
+"        if (payload.rerolled) diceStraightRerolled = true;\n" +
+"        isDicePeeking = true;\n" +
+"        renderDiceList();\n" +
+"        renderDiceBadges();\n" +
+"        playDiceClatter();\n" +
+"    };\n" +
 "    function renderDiceWaitingState() {\n" +
 "        const waitingCard = document.getElementById('diceWaitingStage');\n" +
 "        if (waitingCard) waitingCard.style.display = 'block';\n" +
@@ -5710,11 +5949,12 @@ public class WebPlayController {
 "        if (row) {\n" +
 "            row.innerHTML = [1, 2, 3, 4, 5].map(() => `<div class=\"dice-card hidden-face\" title=\"等待开局\">🎲</div>`).join('');\n" +
 "        }\n" +
-"        const tip = document.getElementById('turnTip'); if (tip) tip.innerText = '对局未开始，请先准备，开局后由房主统一发号施令！';\n" +
+"        const tip = document.getElementById('turnTip'); if (tip) tip.innerText = '对局未开始，请先准备，开局后由服务端权威发骰！';\n" +
 "        const tally = document.getElementById('diceTallyText'); if (tally) tally.innerText = '等待房主开局...';\n" +
 "        const btnShake = document.getElementById('btnDiceShake'); if (btnShake) btnShake.disabled = true;\n" +
 "        const btnCall = document.getElementById('btnDiceCall'); if (btnCall) btnCall.disabled = true;\n" +
 "        const btnOpen = document.getElementById('btnDiceOpen'); if (btnOpen) btnOpen.disabled = true;\n" +
+"        const btnSpot = document.getElementById('btnDiceSpotOn'); if (btnSpot) btnSpot.disabled = true;\n" +
 "    }\n" +
 "    function diceStartActiveGame() {\n" +
 "        const waitingCard = document.getElementById('diceWaitingStage');\n" +
@@ -5723,11 +5963,13 @@ public class WebPlayController {
 "        const btnShake = document.getElementById('btnDiceShake');\n" +
 "        const btnCall = document.getElementById('btnDiceCall');\n" +
 "        const btnOpen = document.getElementById('btnDiceOpen');\n" +
+"        const btnSpot = document.getElementById('btnDiceSpotOn');\n" +
 "        if (window.isSpectatorMode) {\n" +
 "            if (peekBtn) peekBtn.style.display = 'none';\n" +
 "            if (btnShake) btnShake.disabled = true;\n" +
 "            if (btnCall) btnCall.disabled = true;\n" +
 "            if (btnOpen) btnOpen.disabled = true;\n" +
+"            if (btnSpot) btnSpot.disabled = true;\n" +
 "            renderDiceList();\n" +
 "            updateReadyButtonState();\n" +
 "            return;\n" +
@@ -5735,8 +5977,16 @@ public class WebPlayController {
 "        if (peekBtn) peekBtn.style.display = 'inline-block';\n" +
 "        if (btnShake) btnShake.disabled = false;\n" +
 "        if (btnCall) btnCall.disabled = false;\n" +
-"        if (btnOpen) btnOpen.disabled = false;\n" +
-"        actionRollDice(); updateReadyButtonState();\n" +
+"        if (btnOpen) btnOpen.disabled = !currentBid;\n" +
+"        if (btnSpot) btnSpot.disabled = !currentBid;\n" +
+"        if (!ws || ws.readyState !== WebSocket.OPEN) {\n" +
+"            actionRollDice();\n" +
+"        } else {\n" +
+"            playDiceClatter();\n" +
+"            renderDiceList();\n" +
+"            setTimeout(() => { if (!hasServerDiceHand && (!ws || ws.readyState !== WebSocket.OPEN)) actionRollDice(); }, 900);\n" +
+"        }\n" +
+"        updateReadyButtonState();\n" +
 "    }\n" +
 "    function playDiceClatter() {\n" +
 "        try {\n" +
@@ -5781,20 +6031,37 @@ public class WebPlayController {
 "        const counts = {}; myDice.forEach(d => { counts[d] = (counts[d] || 0) + 1; });\n" +
 "        const parts = Object.keys(counts).sort((a,b) => b-a).map(k => `${counts[k]}个${k}点`);\n" +
 "        const wildCount = counts[1] || 0;\n" +
-"        const wildTip = wildCount > 0 ? ` (含${wildCount}个通配1点)` : '';\n" +
-"        if (tallyEl) tallyEl.innerText = '手牌分布：' + parts.join('、') + wildTip;\n" +
+"        const pureActive = currentBid && currentBid.isPure;\n" +
+"        const wildTip = (!pureActive && wildCount > 0) ? ` (含${wildCount}个万能1点)` : (pureActive ? ' (本轮已叫斋·1点不万能)' : '');\n" +
+"        if (tallyEl) tallyEl.innerText = '手骰分布：' + parts.join('、') + wildTip;\n" +
 "    }\n" +
 "    function togglePeekDice() { if (window.isSpectatorMode) return; isDicePeeking = !isDicePeeking; playBeep(isDicePeeking ? 720 : 380, 0.1); renderDiceList(); }\n" +
 "    function actionRollDice() {\n" +
-"        if (window.isSpectatorMode) { alert('当前处于观战视角，不可摇骰！'); return; }\n" +
+"        if (window.isSpectatorMode) { showToast('当前处于观战视角，不可摇骰！'); return; }\n" +
 "        const cup = document.getElementById('diceCup'); if (cup) cup.classList.add('shake'); playDiceClatter();\n" +
 "        const cards = document.querySelectorAll('.dice-card'); cards.forEach(c => c.classList.add('rolling'));\n" +
 "        setTimeout(() => {\n" +
 "            if (cup) cup.classList.remove('shake');\n" +
-"            myDice = myDice.map(() => Math.floor(Math.random() * 6) + 1);\n" +
-"            isDicePeeking = true; renderDiceList(); sendChatMessage('🎲 摇好了我的专属骰盅！点数保密～');\n" +
+"            cards.forEach(c => c.classList.remove('rolling'));\n" +
+"            if (!hasServerDiceHand) {\n" +
+"                myDice = myDice.map(() => Math.floor(Math.random() * 6) + 1).sort((a, b) => a - b);\n" +
+"                const flags = computeDiceHandFlags(myDice);\n" +
+"                diceHasBaozi = flags.isBaozi; diceHasStraight = flags.isStraight;\n" +
+"                isDicePeeking = true; renderDiceList(); renderDiceBadges();\n" +
+"            } else {\n" +
+"                showToast(diceHasStraight && !diceStraightRerolled && !currentBid ? '🎲 顺子手牌可点击【顺子重摇】更换！' : '🎲 本轮骰子由服务端发牌锁定，防篡改公平竞技！');\n" +
+"            }\n" +
 "        }, 550);\n" +
 "    }\n" +
+"    window.actionRerollStraightDice = function() {\n" +
+"        if (!isGameStarted || window.isSpectatorMode) return;\n" +
+"        if (ws && ws.readyState === WebSocket.OPEN && currentRoomId) {\n" +
+"            ws.send(JSON.stringify({ type: 'GAME_ACTION', action: 'DICE_REROLL_STRAIGHT', roomCode: currentRoomId, senderId: myUserId, payload: {} }));\n" +
+"            const btn = document.getElementById('btnDiceRerollStraight'); if (btn) btn.style.display = 'none';\n" +
+"        } else {\n" +
+"            diceStraightRerolled = true; hasServerDiceHand = false; actionRollDice();\n" +
+"        }\n" +
+"    };\n" +
 "    function renderDotsSvgOnly(face) {\n" +
 "        const dots = {\n" +
 "            1: '<circle cx=\"50\" cy=\"50\" r=\"18\" fill=\"#d32f2f\"/>',\n" +
@@ -5806,18 +6073,38 @@ public class WebPlayController {
 "        };\n" +
 "        return dots[face] || '';\n" +
 "    }\n" +
-"    function updateBidDisplay(count, face, bidderName) {\n" +
-"        currentBid = { count, face, bidderName };\n" +
+"    function isValidLiarsDiceBidClient(prevBid, count, face, effectivePure) {\n" +
+"        if (count < 1 || face < 1 || face > 6) return false;\n" +
+"        if (!prevBid) return true;\n" +
+"        if (prevBid.isPure && !effectivePure) return false;\n" +
+"        if (count > prevBid.count) return true;\n" +
+"        if (count < prevBid.count) return false;\n" +
+"        const newRank = effectivePure ? (face === 1 ? 7 : face) : face;\n" +
+"        const prevRank = (prevBid.isPure || prevBid.face === 1) ? (prevBid.face === 1 ? 7 : prevBid.face) : prevBid.face;\n" +
+"        if (newRank > prevRank) return true;\n" +
+"        return newRank === prevRank && !prevBid.isPure && effectivePure;\n" +
+"    }\n" +
+"    function updateBidDisplay(count, face, bidderName, isPure = false, bidderId = '') {\n" +
+"        const effectivePure = !!isPure || face === 1 || (currentBid && !!currentBid.isPure);\n" +
+"        currentBid = { count, face, bidderName, isPure: effectivePure, bidderId };\n" +
+"        diceBidHistory.push({ count, face, bidderName, isPure: effectivePure });\n" +
+"        renderDiceBidHistory();\n" +
+"        renderDiceBadges();\n" +
+"        renderDiceList();\n" +
 "        const board = document.getElementById('bidStatusBoard'); if (!board) return;\n" +
 "        board.style.display = 'flex';\n" +
-"        board.innerHTML = `<div class='bid-status-info'><div class='bid-status-title'>📢 当前叫点 (来自【${bidderName}】)</div><div class='bid-status-val'>${count} 个 ${face} 点</div></div><div class='bid-dice-badge'><svg viewBox='0 0 100 100' width='30' height='30'>${renderDotsSvgOnly(face)}</svg></div>`;\n" +
-"        const tipEl = document.getElementById('turnTip'); if (tipEl) tipEl.innerText = '当前盘面：' + count + ' 个 ' + face + ' 点！下家请跟叫或开盅！'; playBeep(880, 0.2);\n" +
+"        const pureTag = effectivePure ? '<span style=\"background:#dc2626;color:#fff;font-size:10px;padding:1px 6px;border-radius:6px;margin-left:6px;\">斋</span>' : '';\n" +
+"        board.innerHTML = `<div class='bid-status-info'><div class='bid-status-title'>📢 当前叫点 (来自【${bidderName}】)</div><div class='bid-status-val'>${count} 个 ${face} 点${pureTag}</div></div><div class='bid-dice-badge'><svg viewBox='0 0 100 100' width='30' height='30'>${renderDotsSvgOnly(face)}</svg></div>`;\n" +
+"        const tipEl = document.getElementById('turnTip'); if (tipEl) tipEl.innerText = '当前盘面：' + count + ' 个 ' + face + ' 点' + (effectivePure ? '【斋】' : '') + '！下家可加码、抓开或喊刚好(2x)！';\n" +
+"        const btnOpen = document.getElementById('btnDiceOpen'); if (btnOpen && !window.isSpectatorMode) btnOpen.disabled = false;\n" +
+"        const btnSpot = document.getElementById('btnDiceSpotOn'); if (btnSpot && !window.isSpectatorMode) btnSpot.disabled = false;\n" +
+"        playBeep(880, 0.2);\n" +
 "    }\n" +
 "    let modalBidCount = 3;\n" +
 "    let modalBidFace = 4;\n" +
 "    let modalBidIsPure = false;\n" +
 "    function openDiceBidModal() {\n" +
-"        if (window.isSpectatorMode) { alert('当前处于观战视角，不可参与叫点！'); return; }\n" +
+"        if (window.isSpectatorMode) { showToast('当前处于观战视角，不可参与叫点！'); return; }\n" +
 "        if (!isGameStarted) return;\n" +
 "        const modal = document.getElementById('diceBidModal');\n" +
 "        if (!modal) return;\n" +
@@ -5826,7 +6113,7 @@ public class WebPlayController {
 "            modalBidFace = currentBid.face;\n" +
 "            modalBidIsPure = !!currentBid.isPure;\n" +
 "        } else {\n" +
-"            modalBidCount = 3;\n" +
+"            modalBidCount = Math.max(2, (players && players.length ? players.length : 2));\n" +
 "            modalBidFace = 4;\n" +
 "            modalBidIsPure = false;\n" +
 "        }\n" +
@@ -5842,9 +6129,9 @@ public class WebPlayController {
 "        const hintEl = document.getElementById('modalCurrentBidHint');\n" +
 "        if (hintEl) {\n" +
 "            if (currentBid) {\n" +
-"                hintEl.innerHTML = `当前底盘：<b>【${currentBid.bidderName || '玩家'}】</b>叫了 <b>${currentBid.count}</b> 个 <b>${currentBid.face}</b> 点${currentBid.isPure ? '【斋】' : ''}`;\n" +
+"                hintEl.innerHTML = `当前底盘：<b>【${currentBid.bidderName || '玩家'}】</b>叫了 <b>${currentBid.count}</b> 个 <b>${currentBid.face}</b> 点${currentBid.isPure ? '【斋】' : ''} (同数量可叫更大点数，1点按斋且大于6点)`;\n" +
 "            } else {\n" +
-"                hintEl.innerHTML = '当前底盘：首位叫点，请报出您的起叫点数！';\n" +
+"                hintEl.innerHTML = '当前底盘：首位叫点，请报出您的起叫点数！（1点默认万能，除非叫【斋】）';\n" +
 "            }\n" +
 "        }\n" +
 "        const countValEl = document.getElementById('bidCountVal');\n" +
@@ -5860,7 +6147,10 @@ public class WebPlayController {
 "            }).join('');\n" +
 "        }\n" +
 "        const pureChk = document.getElementById('bidIsPureCheckbox');\n" +
-"        if (pureChk) pureChk.checked = modalBidIsPure;\n" +
+"        if (pureChk) {\n" +
+"            pureChk.checked = modalBidIsPure || modalBidFace === 1;\n" +
+"            pureChk.disabled = !!(currentBid && currentBid.isPure);\n" +
+"        }\n" +
 "    }\n" +
 "    function adjustBidCount(delta) {\n" +
 "        modalBidCount = Math.max(1, modalBidCount + delta);\n" +
@@ -5869,6 +6159,7 @@ public class WebPlayController {
 "    }\n" +
 "    function selectBidFace(face) {\n" +
 "        modalBidFace = face;\n" +
+"        if (face === 1) modalBidIsPure = true;\n" +
 "        updateDiceBidModalUi();\n" +
 "        playBeep(680, 0.06);\n" +
 "    }\n" +
@@ -5878,39 +6169,36 @@ public class WebPlayController {
 "        playBeep(720, 0.06);\n" +
 "    }\n" +
 "    function confirmDiceBid() {\n" +
-"        if (currentBid) {\n" +
-"            if (modalBidCount < currentBid.count) {\n" +
-"                alert('叫点个数必须大于或等于上一位玩家（' + currentBid.count + '个）！');\n" +
-"                return;\n" +
-"            }\n" +
-"            if (modalBidCount === currentBid.count && modalBidFace <= currentBid.face && !modalBidIsPure && !currentBid.isPure) {\n" +
-"                alert('相同个数时，点数必须大于上一位玩家（大于 ' + currentBid.face + ' 点）！');\n" +
-"                return;\n" +
-"            }\n" +
+"        const effectivePure = modalBidIsPure || modalBidFace === 1 || !!(currentBid && currentBid.isPure);\n" +
+"        if (!isValidLiarsDiceBidClient(currentBid, modalBidCount, modalBidFace, effectivePure)) {\n" +
+"            showToast('⚠️ 叫点无效：须个数更多，或同个数点数更大（纯1点 > 6点，叫斋不可退回飞）！');\n" +
+"            return;\n" +
 "        }\n" +
-"        const payload = { count: modalBidCount, face: modalBidFace, isPure: modalBidIsPure, bidderId: myUserId, bidderName: myNickname };\n" +
+"        const payload = { count: modalBidCount, face: modalBidFace, isPure: effectivePure, bidderId: myUserId, bidderName: myNickname };\n" +
 "        if (ws && ws.readyState === WebSocket.OPEN) {\n" +
 "            ws.send(JSON.stringify({ type: 'GAME_ACTION', action: 'BID', roomCode: currentRoomId, senderId: myUserId, senderName: myNickname, payload: payload }));\n" +
 "        }\n" +
-"        const pureTag = modalBidIsPure ? '【斋】' : '';\n" +
+"        const pureTag = effectivePure ? '【斋】' : '';\n" +
 "        sendChatMessage(`📢 我叫 ${modalBidCount} 个 ${modalBidFace} 点${pureTag}！`);\n" +
-"        updateBidDisplay(modalBidCount, modalBidFace, myNickname);\n" +
+"        updateBidDisplay(modalBidCount, modalBidFace, myNickname, effectivePure, myUserId);\n" +
 "        closeDiceBidModal();\n" +
 "    }\n" +
 "    function actionBidDialog() {\n" +
 "        openDiceBidModal();\n" +
 "    }\n" +
-"    function triggerChallengeDisplay(challengerName) {\n" +
+"    function triggerChallengeDisplay(challengerName, isSpotOn = false) {\n" +
 "        const board = document.getElementById('bidStatusBoard');\n" +
 "        if (board) {\n" +
 "            board.style.display = 'flex';\n" +
-"            board.innerHTML = `<div class='bid-status-info'><div class='bid-status-title' style='color: #ef4444;'>⚡ 抓吹牛开盅！</div><div class='bid-status-val' style='color: #f87171;'>【${challengerName}】大喊：开！！</div></div><div style='font-size: 26px;'>💥</div>`;\n" +
+"            board.innerHTML = isSpotOn\n" +
+"                ? `<div class='bid-status-info'><div class='bid-status-title' style='color:#7c3aed;'>🎯 精准喊刚好！(2x双倍奖惩)</div><div class='bid-status-val' style='color:#6d28d9;'>【${challengerName}】断定刚好相等！</div></div><div style='font-size:26px;'>🎯</div>`\n" +
+"                : `<div class='bid-status-info'><div class='bid-status-title' style='color:#ef4444;'>⚡ 抓吹牛开盅！</div><div class='bid-status-val' style='color:#dc2626;'>【${challengerName}】大喊：开！！</div></div><div style='font-size:26px;'>💥</div>`;\n" +
 "        }\n" +
 "        const stampOverlay = document.getElementById('diceStampOverlay');\n" +
 "        if (stampOverlay) {\n" +
 "            stampOverlay.style.display = 'flex';\n" +
 "            const stampText = document.getElementById('diceStampText');\n" +
-"            if (stampText) stampText.innerText = `【${challengerName}】喊：开！💥`;\n" +
+"            if (stampText) stampText.innerText = isSpotOn ? `【${challengerName}】喊：刚好！🎯` : `【${challengerName}】喊：开！💥`;\n" +
 "            setTimeout(() => { stampOverlay.style.display = 'none'; }, 2000);\n" +
 "        }\n" +
 "        playSlamSound();\n" +
@@ -5918,36 +6206,79 @@ public class WebPlayController {
 "        renderDiceList();\n" +
 "    }\n" +
 "    function actionCallLiar() {\n" +
-"        if (window.isSpectatorMode) { alert('当前处于观战视角，不可开盅！'); return; }\n" +
-"        if (!isGameStarted) return;\n" +
+"        if (window.isSpectatorMode) { showToast('当前处于观战视角，不可开盅！'); return; }\n" +
+"        if (!isGameStarted || !currentBid) { showToast('尚未有人叫点，暂不可开盅！'); return; }\n" +
 "        if (ws && ws.readyState === WebSocket.OPEN) {\n" +
 "            ws.send(JSON.stringify({ type: 'GAME_ACTION', action: 'CHALLENGE', roomCode: currentRoomId, senderId: myUserId, senderName: myNickname, payload: { challengerId: myUserId, challengerName: myNickname } }));\n" +
 "        }\n" +
 "        sendChatMessage('⚡ 开！！我不信！抓你吹牛！');\n" +
-"        triggerChallengeDisplay(myNickname);\n" +
-"    }\n";
+"        triggerChallengeDisplay(myNickname, false);\n" +
+"    }\n" +
+"    window.actionSpotOnCall = function() {\n" +
+"        if (window.isSpectatorMode) { showToast('当前处于观战视角，不可操作！'); return; }\n" +
+"        if (!isGameStarted || !currentBid) { showToast('尚未有人叫点，暂不可喊刚好！'); return; }\n" +
+"        if (ws && ws.readyState === WebSocket.OPEN) {\n" +
+"            ws.send(JSON.stringify({ type: 'GAME_ACTION', action: 'SPOT_ON', roomCode: currentRoomId, senderId: myUserId, senderName: myNickname, payload: { challengerId: myUserId, challengerName: myNickname } }));\n" +
+"        }\n" +
+"        sendChatMessage('🎯 刚好！！点数分毫不差，双倍决战！');\n" +
+"        triggerChallengeDisplay(myNickname, true);\n" +
+"    };\n";
     }
 
     private String buildHtmlScriptWheel() {
         return "    let wheelAngle = 0;\n" +
                "    let isWheelSpinning = false;\n" +
                "    let autoWheelTimer = null;\n" +
-               "    const wheelTasks = [\n" +
-               "        '真心话：最尴尬的瞬间',\n" +
-               "        '大冒险：深情朗读一段台词',\n" +
-               "        '惩罚：自罚一杯 (饮料或酒)',\n" +
-               "        '奖励：全场发一个随机红包',\n" +
-               "        '真心话：初恋是在什么时候',\n" +
-               "        '大冒险：模仿一种动物叫声',\n" +
-               "        '惩罚：对左手边桌友说情话',\n" +
-               "        '免罚：运气爆棚直接通关'\n" +
+               "    let currentWheelPack = 'icebreaker';\n" +
+               "    let wheelHistory = [];\n" +
+               "    const wheelSegments = [\n" +
+               "        { label: '喝半杯', type: 'DRINK' },\n" +
+               "        { label: '真心话', type: 'TRUTH' },\n" +
+               "        { label: '左边喝', type: 'DRINK' },\n" +
+               "        { label: '大冒险', type: 'DARE' },\n" +
+               "        { label: '右边喝', type: 'DRINK' },\n" +
+               "        { label: '免罚金牌', type: 'LUCKY' },\n" +
+               "        { label: '全场干杯', type: 'DRINK' },\n" +
+               "        { label: '指定一人', type: 'DRINK' }\n" +
                "    ];\n" +
+               "    const wheelTasks = wheelSegments.map(s => s.label);\n" +
+               "    window.selectWheelPack = function(pack, btnEl) {\n" +
+               "        currentWheelPack = pack || 'icebreaker';\n" +
+               "        document.querySelectorAll('.wheel-pack-btn').forEach(b => b.classList.remove('active'));\n" +
+               "        if (btnEl) btnEl.classList.add('active');\n" +
+               "        playBeep(700, 0.08);\n" +
+               "    };\n" +
+               "    window.renderWheelSpinResult = function(safeIdx, spinnerName, serverPayload) {\n" +
+               "        const resultCard = document.getElementById('wheelResultCard');\n" +
+               "        const histList = document.getElementById('wheelHistoryList');\n" +
+               "        const seg = wheelSegments[safeIdx] || wheelSegments[0];\n" +
+               "        const title = (serverPayload && serverPayload.promptTitle) ? serverPayload.promptTitle : ((serverPayload && serverPayload.segmentLabel) || seg.label);\n" +
+               "        const content = (serverPayload && serverPayload.promptContent) ? serverPayload.promptContent : ('抽中【' + seg.label + '】，请按桌规完成！');\n" +
+               "        const who = spinnerName || (serverPayload && serverPayload.spinnerName) || myNickname || '玩家';\n" +
+               "        if (resultCard) {\n" +
+               "            resultCard.innerHTML = '<div style=\"font-size:14px; font-weight:900; margin-bottom:4px;\">🎉 【' + who + '】抽中：' + title + '</div>' +\n" +
+               "                                   '<div style=\"font-size:12.5px; font-weight:600; color:#334155;\">' + content + '</div>';\n" +
+               "            resultCard.style.display = 'block';\n" +
+               "        }\n" +
+               "        wheelHistory.unshift('【' + who + '】 · ' + title + '：' + content);\n" +
+               "        wheelHistory = wheelHistory.slice(0, 6);\n" +
+               "        if (histList) {\n" +
+               "            histList.innerHTML = wheelHistory.map(item => '<div class=\"wheel-history-item\">' + item + '</div>').join('');\n" +
+               "        }\n" +
+               "    };\n" +
                "    function drawWheel(angle) {\n" +
                "        const canvas = document.getElementById('wheelCanvas');\n" +
                "        if (!canvas) return;\n" +
                "        const ctx = canvas.getContext('2d');\n" +
-               "        const cx = 130, cy = 130, r = 120;\n" +
-               "        const len = wheelTasks.length;\n" +
+               "        if (!ctx) return;\n" +
+               "        const dpr = window.devicePixelRatio || 1;\n" +
+               "        if (canvas.width !== 260 * dpr) {\n" +
+               "            canvas.width = 260 * dpr;\n" +
+               "            canvas.height = 260 * dpr;\n" +
+               "        }\n" +
+               "        if (typeof ctx.setTransform === 'function') ctx.setTransform(dpr, 0, 0, dpr, 0, 0);\n" +
+               "        const cx = 130, cy = 130, r = 122;\n" +
+               "        const len = wheelSegments.length;\n" +
                "        const arc = (2 * Math.PI) / len;\n" +
                "        ctx.clearRect(0, 0, 260, 260);\n" +
                "        const colors = ['#f43f5e', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#14b8a6'];\n" +
@@ -5959,7 +6290,7 @@ public class WebPlayController {
                "            ctx.arc(cx, cy, r, start, end);\n" +
                "            ctx.fillStyle = colors[i % colors.length];\n" +
                "            ctx.fill();\n" +
-               "            ctx.strokeStyle = '#ffffff';\n" +
+               "            ctx.strokeStyle = 'rgba(255,255,255,0.9)';\n" +
                "            ctx.lineWidth = 2;\n" +
                "            ctx.stroke();\n" +
                "            ctx.save();\n" +
@@ -5967,20 +6298,19 @@ public class WebPlayController {
                "            ctx.rotate(start + arc / 2);\n" +
                "            ctx.textAlign = 'right';\n" +
                "            ctx.fillStyle = '#ffffff';\n" +
-               "            ctx.font = 'bold 11px sans-serif';\n" +
-               "            const txt = wheelTasks[i].split('：')[0] || wheelTasks[i];\n" +
-               "            ctx.fillText(txt, r - 16, 4);\n" +
+               "            ctx.font = 'bold 12px sans-serif';\n" +
+               "            ctx.fillText(wheelSegments[i].label, r - 14, 4);\n" +
                "            ctx.restore();\n" +
                "        }\n" +
                "        ctx.beginPath();\n" +
-               "        ctx.arc(cx, cy, 22, 0, 2 * Math.PI);\n" +
+               "        ctx.arc(cx, cy, 24, 0, 2 * Math.PI);\n" +
                "        ctx.fillStyle = '#0f172a';\n" +
                "        ctx.fill();\n" +
-               "        ctx.strokeStyle = '#f472b6';\n" +
+               "        ctx.strokeStyle = '#f59e0b';\n" +
                "        ctx.lineWidth = 3;\n" +
                "        ctx.stroke();\n" +
                "        ctx.fillStyle = '#fff';\n" +
-               "        ctx.font = 'bold 12px sans-serif';\n" +
+               "        ctx.font = 'bold 13px sans-serif';\n" +
                "        ctx.textAlign = 'center';\n" +
                "        ctx.textBaseline = 'middle';\n" +
                "        ctx.fillText('🎯', cx, cy);\n" +
@@ -5988,23 +6318,24 @@ public class WebPlayController {
                "    window.initWheelBoard = function() {\n" +
                "        drawWheel(wheelAngle);\n" +
                "    };\n" +
-               "    window.executeWheelSpinTo = function(targetIdx, spinnerName, isLocalInitiator) {\n" +
+               "    window.executeWheelSpinTo = function(targetIdx, spinnerName, isLocalInitiator, serverPayload) {\n" +
                "        if (isWheelSpinning) return;\n" +
                "        isWheelSpinning = true;\n" +
+               "        if (isLocalInitiator) window.lastWheelServerResult = null;\n" +
                "        const wCard = document.getElementById('wheelWaitingStage'); if (wCard) wCard.style.display = 'none';\n" +
                "        const resultCard = document.getElementById('wheelResultCard');\n" +
                "        if (resultCard) resultCard.style.display = 'none';\n" +
                "        const extraTurns = 6;\n" +
-               "        const safeIdx = (targetIdx != null && targetIdx >= 0 && targetIdx < wheelTasks.length) ? targetIdx : Math.floor(Math.random() * wheelTasks.length);\n" +
+               "        const safeIdx = (targetIdx != null && targetIdx >= 0 && targetIdx < wheelSegments.length) ? targetIdx : Math.floor(Math.random() * wheelSegments.length);\n" +
                "        if (isLocalInitiator && ws && ws.readyState === WebSocket.OPEN && currentRoomId) {\n" +
-               "            ws.send(JSON.stringify({ type: 'GAME_ACTION', action: 'WHEEL_SPIN', roomCode: currentRoomId, senderId: myUserId, senderName: myNickname, payload: { targetIdx: safeIdx } }));\n" +
+               "            ws.send(JSON.stringify({ type: 'GAME_ACTION', action: 'WHEEL_SPIN', roomCode: currentRoomId, senderId: myUserId, senderName: myNickname, payload: { targetIdx: safeIdx, scenePack: currentWheelPack } }));\n" +
                "        }\n" +
-               "        const arc = (2 * Math.PI) / wheelTasks.length;\n" +
+               "        const arc = (2 * Math.PI) / wheelSegments.length;\n" +
                "        const targetAngle = -Math.PI / 2 - (safeIdx + 0.5) * arc + (extraTurns * 2 * Math.PI);\n" +
                "        const startAngle = wheelAngle % (2 * Math.PI);\n" +
                "        const totalRotation = (extraTurns * 2 * Math.PI) + (targetAngle - startAngle);\n" +
                "        const startTime = performance.now();\n" +
-               "        const duration = 2800;\n" +
+               "        const duration = 2600;\n" +
                "        function animate(time) {\n" +
                "            const elapsed = time - startTime;\n" +
                "            const progress = Math.min(elapsed / duration, 1);\n" +
@@ -6015,12 +6346,10 @@ public class WebPlayController {
                "                requestAnimationFrame(animate);\n" +
                "            } else {\n" +
                "                isWheelSpinning = false;\n" +
-               "                const chosen = wheelTasks[safeIdx];\n" +
-               "                if (resultCard) {\n" +
-               "                    resultCard.innerHTML = '🎉 【' + (spinnerName || myNickname || '玩家') + '】抽中任务：' + chosen;\n" +
-               "                    resultCard.style.display = 'block';\n" +
-               "                }\n" +
-               "                appendChat('大转盘', '🎯 【' + (spinnerName || myNickname || '玩家') + '】旋转结果：【' + chosen + '】');\n" +
+               "                const chosenPayload = serverPayload || window.lastWheelServerResult;\n" +
+               "                renderWheelSpinResult(safeIdx, spinnerName, chosenPayload);\n" +
+               "                const chosenLabel = (chosenPayload && chosenPayload.promptContent) ? (chosenPayload.promptTitle + ' - ' + chosenPayload.promptContent) : wheelSegments[safeIdx].label;\n" +
+               "                appendChat('大转盘', '🎯 【' + (spinnerName || myNickname || '玩家') + '】旋转结果：【' + chosenLabel + '】');\n" +
                "                playBeep(880, 0.3);\n" +
                "            }\n" +
                "        }\n" +
@@ -6028,8 +6357,8 @@ public class WebPlayController {
                "    };\n" +
                "    window.actionSpinWheel = function() {\n" +
                "        if (isWheelSpinning) return;\n" +
-               "        const targetIdx = Math.floor(Math.random() * wheelTasks.length);\n" +
-               "        executeWheelSpinTo(targetIdx, myNickname, true);\n" +
+               "        const targetIdx = Math.floor(Math.random() * wheelSegments.length);\n" +
+               "        executeWheelSpinTo(targetIdx, myNickname, true, null);\n" +
                "    };\n" +
                "    window.toggleAutoWheel = function() {\n" +
                "        const btn = document.getElementById('btnAutoWheel');\n" +
@@ -6050,8 +6379,19 @@ public class WebPlayController {
     private String buildHtmlScriptUndercover() {
         return "    let isUndercoverWordRevealed = false;\n" +
                "    let myUndercoverWord = '白菜';\n" +
-               "    let isUndercoverRole = false;\n" +
+               "    let isBlankRole = false;\n" +
                "    window.hasServerUndercoverRole = false;\n" +
+               "    window.undercoverRunoffCandidates = null;\n" +
+               "    window.undercoverAliveIds = null;\n" +
+               "    window.appendUndercoverClue = function(senderName, text) {\n" +
+               "        const logEl = document.getElementById('undercoverClueLog');\n" +
+               "        if (!logEl || !text) return;\n" +
+               "        const row = document.createElement('div');\n" +
+               "        row.className = 'uc-clue-item';\n" +
+               "        row.innerHTML = '<b style=\"color:#0284c7;\">' + (senderName || '玩家') + '：</b>' + String(text).replace(/</g, '&lt;');\n" +
+               "        logEl.appendChild(row);\n" +
+               "        logEl.scrollTop = logEl.scrollHeight;\n" +
+               "    };\n" +
                "    window.initUndercoverBoard = function() {\n" +
                "        if (!window.hasServerUndercoverRole) {\n" +
                "            const pair = [\n" +
@@ -6060,11 +6400,11 @@ public class WebPlayController {
                "                { c: '烤肉', u: '火锅' },\n" +
                "                { c: '手机', u: '平板' }\n" +
                "            ][Math.floor(Math.random() * 4)];\n" +
-               "            isUndercoverRole = Math.random() < 0.25;\n" +
-               "            myUndercoverWord = isUndercoverRole ? pair.u : pair.c;\n" +
+               "            isBlankRole = false;\n" +
+               "            myUndercoverWord = Math.random() < 0.25 ? pair.u : pair.c;\n" +
                "            isUndercoverWordRevealed = false;\n" +
                "            const box = document.getElementById('undercoverWordBox');\n" +
-               "            if (box) box.innerText = '🙈 点击揭开词底';\n" +
+               "            if (box) box.innerText = '🙈 点击揭开词底 (仅自己可见)';\n" +
                "        }\n" +
                "        renderUndercoverVoteButtons();\n" +
                "    };\n" +
@@ -6073,17 +6413,28 @@ public class WebPlayController {
                "        const box = document.getElementById('undercoverWordBox');\n" +
                "        if (!box) return;\n" +
                "        if (isUndercoverWordRevealed) {\n" +
-               "            box.innerHTML = '✨ 专属底词：<b style=\"color:#fbbf24; font-size:20px;\">' + myUndercoverWord + '</b>' +\n" +
-               "                '<div style=\"font-size:11px; color:#94a3b8; margin-top:4px;\">(身份：' + (isUndercoverRole ? '卧底' : '平民') + ') 点击遮挡防窥</div>';\n" +
+               "            if (isBlankRole) {\n" +
+               "                box.innerHTML = '🃏 <b style=\"color:#7c3aed; font-size:18px;\">空白牌</b>' +\n" +
+               "                    '<div style=\"font-size:11px; color:#64748b; margin-top:4px;\">🔒 你未获得词语，请仔细聆听并伪装发言 · 再次点击遮挡</div>';\n" +
+               "            } else {\n" +
+               "                box.innerHTML = '✨ 专属底词：<b style=\"color:#d97706; font-size:20px;\">' + myUndercoverWord + '</b>' +\n" +
+               "                    '<div style=\"font-size:11px; color:#64748b; margin-top:4px;\">🔒 仅自己可见 · 请勿直接说出原词 · 再次点击遮挡</div>';\n" +
+               "            }\n" +
                "        } else {\n" +
-               "            box.innerText = '🙈 点击揭开词底';\n" +
+               "            box.innerText = '🙈 点击揭开词底 (仅自己可见)';\n" +
                "        }\n" +
                "        playBeep(isUndercoverWordRevealed ? 750 : 400, 0.1);\n" +
                "    };\n" +
                "    function renderUndercoverVoteButtons() {\n" +
                "        const container = document.getElementById('undercoverVoteButtons');\n" +
                "        if (!container) return;\n" +
-               "        const list = (players && players.length > 0) ? players : [{ id: myUserId, name: myNickname }];\n" +
+               "        let list = (players && players.length > 0) ? [...players] : [{ id: myUserId, name: myNickname }];\n" +
+               "        if (Array.isArray(window.undercoverAliveIds) && window.undercoverAliveIds.length > 0) {\n" +
+               "            list = list.filter(p => window.undercoverAliveIds.includes(p.id));\n" +
+               "        }\n" +
+               "        if (Array.isArray(window.undercoverRunoffCandidates) && window.undercoverRunoffCandidates.length > 0) {\n" +
+               "            list = list.filter(p => window.undercoverRunoffCandidates.includes(p.id));\n" +
+               "        }\n" +
                "        container.innerHTML = list.map(p => {\n" +
                "            return '<button class=\"uc-vote-btn\" style=\"background:#334155; color:#f8fafc; border:1px solid #475569; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;\" data-uid=\"' + p.id + '\" data-name=\"' + (p.name || '玩家') + '\" onclick=\"actionVoteUndercover(this.dataset.uid, this.dataset.name, this)\">🗳️ 投 ' + (p.name || '玩家') + '</button>';\n" +
                "        }).join('');\n" +
@@ -6094,7 +6445,7 @@ public class WebPlayController {
                "        }\n" +
                "        document.querySelectorAll('.uc-vote-btn').forEach(b => { b.disabled = true; b.style.opacity = '0.5'; });\n" +
                "        if (btnEl) { btnEl.style.background = '#e11d48'; btnEl.style.borderColor = '#f43f5e'; btnEl.style.opacity = '1'; btnEl.innerText = '✓ 已投 ' + targetName; }\n" +
-               "        sendChatMessage('🗳️ 我投票指认【' + targetName + '】为卧底！');\n" +
+               "        sendChatMessage('🗳️ 我投票指认【' + targetName + '】！');\n" +
                "        appendChat('投票', '🗳️ 已成功投给 ' + targetName);\n" +
                "        showToast('🗳️ 已成功投票指认【' + targetName + '】！');\n" +
                "    };\n";
@@ -6125,6 +6476,7 @@ public class WebPlayController {
                "        const myColor = (currentUser && currentUser.chatTextColor) ? currentUser.chatTextColor : 'COLOR_DEFAULT';\n" +
                "        const myVip = (currentUser && currentUser.vipLevel) ? currentUser.vipLevel : 0;\n" +
                "        appendChat(myNickname, text, myColor, myVip); triggerBubble(myUserId, text);\n" +
+               "        if (currentGameType === 'undercover' && typeof appendUndercoverClue === 'function') appendUndercoverClue(myNickname, text);\n" +
                "        if (ws && ws.readyState === WebSocket.OPEN) {\n" +
                "            ws.send(JSON.stringify({ type: 'CHAT_MESSAGE', channel: 'ROOM', roomCode: currentRoomId, senderId: myUserId, senderName: myNickname, senderAvatar: myAvatar, content: text, textColor: myColor, vipLevel: myVip }));\n" +
                "        }\n" +
@@ -6159,7 +6511,7 @@ public class WebPlayController {
                "        if (btnEl) btnEl.classList.add('active');\n" +
                "        document.querySelectorAll('#lobbyTabGames .game-mode-card').forEach(card => {\n" +
                "            const c = card.getAttribute('data-cat') || 'all';\n" +
-               "            card.style.display = (cat === 'all' || c === cat) ? 'block' : 'none';\n" +
+               "            card.style.display = (cat === 'all' || c === cat) ? '' : 'none';\n" +
                "        });\n" +
                "    };\n" +
                "    const GAME_RULES_GUIDE = {\n" +

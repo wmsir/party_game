@@ -13,10 +13,30 @@ permissions:
 
 jobs:
   # ============================================================================
+  # 0. Resolve Version & Static/Unit Checks
+  # ============================================================================
+  prepare-metadata:
+    name: Resolve Release Version
+    runs-on: ubuntu-latest
+    outputs:
+      app_version: ${{ steps.ver.outputs.version }}
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Extract Version from pubspec.yaml
+        id: ver
+        run: |
+          RAW_VER=$(grep -E '^version:' party_game_app/pubspec.yaml | head -n1 | awk '{print $2}' | cut -d'+' -f1)
+          echo "version=${RAW_VER:-1.0.56}" >> "$GITHUB_OUTPUT"
+          echo "Resolved app version: ${RAW_VER:-1.0.56}"
+
+  # ============================================================================
   # 1. Android Client (.apk & .aab)
   # ============================================================================
   build-android:
     name: Android Client (.apk / .aab)
+    needs: prepare-metadata
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source
@@ -35,16 +55,39 @@ jobs:
           flutter-version: '3.27.x'
           cache: true
 
-      - name: Build Android Release APK & App Bundle (AAB)
+      - name: Configure Release Keystore (if Secrets Present)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$STORE_PASS" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASS" ]; then
+            echo "$KEYSTORE_B64" | base64 --decode > party_game_app/android/app/upload-keystore.jks
+            cat > party_game_app/android/key.properties <<EOF
+          storePassword=$STORE_PASS
+          keyPassword=$KEY_PASS
+          keyAlias=$KEY_ALIAS
+          storeFile=upload-keystore.jks
+          EOF
+            echo "Release keystore configured."
+          else
+            echo "No release keystore secrets configured; falling back to debug signing."
+          fi
+
+      - name: Analyze & Build Android Release APK & AAB
+        env:
+          VER: ${{ needs.prepare-metadata.outputs.app_version }}
         run: |
           cd party_game_app
           chmod +x android/gradlew
           flutter pub get
+          flutter analyze --no-fatal-infos
           flutter build apk --release
           flutter build appbundle --release
           mkdir -p ../release_out
-          cp build/app/outputs/flutter-apk/app-release.apk ../release_out/party-game-v1.0.56-android-universal.apk
-          cp build/app/outputs/bundle/release/app-release.aab ../release_out/party-game-v1.0.56-android-bundle.aab
+          cp build/app/outputs/flutter-apk/app-release.apk "../release_out/party-game-v${VER}-android-universal.apk"
+          cp build/app/outputs/bundle/release/app-release.aab "../release_out/party-game-v${VER}-android-bundle.aab"
           ls -lh ../release_out/
 
       - name: Upload Android Artifacts
@@ -52,14 +95,15 @@ jobs:
         with:
           name: PartyGame-Android-APK-AAB
           path: |
-            release_out/party-game-v1.0.56-android-universal.apk
-            release_out/party-game-v1.0.56-android-bundle.aab
+            release_out/*-android-universal.apk
+            release_out/*-android-bundle.aab
 
   # ============================================================================
   # 2. iOS Client (.ipa)
   # ============================================================================
   build-ios:
     name: iOS Client (.ipa)
+    needs: prepare-metadata
     runs-on: macos-latest
     steps:
       - name: Checkout Source
@@ -73,6 +117,8 @@ jobs:
           cache: true
 
       - name: Build iOS Release App & Package Unsigned IPA
+        env:
+          VER: ${{ needs.prepare-metadata.outputs.app_version }}
         run: |
           cd party_game_app
           flutter pub get
@@ -81,20 +127,21 @@ jobs:
           cp -R build/ios/iphoneos/Runner.app build/ios/ipa_stage/Payload/
           mkdir -p ../release_out
           cd build/ios/ipa_stage
-          zip -qry ../../../../release_out/party-game-v1.0.56-ios-unsigned.ipa Payload
+          zip -qry "../../../../release_out/party-game-v${VER}-ios-unsigned.ipa" Payload
           ls -lh ../../../../release_out/
 
       - name: Upload iOS IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: PartyGame-iOS-IPA
-          path: release_out/party-game-v1.0.56-ios-unsigned.ipa
+          path: release_out/*-ios-unsigned.ipa
 
   # ============================================================================
   # 3. Web Client (H5) & Java Backend Server (.jar)
   # ============================================================================
   build-web-and-backend:
     name: Web H5 Client & Java Server (.jar)
+    needs: prepare-metadata
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source
@@ -114,15 +161,19 @@ jobs:
           flutter-version: '3.27.x'
           cache: true
 
-      - name: Build Web H5 Bundle & Java Spring Boot Server
+      - name: Test & Build Web H5 Bundle & Java Spring Boot Server
+        env:
+          VER: ${{ needs.prepare-metadata.outputs.app_version }}
         run: |
           mkdir -p release_out
           cd party_game_app
           flutter pub get
+          flutter analyze --no-fatal-infos
           flutter build web --release
-          (cd build/web && zip -qry ../../../release_out/party-game-v1.0.56-web-h5.zip .)
+          (cd build/web && zip -qry "../../../release_out/party-game-v${VER}-web-h5.zip" .)
           cd ../party_game_server_java
-          mvn -B clean package -DskipTests
+          mvn -B test
+          mvn -B clean package
           cp target/party-game-server-1.0.0.jar ../release_out/party-game-server-1.0.0.jar
           ls -lh ../release_out/
 
@@ -131,14 +182,15 @@ jobs:
         with:
           name: PartyGame-Web-and-Server
           path: |
-            release_out/party-game-v1.0.56-web-h5.zip
+            release_out/*-web-h5.zip
             release_out/party-game-server-1.0.0.jar
 
   # ============================================================================
-  # 5. Windows Desktop Client (.exe bundle)
+  # 4. Windows Desktop Client (.exe bundle)
   # ============================================================================
   build-windows:
     name: Windows Desktop Client (.zip)
+    needs: prepare-metadata
     runs-on: windows-latest
     steps:
       - name: Checkout Source
@@ -151,29 +203,37 @@ jobs:
           flutter-version: '3.27.x'
           cache: true
 
+      - name: Set up NuGet
+        uses: NuGet/setup-nuget@v2
+
       - name: Build Windows Release Client
         shell: pwsh
+        env:
+          VER: ${{ needs.prepare-metadata.outputs.app_version }}
         run: |
           New-Item -ItemType Directory -Force -Path release_out | Out-Null
           Set-Location party_game_app
+          $winBuildNum = ($env:VER -split '\.')[-1]
+          if ([string]::IsNullOrWhiteSpace($winBuildNum) -or ($winBuildNum -notmatch '^\d+$')) { $winBuildNum = '57' }
           flutter config --enable-windows-desktop
           flutter pub get
-          flutter build windows --release
-          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "../release_out/party-game-v1.0.56-windows-x64.zip" -Force
+          flutter build windows --release --build-name="$($env:VER)" --build-number="$winBuildNum"
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "../release_out/party-game-v$($env:VER)-windows-x64.zip" -Force
           Get-ChildItem ../release_out
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: PartyGame-Windows-x64
-          path: release_out/party-game-v1.0.56-windows-x64.zip
+          path: release_out/*-windows-x64.zip
 
   # ============================================================================
-  # 6. Publish GitHub Release Assets
+  # 5. Publish GitHub Release Assets
   # ============================================================================
   publish-release:
     name: Publish Multi-Platform GitHub Release
-    needs: [build-android, build-ios, build-web-and-backend, build-windows]
+    needs: [prepare-metadata, build-android, build-ios, build-web-and-backend, build-windows]
+    if: ${{ always() && needs.prepare-metadata.result == 'success' && (needs.build-android.result == 'success' || needs.build-web-and-backend.result == 'success') }}
     runs-on: ubuntu-latest
     steps:
       - name: Download All Built Artifacts
@@ -184,24 +244,30 @@ jobs:
       - name: Prepare Flat Release Files & SHA-256 Checksums
         run: |
           mkdir -p release_files
-          find artifacts -type f -exec cp {} release_files/ \;
+          if [ -d artifacts ]; then
+            find artifacts -type f -exec cp {} release_files/ \;
+          fi
+          if [ -z "$(ls -A release_files)" ]; then
+            echo "Error: no build artifacts found for release!"
+            exit 1
+          fi
           cd release_files
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
+        env:
+          VER: ${{ needs.prepare-metadata.outputs.app_version }}
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.56' }}
-          name: "聚会桌游吧 PartyGame Club v1.0.56 (Android / iOS / Windows / Web)"
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', needs.prepare-metadata.outputs.app_version) }}
+          name: "聚会桌游吧 PartyGame Club v${{ needs.prepare-metadata.outputs.app_version }} (Multi-Platform Release)"
           body: |
-            ## 🎲 聚会桌游吧 (PartyGame Club) v1.0.56 全平台构建发行包
-            - **📱 Android 移动端 (通用安装包 APK)**: `party-game-v1.0.56-android-universal.apk`
-            - **📱 Android 应用商店包 (Google Play AAB)**: `party-game-v1.0.56-android-bundle.aab`
-            - **🍎 iOS 移动端 (未签名 IPA，支持 AltStore / Sideloadly / TrollStore / 企业签名)**: `party-game-v1.0.56-ios-unsigned.ipa`
-            - **💻 Windows 桌面客户端 (x64 绿色免安装版)**: `party-game-v1.0.56-windows-x64.zip`
-            - **🌐 Web H5 网页端 (静态部署包)**: `party-game-v1.0.56-web-h5.zip`
-            - **☕ Java 实时联机后端微服务 (Spring Boot 3 可执行 JAR)**: `party-game-server-1.0.0.jar`
+            ## 🎲 聚会桌游吧 (PartyGame Club) v${{ needs.prepare-metadata.outputs.app_version }} 全平台构建发行包
+            - **📱 Android 移动端 (APK / AAB)** (`${{ needs.build-android.result }}`): `party-game-v${{ needs.prepare-metadata.outputs.app_version }}-android-universal.apk` / `party-game-v${{ needs.prepare-metadata.outputs.app_version }}-android-bundle.aab`
+            - **🍎 iOS 移动端 (未签名 IPA)** (`${{ needs.build-ios.result }}`): `party-game-v${{ needs.prepare-metadata.outputs.app_version }}-ios-unsigned.ipa`
+            - **💻 Windows 桌面客户端 (x64 绿色版)** (`${{ needs.build-windows.result }}`): `party-game-v${{ needs.prepare-metadata.outputs.app_version }}-windows-x64.zip`
+            - **🌐 Web H5 & ☕ Java 联机服务端** (`${{ needs.build-web-and-backend.result }}`): `party-game-v${{ needs.prepare-metadata.outputs.app_version }}-web-h5.zip` / `party-game-server-1.0.0.jar`
             - **🔒 SHA-256 完整性校验清单**: `SHA256SUMS.txt`
           files: release_files/*
           draft: false

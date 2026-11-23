@@ -110,7 +110,7 @@ class _BattlePassDialogState extends State<BattlePassDialog> {
         title: const Row(
           children: [
             Text('👑 ', style: TextStyle(fontSize: 24)),
-            Text('解锁进阶黄金战令', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 18)),
+            Flexible(child: Text('解锁进阶黄金战令', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 18))),
           ],
         ),
         content: const Column(
@@ -119,13 +119,13 @@ class _BattlePassDialogState extends State<BattlePassDialog> {
           children: [
             Text('进阶黄金战令特权：', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             SizedBox(height: 8),
-            Text('• 立即可解锁当前已达到等级的全部豪华黄金奖励\n• 满级必得限定【赛博霓虹】3D 骰蛊\n• 累计返还 1,280 钻石 + 100,000 金币\n• 尊崇「黄金战神」入场名牌标识', style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.5)),
+            Text('• 立即可解锁当前已达到等级的全部豪华黄金奖励\n• 满级必得限定【赛博霓虹】3D 骰蛊\n• 累计返还 1,280 钻石 + 100,000 金币\n• 尊崇「黄金战神」入场名牌标识', style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 12, height: 1.5)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('稍后再说', style: TextStyle(color: AppColors.textMuted)),
+            child: const Text('稍后再说', style: TextStyle(color: Color(0xFF94A3B8))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
@@ -155,11 +155,12 @@ class _BattlePassDialogState extends State<BattlePassDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final maxDialogHeight = (MediaQuery.sizeOf(context).height * 0.86).clamp(400.0, 680.0);
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 680),
+        constraints: BoxConstraints(maxWidth: 480, maxHeight: maxDialogHeight),
         decoration: BoxDecoration(
           color: const Color(0xFF0F172A),
           borderRadius: BorderRadius.circular(24),
@@ -280,12 +281,12 @@ class _BattlePassDialogState extends State<BattlePassDialog> {
                         Icon(
                           _hasUnlockedGoldPass ? Icons.verified : Icons.lock_outline,
                           size: 14,
-                          color: _hasUnlockedGoldPass ? Colors.amber : AppColors.textMuted,
+                          color: _hasUnlockedGoldPass ? Colors.amber : const Color(0xFF94A3B8),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           _hasUnlockedGoldPass ? '已解锁黄金战令' : '黄金战令未激活',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _hasUnlockedGoldPass ? Colors.amber : AppColors.textMuted),
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _hasUnlockedGoldPass ? Colors.amber : const Color(0xFF94A3B8)),
                         ),
                       ],
                     ),
@@ -339,7 +340,7 @@ class _BattlePassDialogState extends State<BattlePassDialog> {
                           child: Center(
                             child: Text(
                               'Lv.$lvl',
-                              style: TextStyle(color: isReached ? Colors.white : AppColors.textMuted, fontWeight: FontWeight.bold, fontSize: 12),
+                              style: TextStyle(color: isReached ? Colors.white : const Color(0xFF94A3B8), fontWeight: FontWeight.bold, fontSize: 12),
                             ),
                           ),
                         ),
@@ -350,7 +351,7 @@ class _BattlePassDialogState extends State<BattlePassDialog> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('普通战令', style: TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+                              const Text('普通战令', style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 10)),
                               const SizedBox(height: 2),
                               Text('🪙 ${lvl * 1000} 金币', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                             ],
@@ -368,7 +369,7 @@ class _BattlePassDialogState extends State<BattlePassDialog> {
                             ),
                             child: Text(
                               isFreeClaimed ? '已领取' : (isReached ? '领取' : '未解锁'),
-                              style: TextStyle(fontSize: 11, color: isFreeClaimed ? AppColors.textMuted : Colors.white, fontWeight: FontWeight.bold),
+                              style: TextStyle(fontSize: 11, color: isFreeClaimed ? const Color(0xFF94A3B8) : Colors.white, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
@@ -410,7 +411,7 @@ class _BattlePassDialogState extends State<BattlePassDialog> {
                               isGoldClaimed ? '已领取' : (_hasUnlockedGoldPass ? '领取' : '解锁'),
                               style: TextStyle(
                                 fontSize: 11,
-                                color: isGoldClaimed ? AppColors.textMuted : (_hasUnlockedGoldPass ? Colors.black : Colors.amber),
+                                color: isGoldClaimed ? const Color(0xFF94A3B8) : (_hasUnlockedGoldPass ? Colors.black : Colors.amber),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -441,7 +442,12 @@ class _BattlePassDialogState extends State<BattlePassDialog> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     icon: const Icon(Icons.workspace_premium, color: Colors.black),
-                    label: const Text('解锁进阶黄金战令 (仅需 ￥30.00 · 立享 10 倍好礼)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    label: const Text(
+                      '解锁进阶黄金战令 (￥30 · 享10倍好礼)',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                    ),
                     onPressed: _unlockGoldPassDialog,
                   ),
                 ),

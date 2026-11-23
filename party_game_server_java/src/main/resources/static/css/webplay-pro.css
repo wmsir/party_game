@@ -1,0 +1,638 @@
+/* ==========================================================================
+   聚会桌游吧 (Party Game) · Commercial WebPlay Pro Stylesheet v2.0
+   Responsive (390px mobile -> 1440px desktop), Light & Dark Eye-Care Themes
+   ========================================================================== */
+
+:root {
+    --pg-emerald: #10b981;
+    --pg-emerald-deep: #059669;
+    --pg-amber: #f59e0b;
+    --pg-amber-deep: #d97706;
+    --pg-surface: #ffffff;
+    --pg-surface-soft: #f8fafc;
+    --pg-bg: #f1f5f9;
+    --pg-text: #0f172a;
+    --pg-text-muted: #64748b;
+    --pg-border: #e2e8f0;
+    --pg-shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.05);
+    --pg-shadow-lg: 0 18px 44px rgba(15, 23, 42, 0.10);
+}
+
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+    background: var(--pg-bg);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+img, svg, canvas {
+    max-width: 100%;
+}
+
+.app-view, .lobby-content, .main-stage, .game-board, .lobby-tab-content {
+    min-width: 0;
+}
+
+/* --------------------------------------------------------------------------
+   1. Two-Column Desktop Login Shell & Brand Showcase
+   -------------------------------------------------------------------------- */
+.login-wrap {
+    min-height: 100vh;
+    padding: 24px 16px;
+    background:
+        radial-gradient(circle at 12% 18%, rgba(16, 185, 129, 0.14), transparent 42%),
+        radial-gradient(circle at 88% 82%, rgba(245, 158, 11, 0.14), transparent 44%),
+        linear-gradient(135deg, #f8fafc 0%, #eef2ff 50%, #ecfdf5 100%);
+}
+
+.login-shell {
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    align-items: stretch;
+}
+
+.login-hero-panel {
+    background: linear-gradient(145deg, #0f172a 0%, #134e4a 60%, #064e3b 100%);
+    color: #f8fafc;
+    border-radius: 24px;
+    padding: 24px 22px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 44px rgba(15, 23, 42, 0.22);
+    border: 1px solid rgba(110, 231, 183, 0.22);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-align: left;
+}
+
+.login-hero-panel::after {
+    content: '';
+    position: absolute;
+    width: 240px;
+    height: 240px;
+    right: -60px;
+    top: -60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(245, 158, 11, 0.28), transparent 70%);
+    pointer-events: none;
+}
+
+.login-hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #6ee7b7;
+    background: rgba(16, 185, 129, 0.16);
+    border: 1px solid rgba(110, 231, 183, 0.35);
+    padding: 4px 10px;
+    border-radius: 999px;
+    width: fit-content;
+    margin-bottom: 12px;
+}
+
+.login-hero-title {
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1.25;
+    letter-spacing: -0.3px;
+    margin-bottom: 8px;
+}
+
+.login-hero-sub {
+    font-size: 13px;
+    color: #cbd5e1;
+    line-height: 1.6;
+    margin-bottom: 14px;
+}
+
+.login-hero-games {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.login-game-pill {
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #f8fafc;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 10px;
+    backdrop-filter: blur(8px);
+}
+
+.login-hero-features {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12.5px;
+    color: #e2e8f0;
+    background: rgba(15, 23, 42, 0.36);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+}
+
+.login-hero-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.login-hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.login-hero-cta.primary {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+
+.login-hero-cta.ghost {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #e2e8f0;
+}
+
+.login-hero-cta:hover {
+    transform: translateY(-1px);
+}
+
+.login-card {
+    max-width: 100% !important;
+    border-radius: 24px !important;
+    box-shadow: var(--pg-shadow-lg) !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+@media (min-width: 860px) {
+    .login-shell {
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 28px;
+    }
+    .login-hero-panel {
+        padding: 34px 30px;
+    }
+    .login-hero-title {
+        font-size: 30px;
+    }
+    .login-hero-features {
+        display: flex;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   2. Lobby Hero, Bento 2-Col Game Grid & Responsive Dock
+   -------------------------------------------------------------------------- */
+.lobby-hero-card {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 58%, #064e3b 100%) !important;
+    color: #ffffff;
+    border-radius: 20px !important;
+    padding: 18px 20px !important;
+    margin-bottom: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    border: 1px solid rgba(110, 231, 183, 0.25);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16) !important;
+}
+
+.game-modes-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+@media (min-width: 720px) {
+    .game-modes-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.game-modes-grid .game-mode-card {
+    margin-bottom: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    border-radius: 20px;
+}
+
+.game-modes-grid .game-mode-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.10);
+}
+
+.game-modes-grid .game-mode-actions {
+    margin-top: auto;
+    flex-wrap: wrap;
+}
+
+.game-modes-grid .btn-mode-quick,
+.game-modes-grid .btn-mode-create {
+    min-width: 104px;
+}
+
+@media (max-width: 639px) {
+    .commercial-quick-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    .lobby-header {
+        padding: 10px 12px !important;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .lobby-assets {
+        flex-wrap: wrap;
+        gap: 6px !important;
+    }
+}
+
+.bottom-nav {
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    max-width: 100%;
+}
+
+@media (min-width: 860px) {
+    .lobby-content {
+        padding-bottom: 104px !important;
+    }
+    .bottom-nav {
+        bottom: 16px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: min(640px, calc(100vw - 40px));
+        height: 62px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        border: 1.5px solid rgba(15, 23, 42, 0.08);
+        box-shadow: 0 12px 34px rgba(15, 23, 42, 0.14);
+    }
+    body.dark-mode .bottom-nav {
+        border-color: rgba(148, 163, 184, 0.22) !important;
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55) !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   3. Radial Felt Table Stage & Seats
+   -------------------------------------------------------------------------- */
+@media (min-width: 860px) {
+    .main-stage {
+        max-width: 880px !important;
+        padding: 18px 20px !important;
+    }
+}
+
+.game-board {
+    background: radial-gradient(circle at 50% 22%, #f0fdf4 0%, #dcfce7 55%, #bbf7d0 100%) !important;
+    border: 2px solid #34d399 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7), 0 14px 36px rgba(5, 150, 105, 0.12) !important;
+    border-radius: 24px !important;
+}
+
+body.dark-mode .game-board {
+    background: radial-gradient(circle at 50% 20%, #065f46 0%, #064e3b 58%, #022c22 100%) !important;
+    border-color: #10b981 !important;
+    box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.35), 0 16px 38px rgba(0, 0, 0, 0.45) !important;
+}
+
+.seats-grid {
+    gap: 10px;
+}
+
+@media (min-width: 720px) {
+    .seats-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   4. Take 6 Risk Preview Banner & Landing Row Highlights
+   -------------------------------------------------------------------------- */
+.take6-preview-banner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-align: left;
+    border: 1.5px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
+}
+
+.take6-preview-banner.safe {
+    display: flex;
+    background: #ecfdf5;
+    border-color: #10b981;
+    color: #065f46;
+}
+
+.take6-preview-banner.warn {
+    display: flex;
+    background: #fffbeb;
+    border-color: #f59e0b;
+    color: #92400e;
+}
+
+.take6-preview-banner.danger,
+.take6-preview-banner.smallest {
+    display: flex;
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #991b1b;
+}
+
+.take6-row.preview-target {
+    border: 2.5px solid #10b981 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.20) !important;
+}
+
+.take6-row.preview-danger {
+    border: 2.5px solid #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.22) !important;
+}
+
+.take6-row.preview-smallest {
+    border: 2px dashed #f59e0b !important;
+    background: #fffbeb !important;
+}
+
+/* --------------------------------------------------------------------------
+   5. Liar's Dice 3D Dice, Hand Badges, Bid History & Spot-On Controls
+   -------------------------------------------------------------------------- */
+.dice-badge-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.dice-hand-badge {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dice-hand-badge.baozi {
+    background: linear-gradient(135deg, #f59e0b, #dc2626);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(220, 38, 38, 0.3);
+}
+
+.dice-hand-badge.straight {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.25);
+}
+
+.dice-bid-history-bar {
+    display: none;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid #cbd5e1;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+body.dark-mode .dice-bid-history-bar {
+    background: rgba(15, 23, 42, 0.72);
+    border-color: #334155;
+}
+
+.bid-history-chip {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+}
+
+.bid-history-chip.latest {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #f59e0b;
+}
+
+.dice-card {
+    background: linear-gradient(145deg, #ffffff, #f1f5f9) !important;
+    box-shadow: inset 0 -3px 0 rgba(148, 163, 184, 0.38), 0 4px 10px rgba(15, 23, 42, 0.14) !important;
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.dice-card:hover {
+    transform: translateY(-2px);
+}
+
+.action-row {
+    flex-wrap: wrap;
+}
+
+.btn-spot-on {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    color: #fff;
+}
+
+.btn-reroll-straight {
+    background: linear-gradient(135deg, #06b6d4, #0284c7);
+    color: #fff;
+}
+
+.btn-act:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+}
+
+/* --------------------------------------------------------------------------
+   6. Party Wheel Scene Pack Selector, Metallic Rim & History
+   -------------------------------------------------------------------------- */
+.wheel-pack-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 10px 0 6px;
+}
+
+.wheel-pack-btn {
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    color: #334155;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.wheel-pack-btn.active {
+    background: linear-gradient(135deg, #ec4899, #db2777);
+    border-color: #ec4899;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.35);
+}
+
+body.dark-mode .wheel-pack-btn:not(.active) {
+    background: #1e293b;
+    border-color: #475569;
+    color: #cbd5e1;
+}
+
+.wheel-rim-ring {
+    position: relative;
+    width: min(280px, 76vw);
+    height: min(280px, 76vw);
+    padding: 10px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, #f59e0b, #ec4899, #8b5cf6, #10b981, #f59e0b);
+    box-shadow: 0 12px 32px rgba(236, 72, 153, 0.30);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wheel-history-box {
+    width: 100%;
+    max-width: 440px;
+    margin-top: 12px;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11.5px;
+    color: #475569;
+}
+
+body.dark-mode .wheel-history-box {
+    background: rgba(15, 23, 42, 0.78);
+    border-color: #334155;
+    color: #cbd5e1;
+}
+
+.wheel-history-item {
+    padding: 4px 0;
+    border-bottom: 1px dashed rgba(148, 163, 184, 0.35);
+}
+
+.wheel-history-item:last-child {
+    border-bottom: none;
+}
+
+/* --------------------------------------------------------------------------
+   7. Undercover PK Tie-Breaker & Result Card
+   -------------------------------------------------------------------------- */
+.uc-pk-banner {
+    display: none;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border: 1.5px solid #f59e0b;
+    color: #92400e;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    font-weight: 800;
+    text-align: left;
+}
+
+.uc-result-banner {
+    display: none;
+    background: #ffffff;
+    border: 2px solid #8b5cf6;
+    color: #1e293b;
+    border-radius: 14px;
+    padding: 12px 14px;
+    text-align: left;
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.16);
+}
+
+body.dark-mode .uc-result-banner {
+    background: #1e293b;
+    color: #f8fafc;
+    border-color: #a78bfa;
+}
+
+.uc-clue-item {
+    padding: 4px 0;
+    border-bottom: 1px dashed rgba(148, 163, 184, 0.3);
+}
+
+.uc-clue-item:last-child {
+    border-bottom: none;
+}
+
+/* --------------------------------------------------------------------------
+   8. Dark-Mode Fixes for Commercial Modals & Text Contrast
+   -------------------------------------------------------------------------- */
+body.dark-mode .commercial-modal-card h2,
+body.dark-mode .commercial-modal-card div[style*='color:#0f172a'] {
+    color: #f8fafc !important;
+}
+
+body.dark-mode .take6-preview-banner {
+    background: #0f172a;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body.dark-mode .take6-preview-banner.safe {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: #10b981;
+    color: #a7f3d0;
+}
+
+body.dark-mode .take6-preview-banner.warn {
+    background: rgba(245, 158, 11, 0.18);
+    border-color: #f59e0b;
+    color: #fde68a;
+}
+
+body.dark-mode .take6-preview-banner.danger,
+body.dark-mode .take6-preview-banner.smallest {
+    background: rgba(239, 68, 68, 0.22);
+    border-color: #ef4444;
+    color: #fecaca;
+}

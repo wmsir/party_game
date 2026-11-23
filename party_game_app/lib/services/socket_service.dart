@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'api_service.dart';
 
 /// 真实 WebSocket 长连接即时通信服务
 /// 支持实时聊天、向对手扔道具物理广播、房间席位变动同步
@@ -10,13 +11,36 @@ class SocketService {
   factory SocketService() => _instance;
   SocketService._internal();
 
+  static const String envWsUrl = String.fromEnvironment('WS_BASE_URL', defaultValue: '');
+
   static const List<String> wsUrls = [
+    'wss://fwpt.cn/party-game/ws',
     'ws://39.97.158.22/party-game/ws',
     'ws://39.97.158.22/ws',
     'ws://39.97.158.22:9001/party-game/ws',
     'ws://39.97.158.22:9001/ws',
     'ws://127.0.0.1:9001/ws',
   ];
+
+  List<String> _resolveWsUrls() {
+    final resolved = <String>[];
+    final override = envWsUrl.trim();
+    if (override.isNotEmpty) {
+      resolved.add(override);
+    }
+    final activeHttp = ApiService().activeBaseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    if (activeHttp.startsWith('https://')) {
+      resolved.add('wss://${activeHttp.substring(8)}/ws');
+    } else if (activeHttp.startsWith('http://')) {
+      resolved.add('ws://${activeHttp.substring(7)}/ws');
+    }
+    for (final fallback in wsUrls) {
+      if (!resolved.contains(fallback)) {
+        resolved.add(fallback);
+      }
+    }
+    return resolved;
+  }
 
   WebSocket? _socket;
   Timer? _heartbeatTimer;
@@ -68,7 +92,7 @@ class SocketService {
     if (_isConnecting) return;
     _isConnecting = true;
 
-    for (final urlStr in wsUrls) {
+    for (final urlStr in _resolveWsUrls()) {
       try {
         debugPrint('正在尝试建立 WebSocket 长连接: $urlStr');
         final socket = await WebSocket.connect(urlStr).timeout(const Duration(seconds: 4));

@@ -1,11 +1,11 @@
 {
-    "name": "party_game_app",
-    "short_name": "party_game_app",
+    "name": "聚会桌游吧 - Party Game",
+    "short_name": "聚会桌游吧",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0F172A",
+    "theme_color": "#1B8354",
+    "description": "聚会桌游吧官方跨平台实时派对客户端：谁是牛头王、大话骰、大转盘、谁是卧底。",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

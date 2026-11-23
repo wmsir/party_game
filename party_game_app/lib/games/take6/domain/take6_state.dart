@@ -53,6 +53,7 @@ class Take6State extends GameBaseState {
   String? playerChoosingRowId;                     // 当牌太小必须吃行时，等待决策的玩家ID
   final Map<String, int> penaltyScores;           // 每位玩家累计吃的牛头惩罚分
   final List<String> eventLogs;                   // 实时裁判播报日志
+  final Set<String> remoteReadyPlayerIds;         // 联机同期已暗扣出牌玩家集合
 
   Take6State({
     required super.roundId,
@@ -67,10 +68,15 @@ class Take6State extends GameBaseState {
     this.playerChoosingRowId,
     Map<String, int>? penaltyScores,
     List<String>? eventLogs,
+    Set<String>? remoteReadyPlayerIds,
     super.gameCode = 'TAKE_6',
   })  : pendingResolveQueue = pendingResolveQueue ?? [],
         penaltyScores = penaltyScores ?? {for (var p in players) p.id: 0},
-        eventLogs = eventLogs ?? [];
+        eventLogs = eventLogs ?? [],
+        remoteReadyPlayerIds = remoteReadyPlayerIds ?? {};
+
+  bool isPlayerReady(String playerId) =>
+      selectedCards[playerId] != null || remoteReadyPlayerIds.contains(playerId);
 
   bool get isAllCardsSelected {
     return players.every((p) => selectedCards[p.id] != null);
@@ -94,6 +100,7 @@ class Take6State extends GameBaseState {
       playerChoosingRowId: playerChoosingRowId,
       penaltyScores: Map<String, int>.from(penaltyScores),
       eventLogs: List<String>.from(eventLogs),
+      remoteReadyPlayerIds: Set<String>.from(remoteReadyPlayerIds),
       gameCode: gameCode,
     );
   }

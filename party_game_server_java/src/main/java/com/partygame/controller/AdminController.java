@@ -1,10 +1,14 @@
 package com.partygame.controller;
 
+import com.partygame.entity.PaymentOrder;
 import com.partygame.entity.User;
 import com.partygame.repository.BattleRecordRepository;
+import com.partygame.repository.PaymentOrderRepository;
 import com.partygame.repository.UserRepository;
+import com.partygame.security.AdminAuthService;
 import com.partygame.service.MarketingService;
 import com.partygame.service.SmsService;
+import com.partygame.websocket.GameWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -25,52 +29,48 @@ import java.util.*;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class AdminController {
 
     private final UserRepository userRepository;
     private final BattleRecordRepository battleRecordRepository;
+    private final PaymentOrderRepository paymentOrderRepository;
     private final SmsService smsService;
     private final MarketingService marketingService;
     private final com.partygame.service.UserService userService;
+    private final AdminAuthService adminAuthService;
 
     /**
-     * 开发者报表与管理系统登录（支持 FWPT 统一通行证与管理口令）
+     * 开发者报表与管理系统登录（签发安全随机令牌）
      */
     @PostMapping({"/api/admin/login", "/party-game/api/admin/login"})
     public ResponseEntity<?> adminLogin(@RequestBody Map<String, String> body) {
         String username = body.get("username");
         String password = body.get("password");
 
-        // 严禁硬编码后门密码！必须通过数据库合法账号密码或系统安全口令核验
-        String sysAdminHash = System.getenv("PARTY_ADMIN_PASSWORD_HASH");
-        org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder encoder = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
-        if ("admin".equalsIgnoreCase(username) && sysAdminHash != null && !sysAdminHash.isEmpty()) {
-            if (encoder.matches(password, sysAdminHash)) {
-                Map<String, Object> data = new HashMap<>();
-                data.put("token", "ADMIN-TOKEN-" + UUID.randomUUID().toString().replace("-", ""));
-                data.put("role", "SYSTEM_DEVELOPER");
-                data.put("name", "系统总开发者");
-                data.put("loginTime", LocalDateTime.now().toString());
-                return ResponseEntity.ok(createSuccess(data));
-            }
+        AdminAuthService.AdminSession session = adminAuthService.authenticate(username, password, userService);
+        if (session != null) {
+            String token = adminAuthService.issueToken(session);
+            Map<String, Object> data = new HashMap<>();
+            data.put("token", token);
+            data.put("role", session.getRole());
+            data.put("name", session.getDisplayName());
+            data.put("expiresAt", session.getExpiresAt());
+            data.put("loginTime", LocalDateTime.now().toString());
+            return ResponseEntity.ok(createSuccess(data));
         }
 
-        try {
-            User u = userService.passwordLogin(username, password);
-            if (u != null) {
-                Map<String, Object> data = new HashMap<>();
-                data.put("token", u.getToken() != null ? u.getToken() : ("DEV-TOKEN-" + UUID.randomUUID().toString().replace("-", "")));
-                data.put("role", "SYSTEM_DEVELOPER");
-                data.put("name", u.getNickname() != null ? u.getNickname() : u.getUsername());
-                data.put("loginTime", LocalDateTime.now().toString());
-                return ResponseEntity.ok(createSuccess(data));
-            }
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(createError(e.getMessage()));
-        }
+        return ResponseEntity.badRequest().body(createError("管理员账号或密码错误"));
+    }
 
-        return ResponseEntity.badRequest().body(createError("账号或密码错误"));
+    /**
+     * 开发者管理系统登出（注销服务端会话令牌）
+     */
+    @PostMapping({"/api/admin/logout", "/party-game/api/admin/logout"})
+    public ResponseEntity<?> adminLogout(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-Admin-Token", required = false) String adminHeader) {
+        adminAuthService.revokeToken(authHeader != null ? authHeader : adminHeader);
+        return ResponseEntity.ok(createSuccess(Map.of("loggedOut", true)));
     }
 
     /**
@@ -87,8 +87,18 @@ public class AdminController {
         long todayNewUsers = userRepository.countByCreatedAtAfter(todayStart);
         long todayDau = userRepository.countByLastLoginAtAfter(todayStart);
         Long totalRechargeRmb = userRepository.sumTotalRechargeRmb();
+        Long paidOrderRmb = paymentOrderRepository.sumPaidRevenueRmb();
+        Long todayRevenueRmb = paymentOrderRepository.sumPaidRevenueRmbSince(todayStart);
+        long totalOrderCount = paymentOrderRepository.count();
         long totalBattles = battleRecordRepository.count();
         long todayBattles = battleRecordRepository.countByPlayedAtAfter(todayStart);
+        int activeRooms = RoomAndMomentController.ROOMS.size();
+        int onlineSockets = GameWebSocketHandler.getOnlineSessionCount();
+
+        long effectiveTotalRmb = Math.max(
+                totalRechargeRmb != null ? totalRechargeRmb : 0L,
+                paidOrderRmb != null ? paidOrderRmb : 0L
+        );
 
         Map<String, Object> kpis = new HashMap<>();
         kpis.put("totalUsers", totalUsers);
@@ -96,10 +106,14 @@ public class AdminController {
         kpis.put("officialUsers", officialUsers);
         kpis.put("todayNewUsers", todayNewUsers);
         kpis.put("todayDau", todayDau);
-        kpis.put("totalRechargeRmb", totalRechargeRmb != null ? totalRechargeRmb : 0);
-        kpis.put("totalRechargeDiamonds", (totalRechargeRmb != null ? totalRechargeRmb : 0) * 10);
+        kpis.put("totalRechargeRmb", effectiveTotalRmb);
+        kpis.put("totalRechargeDiamonds", effectiveTotalRmb * 10);
+        kpis.put("todayRevenueRmb", todayRevenueRmb != null ? todayRevenueRmb : 0L);
+        kpis.put("totalOrderCount", totalOrderCount);
         kpis.put("totalBattles", totalBattles);
         kpis.put("todayBattles", todayBattles);
+        kpis.put("activeRooms", activeRooms);
+        kpis.put("onlineSockets", onlineSockets);
 
         // 2. 24小时高峰期与活跃度分布 (0~23小时)
         List<Object[]> battleHours = battleRecordRepository.countBattlesByHour();
@@ -146,7 +160,7 @@ public class AdminController {
             peakHourDistribution.add(item);
         }
 
-        // 3. 近 7 日用户增长趋势 (基于注册时间模拟/归纳)
+        // 3. 近 7 日真实用户增长与活跃趋势
         List<Map<String, Object>> weeklyTrend = new ArrayList<>();
         LocalDate today = LocalDate.now();
         for (int i = 6; i >= 0; i--) {
@@ -155,10 +169,10 @@ public class AdminController {
             LocalDateTime dEnd = LocalDateTime.of(d, LocalTime.MAX);
             Map<String, Object> dayMap = new HashMap<>();
             dayMap.put("date", d.toString().substring(5)); // MM-dd
-            // 真实统计当天的注册与活跃
-            long dayNew = userRepository.countByCreatedAtAfter(dStart);
-            dayMap.put("newUsers", i == 0 ? todayNewUsers : Math.max(1, (dayNew / (i + 1))));
-            dayMap.put("dau", i == 0 ? todayDau : Math.max(1, ((todayDau + 5) / (i + 1))));
+            long dayNew = userRepository.countByCreatedAtBetween(dStart, dEnd);
+            long dayDau = userRepository.countByLastLoginAtBetween(dStart, dEnd);
+            dayMap.put("newUsers", dayNew);
+            dayMap.put("dau", dayDau);
             weeklyTrend.add(dayMap);
         }
 
@@ -167,9 +181,11 @@ public class AdminController {
         List<Map<String, Object>> gamePopularity = new ArrayList<>();
         Map<String, String> gameNames = Map.of(
                 "liars_dice", "大话骰 (聚会吹牛)",
+                "take6", "谁是牛头王 (Take 6!)",
+                "party_wheel", "聚会大转盘",
+                "undercover", "谁是卧底",
                 "six_nimmt", "牛头王 (6nimmt)",
-                "roulette", "聚会大转盘",
-                "undercover", "谁是卧底"
+                "roulette", "聚会大转盘"
         );
         for (Object[] r : gameTypes) {
             if (r != null && r.length >= 2 && r[0] != null) {
@@ -183,10 +199,10 @@ public class AdminController {
             }
         }
         if (gamePopularity.isEmpty()) {
-            gamePopularity.add(Map.of("gameType", "liars_dice", "gameName", "大话骰 (聚会吹牛)", "count", 120L));
-            gamePopularity.add(Map.of("gameType", "six_nimmt", "gameName", "牛头王 (6nimmt)", "count", 45L));
-            gamePopularity.add(Map.of("gameType", "roulette", "gameName", "聚会大转盘", "count", 32L));
-            gamePopularity.add(Map.of("gameType", "undercover", "gameName", "谁是卧底", "count", 18L));
+            gamePopularity.add(Map.of("gameType", "liars_dice", "gameName", "大话骰 (聚会吹牛)", "count", 0L));
+            gamePopularity.add(Map.of("gameType", "take6", "gameName", "谁是牛头王 (Take 6!)", "count", 0L));
+            gamePopularity.add(Map.of("gameType", "party_wheel", "gameName", "聚会大转盘", "count", 0L));
+            gamePopularity.add(Map.of("gameType", "undercover", "gameName", "谁是卧底", "count", 0L));
         }
 
         // 5. 最近活跃用户列表 (排查活跃度、充值与 VIP)
@@ -357,17 +373,17 @@ public class AdminController {
     }
 
     /**
-     * 短信服务网关配置获取与保存
+     * 短信服务网关配置获取与保存 (自动脱敏网关密钥)
      */
     @GetMapping({"/api/admin/config/sms", "/party-game/api/admin/config/sms"})
     public ResponseEntity<?> getSmsConfig() {
-        return ResponseEntity.ok(createSuccess(smsService.getConfig()));
+        return ResponseEntity.ok(createSuccess(smsService.getSafeConfig()));
     }
 
     @PostMapping({"/api/admin/config/sms", "/party-game/api/admin/config/sms"})
     public ResponseEntity<?> saveSmsConfig(@RequestBody Map<String, Object> body) {
         smsService.saveConfig(body);
-        Map<String, Object> resp = createSuccess(smsService.getConfig());
+        Map<String, Object> resp = createSuccess(smsService.getSafeConfig());
         resp.put("message", "✅ 短信网关配置已热更新成功并即时生效！");
         return ResponseEntity.ok(resp);
     }
@@ -416,7 +432,73 @@ public class AdminController {
     }
 
     /**
-     * 开发者系统数据报表与运维大屏 HTML (Apple HIG 护眼美学设计)
+     * 开发者后台：充值订单台账分页查询
+     */
+    @GetMapping({"/api/admin/orders", "/party-game/api/admin/orders"})
+    public ResponseEntity<?> getPaymentOrders(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String status) {
+        int pageIdx = Math.max(0, page - 1);
+        int pageSize = Math.min(100, Math.max(5, size));
+        Pageable pageable = PageRequest.of(pageIdx, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Page<PaymentOrder> orderPage = (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status))
+                ? paymentOrderRepository.findByStatusOrderByCreatedAtDesc(status.trim().toUpperCase(), pageable)
+                : paymentOrderRepository.findAllByOrderByCreatedAtDesc(pageable);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("items", orderPage.getContent());
+        res.put("currentPage", page);
+        res.put("pageSize", pageSize);
+        res.put("totalElements", orderPage.getTotalElements());
+        res.put("totalPages", orderPage.getTotalPages());
+        res.put("paidRevenueRmb", paymentOrderRepository.sumPaidRevenueRmb());
+        res.put("paidCount", paymentOrderRepository.countByStatus("PAID"));
+        res.put("pendingCount", paymentOrderRepository.countByStatus("PENDING"));
+        return ResponseEntity.ok(createSuccess(res));
+    }
+
+    /**
+     * 开发者后台：实时在线房间与 WebSocket 连接监控
+     */
+    @GetMapping({"/api/admin/rooms/live", "/party-game/api/admin/rooms/live"})
+    public ResponseEntity<?> getLiveRooms() {
+        List<Map<String, Object>> liveRooms = new ArrayList<>();
+        for (Map.Entry<String, Map<String, Object>> entry : RoomAndMomentController.ROOMS.entrySet()) {
+            Map<String, Object> r = entry.getValue();
+            List<?> players = (List<?>) r.get("players");
+            List<?> spectators = (List<?>) r.get("spectators");
+            long humanCount = 0;
+            if (players != null) {
+                humanCount = players.stream().filter(p -> {
+                    if (p instanceof Map) {
+                        Object isAi = ((Map<?, ?>) p).get("isAi");
+                        return isAi == null || !Boolean.parseBoolean(String.valueOf(isAi));
+                    }
+                    return false;
+                }).count();
+            }
+            Map<String, Object> item = new HashMap<>();
+            item.put("roomCode", entry.getKey());
+            item.put("roomName", r.getOrDefault("roomName", "开黑房间 " + entry.getKey()));
+            item.put("gameType", r.getOrDefault("gameType", "liars_dice"));
+            item.put("status", r.getOrDefault("status", "WAITING"));
+            item.put("playerCount", players != null ? players.size() : 0);
+            item.put("humanCount", humanCount);
+            item.put("spectatorCount", spectators != null ? spectators.size() : 0);
+            item.put("createdAt", r.getOrDefault("createdAt", 0L));
+            liveRooms.add(item);
+        }
+        Map<String, Object> res = new HashMap<>();
+        res.put("rooms", liveRooms);
+        res.put("activeRoomCount", liveRooms.size());
+        res.put("onlineSockets", GameWebSocketHandler.getOnlineSessionCount());
+        return ResponseEntity.ok(createSuccess(res));
+    }
+
+    /**
+     * 开发者系统数据报表与运维大屏 HTML
      */
     @GetMapping(value = {"/admin", "/developer", "/party-game/admin", "/party-game/developer"}, produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<Resource> getAdminDashboardHtml() {

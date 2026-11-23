@@ -181,15 +181,25 @@ class _ScanQrDialogState extends State<ScanQrDialog> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
+    final textPrimary = AppColors.adaptiveTextPrimary(context);
+    final textSecondary = AppColors.adaptiveTextSecondary(context);
+    final cardColor = AppColors.adaptiveCard(context);
+    final elevatedColor = AppColors.adaptiveElevated(context);
+    final borderColor = AppColors.adaptiveBorder(context);
 
     return AlertDialog(
-      backgroundColor: AppColors.bgCard,
+      backgroundColor: cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.qr_code_scanner, color: Color(0xFF38BDF8), size: 24),
-          SizedBox(width: 8),
-          Text('📷 扫码与快速授权', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+          const Icon(Icons.qr_code_scanner, color: Color(0xFF38BDF8), size: 24),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              '📷 扫码与快速授权',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textPrimary),
+            ),
+          ),
         ],
       ),
       content: SingleChildScrollView(
@@ -197,9 +207,9 @@ class _ScanQrDialogState extends State<ScanQrDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            Text(
               '支持快速授权电脑/网页端登录，或识别房间口令一键进房：',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+              style: TextStyle(fontSize: 12, color: textSecondary, height: 1.4),
             ),
             const SizedBox(height: 14),
 
@@ -207,13 +217,13 @@ class _ScanQrDialogState extends State<ScanQrDialog> {
             TextField(
               controller: _inputCtrl,
               onChanged: _parseInput,
-              style: const TextStyle(fontSize: 14, color: Colors.white),
+              style: TextStyle(fontSize: 14, color: textPrimary),
               decoration: InputDecoration(
                 hintText: '粘贴二维码链接、Ticket 或房间号',
-                hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                hintStyle: TextStyle(color: AppColors.adaptiveTextMuted(context), fontSize: 12),
                 filled: true,
-                fillColor: const Color(0xFF0F172A),
-                prefixIcon: const Icon(Icons.link, color: Colors.white54, size: 20),
+                fillColor: AppColors.adaptiveBg(context),
+                prefixIcon: Icon(Icons.link, color: textSecondary, size: 20),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.paste, color: Color(0xFF38BDF8), size: 20),
                   tooltip: '粘贴剪贴板',
@@ -225,7 +235,10 @@ class _ScanQrDialogState extends State<ScanQrDialog> {
                   },
                 ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: borderColor),
+                ),
               ),
             ),
 
@@ -236,20 +249,20 @@ class _ScanQrDialogState extends State<ScanQrDialog> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
+                  color: elevatedColor,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: const Color(0xFF38BDF8), width: 1.2),
                 ),
                 child: Column(
                   children: [
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.computer, color: Color(0xFF38BDF8), size: 22),
-                        SizedBox(width: 6),
+                        const Icon(Icons.computer, color: Color(0xFF38BDF8), size: 22),
+                        const SizedBox(width: 6),
                         Text(
                           '网页端扫码登录请求',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textPrimary),
                         ),
                       ],
                     ),
@@ -257,7 +270,7 @@ class _ScanQrDialogState extends State<ScanQrDialog> {
                     Text(
                       '授权当前登录账号【${user?.nickname ?? "我"}】在电脑/网页端直接登录并进入游戏房间。',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      style: TextStyle(fontSize: 12, color: textSecondary),
                     ),
                     const SizedBox(height: 12),
                     ElevatedButton.icon(
@@ -282,7 +295,7 @@ class _ScanQrDialogState extends State<ScanQrDialog> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
+                  color: elevatedColor,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
                 ),
@@ -295,15 +308,15 @@ class _ScanQrDialogState extends State<ScanQrDialog> {
                         const SizedBox(width: 6),
                         Text(
                           '对局房间邀请 #$_detectedRoomCode',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textPrimary),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       '检测到有效的房间号，点击下方按钮立即秒进房间！',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      style: TextStyle(fontSize: 12, color: textSecondary),
                     ),
                     const SizedBox(height: 12),
                     ElevatedButton.icon(
@@ -324,12 +337,13 @@ class _ScanQrDialogState extends State<ScanQrDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
+                  color: elevatedColor,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderColor),
                 ),
-                child: const Text(
+                child: Text(
                   '💡 提示：在网页端点击【📷 扫码一键登录】，将页面中二维码链接粘贴到上方，即可秒速完成授权！',
-                  style: TextStyle(fontSize: 11, color: Colors.white54, height: 1.4),
+                  style: TextStyle(fontSize: 11, color: textSecondary, height: 1.4),
                 ),
               ),
             ],
@@ -339,7 +353,7 @@ class _ScanQrDialogState extends State<ScanQrDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('关闭', style: TextStyle(color: AppColors.textSecondary)),
+          child: Text('关闭', style: TextStyle(color: textSecondary)),
         ),
       ],
     );

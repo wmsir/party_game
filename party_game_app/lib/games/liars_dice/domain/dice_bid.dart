@@ -18,20 +18,23 @@ class DiceBid {
   /// 校验该叫点相对于前一出价是否严格合法递增
   /// 经典大话骰规则：
   /// 1. 数量增加 (如 5个4 -> 6个2)；
-  /// 2. 数量相同，但点数增加 (如 5个4 -> 5个5)；
-  /// 3. 若转为“斋” (纯点)，在同等数量或数量加倍规则下合法。
+  /// 2. 数量相同，但点数排名更大 (斋局下 1 点为最大点 rank 7 > 6)；
+  /// 3. 一旦进入“斋”，后续禁止退回“飞”。
+  static int faceRank(int face, bool isPure) => (isPure && face == 1) ? 7 : face;
+
   bool isStrictlyHigherThan(DiceBid? previousBid) {
     if (previousBid == null) return true;
+    if (previousBid.isPure && !isPure) return false;
 
-    // 若前一家是“斋”，后一家也必须遵守更高要求
     if (count > previousBid.count) {
       return true;
     } else if (count == previousBid.count) {
-      // 数量相同，点数必须更大；或者相同点数但从“飞(通配)”升级为“斋”
-      if (face > previousBid.face) {
+      final curRank = faceRank(face, isPure);
+      final prevRank = faceRank(previousBid.face, previousBid.isPure);
+      if (curRank > prevRank) {
         return true;
-      } else if (face == previousBid.face) {
-        return !previousBid.isPure && isPure; // 相同个数和点数，只能由“飞”叫成“斋”
+      } else if (curRank == prevRank) {
+        return !previousBid.isPure && isPure; // 同数量同排名仅允许由“飞”升级为“斋”
       }
     }
     return false;

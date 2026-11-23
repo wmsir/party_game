@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/sound/game_sound_service.dart';
+import '../../core/widgets/commercial_ui_kit.dart';
 import '../../games/hosts/standalone_offline_host/offline_host_context.dart';
 import '../../games/hosts/standalone_offline_host/offline_reward_bridge.dart';
 import '../../games/liars_dice/presentation/liars_dice_game_screen.dart';
@@ -468,7 +469,7 @@ class _GameRoomLobbyViewState extends State<GameRoomLobbyView> {
   void _showEmptySeatOptions(int seatIdx, String gameTitle) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.bgCard,
+      backgroundColor: AppColors.adaptiveBgCard(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -484,13 +485,13 @@ class _GameRoomLobbyViewState extends State<GameRoomLobbyView> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: AppColors.adaptiveBorder(ctx),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 Text(
                   '${seatIdx + 1}号麦位 · 邀请与添加',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.adaptiveTextPrimary(ctx)),
                 ),
                 const SizedBox(height: 16),
                 ListTile(
@@ -503,13 +504,13 @@ class _GameRoomLobbyViewState extends State<GameRoomLobbyView> {
                     child: const Icon(Icons.campaign, color: Color(0xFFF59E0B)),
                   ),
                   title: const Text('📢 召集桌友开黑', style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('全服/同城广播，10秒无响应自动补入实力桌友', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  subtitle: Text('全服/同城广播，10秒无响应自动补入实力桌友', style: TextStyle(fontSize: 12, color: AppColors.adaptiveTextSecondary(ctx))),
                   onTap: () {
                     Navigator.pop(ctx);
                     _summonPlayers();
                   },
                 ),
-                const Divider(height: 1, color: AppColors.border),
+                Divider(height: 1, color: AppColors.adaptiveBorder(ctx)),
                 ListTile(
                   leading: Container(
                     padding: const EdgeInsets.all(8),
@@ -520,7 +521,7 @@ class _GameRoomLobbyViewState extends State<GameRoomLobbyView> {
                     child: const Icon(Icons.share, color: Color(0xFF07C160)),
                   ),
                   title: const Text('微信 / QQ 邀请真实好友', style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('复制链接或卡片发给微信/QQ群好友', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  subtitle: Text('复制链接或卡片发给微信/QQ群好友', style: TextStyle(fontSize: 12, color: AppColors.adaptiveTextSecondary(ctx))),
                   onTap: () {
                     Navigator.pop(ctx);
                     TencentInviteDialog.show(context, room: widget.room, gameTitle: gameTitle);
@@ -832,7 +833,11 @@ class _GameRoomLobbyViewState extends State<GameRoomLobbyView> {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: screenBuilder));
         break;
       case 'party_wheel':
-        Widget screenBuilder(BuildContext _) => const PartyWheelScreen();
+        Widget screenBuilder(BuildContext _) => PartyWheelScreen(
+          roomCode: widget.room.roomCode,
+          myPlayerId: myId,
+          myPlayerName: user?.nickname ?? '玩家',
+        );
         roomProv.registerActiveSession(
           ActiveRoomSession(
             roomCode: widget.room.roomCode,
@@ -958,7 +963,9 @@ class _GameRoomLobbyViewState extends State<GameRoomLobbyView> {
               ],
             ),
             body: SafeArea(
-              child: Column(
+              child: ResponsiveContentFrame(
+                maxWidth: 880,
+                child: Column(
                 children: [
                   // 顶部房间编号与状态条
                   Container(
@@ -967,12 +974,36 @@ class _GameRoomLobbyViewState extends State<GameRoomLobbyView> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.vpn_key_outlined, size: 18, color: Colors.amber),
-                            const SizedBox(width: 6),
-                            Text('房间号：${widget.room.roomCode}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1, color: AppColors.adaptiveTextPrimary(context))),
-                          ],
+                        InkWell(
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: widget.room.roomCode));
+                            HapticFeedback.lightImpact();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('已复制房间号：${widget.room.roomCode}'),
+                                backgroundColor: AppColors.primary,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.adaptiveElevated(context),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.adaptiveBorder(context)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.vpn_key_outlined, size: 17, color: Colors.amber),
+                                const SizedBox(width: 6),
+                                Text('房间号：${widget.room.roomCode}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1, color: AppColors.adaptiveTextPrimary(context))),
+                                const SizedBox(width: 6),
+                                Icon(Icons.copy_rounded, size: 14, color: AppColors.adaptiveTextSecondary(context)),
+                              ],
+                            ),
+                          ),
                         ),
                         Row(
                           children: [
@@ -1066,9 +1097,12 @@ class _GameRoomLobbyViewState extends State<GameRoomLobbyView> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Text('📢 ', style: TextStyle(fontSize: 14)),
-                                  Text(
-                                    '已向全服与同城发布召集广播！桌友呼叫中 (${_summonRemainingSeconds}s)...',
-                                    style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 11, fontWeight: FontWeight.bold),
+                                  Flexible(
+                                    child: Text(
+                                      '已向全服与同城发布召集广播！桌友呼叫中 (${_summonRemainingSeconds}s)...',
+                                      style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 11, fontWeight: FontWeight.bold),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1081,7 +1115,7 @@ class _GameRoomLobbyViewState extends State<GameRoomLobbyView> {
                                 crossAxisCount: 3,
                                 mainAxisSpacing: 10,
                                 crossAxisSpacing: 10,
-                                childAspectRatio: 0.81,
+                                mainAxisExtent: 138,
                               ),
                               itemCount: (widget.room.maxCapacity > 0 ? widget.room.maxCapacity : 6).clamp(6, 6),
                               itemBuilder: (ctx, idx) {
@@ -1605,6 +1639,7 @@ class _GameRoomLobbyViewState extends State<GameRoomLobbyView> {
                 ),
               ],
             ),
+              ),
           ),
         ),
 

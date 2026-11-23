@@ -49,36 +49,53 @@ class DiceAi {
       return _makeFirstBid(myCup, totalPlayers);
     }
 
-    // 1. 评估上一家出价的可信度 (对局置信度判定)
+    // 1. 使用二项分布尾概率评估上一家叫点真实性 P(X >= neededFromOthers)
     final face = prevBid.face;
     final isPure = prevBid.isPure || !state.isWild1Active;
     final myMatch = myCup.countFace(face, isWild1: !isPure);
     final neededFromOthers = prevBid.count - myMatch;
 
-    // 单颗未知骰子命中该点数的理论概率
-    final probSingle = isPure ? (1.0 / 6.0) : (2.0 / 6.0); // 飞为 1/3，斋为 1/6
-    final expectedFromOthers = unknownDice * probSingle;
+    final probSingle = isPure ? (1.0 / 6.0) : (2.0 / 6.0);
+    final tailProb = neededFromOthers <= 0 ? 1.0 : _binomialTail(unknownDice, neededFromOthers, probSingle);
 
-    // 容差安全上限 (超过此上限通常代表吹牛诈唬)
-    double tolerance = 1.8;
+    double challengeThreshold = 0.22;
     if (personality == 'CONSERVATIVE') {
-      tolerance = 1.2; // 保守型极度敏感，容易开别人
+      challengeThreshold = 0.30;
     } else if (personality == 'AGGRESSIVE') {
-      tolerance = 2.4; // 进攻型更愿意跟叫加码
+      challengeThreshold = 0.14;
+    } else if (personality == 'BLUFF_MASTER') {
+      challengeThreshold = 0.18;
     }
 
-    // 若上一家叫点已经严重超出数学期望，果断“开/劈”
-    if (neededFromOthers > (expectedFromOthers + tolerance)) {
+    if (neededFromOthers > unknownDice || tailProb < challengeThreshold) {
       return AiDecision.challenge();
     }
 
-    // 如果已经逼近全场骰子总数 (例如 2个人叫到8个)，必定抓
+    // 如果已经逼近全场骰子总数，果断抓包
     if (prevBid.count >= totalDiceInGame - 1) {
       return AiDecision.challenge();
     }
 
-    // 2. 选择加码出价 (加数量或换点数)
+    // 2. 选择加码出价 (加数量或换更高排名点数)
     return _calculateNextBid(myCup, prevBid, state.isWild1Active, personality, totalPlayers);
+  }
+
+  static double _binomialTail(int n, int k, double p) {
+    if (k <= 0) return 1.0;
+    if (k > n) return 0.0;
+    double sum = 0.0;
+    for (int i = k; i <= n; i++) {
+      sum += _binomialPmf(n, i, p);
+    }
+    return sum.clamp(0.0, 1.0);
+  }
+
+  static double _binomialPmf(int n, int k, double p) {
+    double comb = 1.0;
+    for (int i = 0; i < k; i++) {
+      comb = comb * (n - i) / (i + 1);
+    }
+    return comb * pow(p, k) * pow(1.0 - p, n - k);
   }
 
   static AiDecision _makeFirstBid(DiceCupModel myCup, int totalPlayers) {
@@ -105,26 +122,39 @@ class DiceAi {
     String personality,
     int totalPlayers,
   ) {
-    // 统计自己对各个点数的持有点数
+    final nextPure = prevBid.isPure || !isWild1Active;
     final faceCounts = <int, int>{};
     for (int f = 1; f <= 6; f++) {
-      faceCounts[f] = myCup.countFace(f, isWild1: isWild1Active && !prevBid.isPure);
+      faceCounts[f] = myCup.countFace(f, isWild1: !nextPure);
     }
 
-    // 找自己持有點数较多的优势点数
-    final sortedFaces = [2, 3, 4, 5, 6]..sort((a, b) => (faceCounts[b] ?? 0).compareTo(faceCounts[a] ?? 0));
-    final myBestFace = sortedFaces.first;
+    final candidateFaces = nextPure ? [1, 6, 5, 4, 3, 2] : [2, 3, 4, 5, 6];
+    candidateFaces.sort((a, b) => (faceCounts[b] ?? 0).compareTo(faceCounts[a] ?? 0));
+    final myBestFace = candidateFaces.first;
 
-    // 诈唬概率：欺骗型 AI 有 30% 几率故意叫自己完全没有的点数
     final shouldBluff = (personality == 'BLUFF_MASTER' && _rand.nextDouble() < 0.35);
     final targetFace = shouldBluff ? (_rand.nextInt(5) + 2) : myBestFace;
 
-    // 策略 A: 相同个数，叫更大的点数
-    if (targetFace > prevBid.face) {
-      return AiDecision.bid(prevBid.count, targetFace, isPure: prevBid.isPure);
+    // 策略 A: 同数量提高点数排名
+    final candidateSameCount = DiceBid(
+      bidderId: 'ai',
+      bidderName: 'ai',
+      count: prevBid.count,
+      face: targetFace,
+      isPure: nextPure || targetFace == 1,
+    );
+    if (candidateSameCount.isStrictlyHigherThan(prevBid)) {
+      return AiDecision.bid(candidateSameCount.count, candidateSameCount.face, isPure: candidateSameCount.isPure);
     }
 
-    // 策略 B: 个数 + 1
-    return AiDecision.bid(prevBid.count + 1, targetFace, isPure: prevBid.isPure);
+    // 策略 B: 个数 + 1 (兜底保证严格递增)
+    if (prevBid.count < totalPlayers * 5) {
+      return AiDecision.bid(
+        prevBid.count + 1,
+        targetFace,
+        isPure: nextPure || targetFace == 1,
+      );
+    }
+    return AiDecision.challenge();
   }
 }

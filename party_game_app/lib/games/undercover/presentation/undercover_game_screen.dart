@@ -37,11 +37,16 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
   bool _isWordRevealed = false;
   String? _selectedVoteId;
 
+  final TextEditingController _clueController = TextEditingController();
+
   // 联机状态与服务端权威私发词汇
   StreamSubscription? _socketSub;
   String? _onlineMyWord;
   bool _onlineIsUndercover = false;
-  String? _onlineRoleName;
+  String? _onlineCivilianWord;
+  String? _onlineUndercoverWord;
+  List<String> _onlineTiedIds = [];
+  bool _onlineIsTieBreaker = false;
   String? _currentSpeakerId;
   String? _currentSpeakerName;
   int _speakerCountdown = 30;
@@ -53,11 +58,23 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
   Timer? _autoPlayTimer;
   bool _hasSettledGameOver = false;
 
+  bool _resolveIsMeUndercover() {
+    if (_onlineMyWord != null) return _onlineIsUndercover;
+    if (_engine.players.isEmpty) return false;
+    final myId = widget.myPlayerId;
+    if (myId != null && myId.isNotEmpty) {
+      for (final p in _engine.players) {
+        if (p.id == myId) return p.isUndercover;
+      }
+    }
+    return _engine.players.first.isUndercover;
+  }
+
   void _checkGameOverSettlement() {
     if (_engine.phase == UndercoverPhase.gameOver && !_hasSettledGameOver) {
       _hasSettledGameOver = true;
       final isCivilianWin = _engine.winnerTeam == 'CIVILIAN';
-      final isMeUndercover = _engine.players.isNotEmpty && _engine.players.first.isUndercover;
+      final isMeUndercover = _resolveIsMeUndercover();
       final isWin = (isCivilianWin && !isMeUndercover) || (!isCivilianWin && isMeUndercover);
 
       context.read<AuthProvider>().settleRankMatch(isWin, gameType: 'undercover');
@@ -82,7 +99,7 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
             },
             onExit: () {
               final user = context.read<AuthProvider>().user;
-              context.read<RoomProvider>().leaveRoom(user?.id, 'UNDERCOVER-1');
+              context.read<RoomProvider>().leaveRoom(user?.id, widget.roomCode ?? 'UNDERCOVER-1');
               Navigator.of(context).popUntil((route) => route.isFirst);
             },
           );
@@ -124,16 +141,25 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
         case UndercoverPhase.speaking:
           GameSoundService().playCardPlay();
           setState(() {
+            final active = _engine.activePlayers;
+            if (active.isNotEmpty) {
+              final curSp = active[_engine.currentSpeakerIndex % active.length];
+              _engine.addClue(curSp.id, curSp.name, _engine.generateAiClue(curSp));
+            }
             _engine.nextSpeaker();
           });
           _scheduleAutoAction();
           break;
         case UndercoverPhase.voting:
           final active = _engine.activePlayers;
-          if (active.isNotEmpty) {
-            final randomTarget = active[Random().nextInt(active.length)];
+          final candidates = _engine.isTieBreakerRound
+              ? active.where((p) => _engine.tiedPlayerIds.contains(p.id)).toList()
+              : active;
+          if (candidates.isNotEmpty) {
+            final randomTarget = candidates[Random().nextInt(candidates.length)];
             GameSoundService().playUndercoverVote();
             _engine.votePlayer(randomTarget.id);
+            _engine.castAiVotes(excludePlayerId: widget.myPlayerId);
             setState(() {
               _selectedVoteId = null;
               _engine.finishVoting();
@@ -218,6 +244,22 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
 
   void _onOnlineSpeakerFinish() {
     if (widget.roomCode != null && widget.roomCode!.isNotEmpty) {
+      final clueText = _clueController.text.trim();
+      if (clueText.isNotEmpty) {
+        final user = context.read<AuthProvider>().user;
+        context.read<ChatProvider>().sendMessage(
+          senderId: widget.myPlayerId ?? user?.id ?? '',
+          senderName: user?.nickname ?? '我',
+          senderAvatar: user?.avatar ?? '🦊',
+          content: '🎤 [发言线索] $clueText',
+          channel: 'ROOM',
+          roomCode: widget.roomCode,
+          textColor: user?.chatTextColor,
+          vipLevel: user?.vipLevel ?? 0,
+        );
+        _engine.addClue(widget.myPlayerId ?? user?.id ?? '', user?.nickname ?? '我', clueText);
+        _clueController.clear();
+      }
       SocketService().send({
         'type': 'GAME_ACTION',
         'action': 'UNDERCOVER_SPEAKER_FINISH',
@@ -253,7 +295,6 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
           setState(() {
             _onlineMyWord = payload['myWord']?.toString();
             _onlineIsUndercover = payload['isUndercover'] == true;
-            _onlineRoleName = payload['roleName']?.toString() ?? (_onlineIsUndercover ? '卧底' : '平民');
             _engine.phase = UndercoverPhase.speaking;
             _engine.statusMessage = '🎉 身份词已秘密派发！第一轮发言开始，请按麦序发言！';
           });
@@ -267,6 +308,8 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
             }
           }
           setState(() {
+            _onlineIsTieBreaker = false;
+            _onlineTiedIds = [];
             _currentSpeakerId = speakerId;
             _currentSpeakerName = spName;
             _speakerCountdown = 30;
@@ -277,10 +320,25 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
         } else if (action == 'UNDERCOVER_PHASE_VOTING') {
           _countdownTimer?.cancel();
           setState(() {
+            _onlineIsTieBreaker = false;
+            _onlineTiedIds = [];
             _engine.phase = UndercoverPhase.voting;
             _engine.statusMessage = '🗳️ 全员发言完毕！请大家在 25 秒内指认公决怀疑的卧底！';
             _speakerCountdown = 25;
             _votedTargetId = null;
+            _selectedVoteId = null;
+          });
+        } else if (action == 'UNDERCOVER_TIE_BREAKER') {
+          final rawTied = payload['tiedPlayerIds'] is List
+              ? (payload['tiedPlayerIds'] as List).map((e) => e.toString()).toList()
+              : <String>[];
+          setState(() {
+            _onlineIsTieBreaker = true;
+            _onlineTiedIds = rawTied;
+            _votedTargetId = null;
+            _selectedVoteId = null;
+            _engine.phase = UndercoverPhase.voting;
+            _engine.statusMessage = '⚖️ 投票出现平票！进入 PK 复投环节，请从平票玩家中再选一人！';
           });
         } else if (action == 'UNDERCOVER_VOTE_RESULT') {
           final outPlayerName = payload['outPlayerName']?.toString() ?? '玩家';
@@ -288,6 +346,8 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
           final gameOver = payload['gameOver'] == true;
           final winnerTeam = payload['winnerTeam']?.toString();
           final outId = payload['outPlayerId']?.toString();
+          final cWord = payload['civilianWord']?.toString();
+          final uWord = payload['undercoverWord']?.toString();
 
           if (outId != null) {
             for (final p in _engine.players) {
@@ -299,6 +359,10 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
           }
 
           setState(() {
+            _onlineIsTieBreaker = false;
+            _onlineTiedIds = [];
+            if (cWord != null && cWord.isNotEmpty) _onlineCivilianWord = cWord;
+            if (uWord != null && uWord.isNotEmpty) _onlineUndercoverWord = uWord;
             _engine.statusMessage = '💥 公投揭晓：【$outPlayerName】被放逐！身份为【${wasUndercover ? "卧底" : "平民"}】！';
             if (gameOver) {
               _engine.phase = UndercoverPhase.gameOver;
@@ -312,7 +376,6 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
           setState(() {
             _onlineMyWord = data['myWord']?.toString();
             _onlineIsUndercover = data['isUndercover'] == true;
-            _onlineRoleName = data['roleName']?.toString() ?? (_onlineIsUndercover ? '卧底' : '平民');
             if (data['undercoverPhase'] == 'VOTING') {
               _engine.phase = UndercoverPhase.voting;
             } else if (data['undercoverPhase'] == 'SPEAKING') {
@@ -326,6 +389,7 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
 
   @override
   void dispose() {
+    _clueController.dispose();
     _socketSub?.cancel();
     _countdownTimer?.cancel();
     _autoPlayTimer?.cancel();
@@ -438,19 +502,30 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🕵️ 谁是卧底 · 聚会推理', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Flexible(
+              child: Text(
+                '🕵️ 谁是卧底 · 聚会推理',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
             if (_isAutoPlay) ...[
               const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFD1FAE5),
+                  color: AppColors.isDarkMode(context) ? const Color(0xFF064E3B) : const Color(0xFFD1FAE5),
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: const Color(0xFF10B981)),
                 ),
-                child: const Text(
+                child: Text(
                   '托管中',
-                  style: TextStyle(color: Color(0xFF047857), fontSize: 10, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: AppColors.isDarkMode(context) ? const Color(0xFF6EE7B7) : const Color(0xFF047857),
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -462,20 +537,20 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
           IconButton(
             icon: Icon(
               _isAutoPlay ? Icons.smart_toy : Icons.smart_toy_outlined,
-              color: _isAutoPlay ? const Color(0xFF10B981) : const Color(0xFF64748B),
+              color: _isAutoPlay ? const Color(0xFF10B981) : AppColors.adaptiveTextSecondary(context),
             ),
             tooltip: _isAutoPlay ? '取消AI托管' : '开启AI智能托管',
             onPressed: _toggleAutoPlay,
           ),
           // 房间最小化按钮
           IconButton(
-            icon: const Icon(Icons.picture_in_picture_alt_outlined, color: Color(0xFF475569)),
+            icon: Icon(Icons.picture_in_picture_alt_outlined, color: AppColors.adaptiveTextSecondary(context)),
             tooltip: '最小化房间',
             onPressed: _minimizeRoom,
           ),
           // 规则说明按钮
           IconButton(
-            icon: const Icon(Icons.help_outline, color: Color(0xFF64748B)),
+            icon: Icon(Icons.help_outline, color: AppColors.adaptiveTextSecondary(context)),
             tooltip: '推理规则',
             onPressed: _showRulesDialog,
           ),
@@ -490,21 +565,37 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
                 if (_isAutoPlay)
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFD1FAE5),
-                      border: Border(bottom: BorderSide(color: Color(0xFFA7F3D0))),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.isDarkMode(context) ? const Color(0xFF064E3B) : const Color(0xFFD1FAE5),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: AppColors.isDarkMode(context) ? const Color(0xFF059669) : const Color(0xFFA7F3D0),
+                        ),
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.smart_toy, color: Color(0xFF047857), size: 16),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'AI 智能托管中：自动帮您看词、接棒发言并参与投票',
-                          style: TextStyle(color: Color(0xFF065F46), fontSize: 12, fontWeight: FontWeight.bold),
+                        Icon(
+                          Icons.smart_toy,
+                          color: AppColors.isDarkMode(context) ? const Color(0xFF6EE7B7) : const Color(0xFF047857),
+                          size: 16,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'AI 智能托管中：自动帮您看词、接棒发言并参与投票',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: AppColors.isDarkMode(context) ? const Color(0xFFA7F3D0) : const Color(0xFF065F46),
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
                         GestureDetector(
                           onTap: _toggleAutoPlay,
                           child: Container(
@@ -520,7 +611,10 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
                     ),
                   ),
                 Expanded(
-                  child: Padding(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 720),
+                      child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
                       children: [
@@ -552,9 +646,11 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
+        ),
+      ),
           Consumer<ChatProvider>(
             builder: (context, chat, _) => InteractiveThrowOverlay(
               event: chat.lastThrowEvent,
@@ -618,12 +714,12 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
                         ),
                         if (_isWordRevealed) ...[
                           const SizedBox(height: 8),
-                          Text(
-                            '阵营身份：$_onlineRoleName',
+                          const Text(
+                            '🤫 身份已保密，请通过全场发言自行推理阵营',
                             style: TextStyle(
-                              color: _onlineIsUndercover ? const Color(0xFFEF4444) : const Color(0xFF10B981),
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF94A3B8),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -668,9 +764,9 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 '（其他人请回避，勿偷看！）',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                style: TextStyle(color: AppColors.adaptiveTextMuted(context), fontSize: 12),
               ),
               const SizedBox(height: 24),
 
@@ -736,18 +832,25 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Text('我的底词：', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
-                    Text(
-                      _isWordRevealed ? '【$_onlineMyWord】' : '【密词已隐藏】',
-                      style: TextStyle(
-                        color: _isWordRevealed ? const Color(0xFFFDE68A) : const Color(0xFF64748B),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('我的底词：', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                      Flexible(
+                        child: Text(
+                          _isWordRevealed ? '【$_onlineMyWord】' : '【密词已隐藏】',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: _isWordRevealed ? const Color(0xFFFDE68A) : const Color(0xFF94A3B8),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 GestureDetector(
                   onTap: () => setState(() => _isWordRevealed = !_isWordRevealed),
@@ -779,9 +882,17 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('当前发言中：${_currentSpeakerName ?? speaker.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(
+                      '当前发言中：${_currentSpeakerName ?? speaker.name}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
                     const SizedBox(height: 4),
-                    const Text('请用一句话或几个词描述你的词，切忌直接说出词名！', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                    Text(
+                      '请用一句话或几个词描述你的词，切忌直接说出词名！',
+                      style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 12),
+                    ),
                   ],
                 ),
               ),
@@ -812,8 +923,15 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
                     Text('${idx + 1}. ', style: const TextStyle(fontWeight: FontWeight.bold)),
                     Text(p.avatar, style: const TextStyle(fontSize: 20)),
                     const SizedBox(width: 8),
-                    Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    const Spacer(),
+                    Expanded(
+                      child: Text(
+                        p.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     if (p.id != widget.myPlayerId)
                       GestureDetector(
                         onTap: () {
@@ -835,7 +953,7 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
                     else if (hasSpoken)
                       const Chip(label: Text('已描述', style: TextStyle(fontSize: 11, color: Colors.green)), visualDensity: VisualDensity.compact)
                     else
-                      const Text('等待中', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      Text('等待中', style: TextStyle(color: AppColors.adaptiveTextMuted(context), fontSize: 12)),
                   ],
                 ),
               );
@@ -843,7 +961,46 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
           ),
         ),
 
-        const SizedBox(height: 12),
+        if (_engine.clueLogs.isNotEmpty)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.adaptiveCard(context),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.adaptiveBorder(context)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _engine.clueLogs.reversed.take(3).map((item) => Text(
+                    '💬 [第${item['round']}轮] ${item['playerName']}: ${item['clue']}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: AppColors.adaptiveTextSecondary(context)),
+                  )).toList(),
+            ),
+          ),
+
+        if ((widget.roomCode != null && widget.roomCode!.isNotEmpty)
+            ? (_currentSpeakerId == widget.myPlayerId)
+            : !speaker.isAi)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: TextField(
+              controller: _clueController,
+              maxLength: 40,
+              decoration: const InputDecoration(
+                hintText: '输入你的简短描述线索（选填，切忌直说底词）...',
+                counterText: '',
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                prefixIcon: Icon(Icons.edit_note, size: 18),
+              ),
+            ),
+          ),
+
+        const SizedBox(height: 10),
         SizedBox(
           width: double.infinity,
           height: 48,
@@ -858,16 +1015,26 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
             label: Text(
               (widget.roomCode != null && widget.roomCode!.isNotEmpty)
                   ? ((_currentSpeakerId == widget.myPlayerId)
-                      ? '🎤 我已发言完毕 · 轮到下一位 (${_speakerCountdown}s)'
-                      : '⏳ 等待【${_currentSpeakerName ?? speaker.name}】发言中 (${_speakerCountdown}s)...')
-                  : '【发言结束】交接给下一位',
+                      ? '🎤 提交线索并交棒 (${_speakerCountdown}s)'
+                      : '⏳ 等待【${_currentSpeakerName ?? speaker.name}】发言 (${_speakerCountdown}s)...')
+                  : (speaker.isAi ? '🤖 AI 自动描述并下一位' : '【发言结束】交接给下一位'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             onPressed: (widget.roomCode != null && widget.roomCode!.isNotEmpty)
                 ? ((_currentSpeakerId == widget.myPlayerId) ? _onOnlineSpeakerFinish : null)
                 : () {
                     GameSoundService().playCardPlay();
-                    setState(() => _engine.nextSpeaker());
+                    setState(() {
+                      if (speaker.isAi) {
+                        _engine.addClue(speaker.id, speaker.name, _engine.generateAiClue(speaker));
+                      } else if (_clueController.text.trim().isNotEmpty) {
+                        _engine.addClue(speaker.id, speaker.name, _clueController.text.trim());
+                        _clueController.clear();
+                      }
+                      _engine.nextSpeaker();
+                    });
                   },
           ),
         ),
@@ -875,19 +1042,41 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
     );
   }
 
-  // 投票放逐列表
+  // 投票放逐列表 (支持平票 PK 候选隔离与 AI 智能投票)
   Widget _buildVotingList() {
     final active = _engine.activePlayers;
+    final isPk = _onlineIsTieBreaker || _engine.isTieBreakerRound;
+    final tiedSet = _onlineIsTieBreaker ? _onlineTiedIds : _engine.tiedPlayerIds;
+    final candidates = (isPk && tiedSet.isNotEmpty)
+        ? active.where((p) => tiedSet.contains(p.id)).toList()
+        : active;
     return Column(
       children: [
-        const Text('请指认并投票出你怀疑的卧底：', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+        if (isPk)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFF59E0B)),
+            ),
+            child: const Text(
+              '⚖️ 平票 PK 复投中：请仅在以下平票玩家中选出放逐人选！',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFFD97706), fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          )
+        else
+          Text('请指认并投票出你怀疑的卧底：', style: TextStyle(fontSize: 14, color: AppColors.adaptiveTextSecondary(context))),
         const SizedBox(height: 12),
         Expanded(
           child: ListView.separated(
-            itemCount: active.length,
+            itemCount: candidates.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (ctx, idx) {
-              final p = active[idx];
+              final p = candidates[idx];
               final isSelected = _selectedVoteId == p.id;
               return InkWell(
                 onTap: () => setState(() => _selectedVoteId = p.id),
@@ -903,8 +1092,15 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
                     children: [
                       Text(p.avatar, style: const TextStyle(fontSize: 24)),
                       const SizedBox(width: 10),
-                      Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                      const Spacer(),
+                      Expanded(
+                        child: Text(
+                          p.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Icon(
                         isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
                         color: isSelected ? AppColors.error : Colors.grey,
@@ -932,6 +1128,7 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
                     : () {
                         GameSoundService().playUndercoverVote();
                         _engine.votePlayer(_selectedVoteId!);
+                        _engine.castAiVotes(excludePlayerId: widget.myPlayerId);
                         setState(() {
                           _selectedVoteId = null;
                           _engine.finishVoting();
@@ -941,7 +1138,7 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
             child: Text(
               (widget.roomCode != null && widget.roomCode!.isNotEmpty)
                   ? (_votedTargetId != null ? '✓ 已成功投出，等待其他玩家公决计票...' : '确认投票指认此玩家')
-                  : '确认投票并揭晓放逐结果',
+                  : (isPk ? '确认 PK 复投' : '确认投票并揭晓放逐结果'),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -953,8 +1150,10 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
   // 游戏结算大卡片
   Widget _buildGameOverCard() {
     final isCivilianWin = _engine.winnerTeam == 'CIVILIAN';
-    final isMeUndercover = _engine.players.isNotEmpty && _engine.players.first.isUndercover;
+    final isMeUndercover = _resolveIsMeUndercover();
     final isWin = (isCivilianWin && !isMeUndercover) || (!isCivilianWin && isMeUndercover);
+    final civWordDisplay = _onlineCivilianWord ?? _engine.civilianWord;
+    final ucWordDisplay = _onlineUndercoverWord ?? _engine.undercoverWord;
 
     return Center(
       child: Card(
@@ -977,20 +1176,47 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.bgDark,
+                  color: AppColors.adaptiveBgDark(context),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.adaptiveBorder(context)),
                 ),
                 child: Column(
                   children: [
-                    Text('平民词：【${_engine.civilianWord}】', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text('平民词：【$civWordDisplay】', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.adaptiveTextPrimary(context))),
                     const SizedBox(height: 8),
-                    Text('卧底词：【${_engine.undercoverWord}】', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.amber)),
+                    Text('卧底词：【$ucWordDisplay】', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.amber)),
                   ],
                 ),
               ),
+              if (_onlineMyWord == null) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.center,
+                  children: _engine.players.map((p) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (p.isUndercover ? AppColors.error : AppColors.primary).withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: p.isUndercover ? AppColors.error : AppColors.primary),
+                        ),
+                        child: Text(
+                          '${p.avatar} ${p.name} · ${p.isUndercover ? "卧底" : "平民"}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: p.isUndercover ? AppColors.error : AppColors.primary,
+                          ),
+                        ),
+                      )).toList(),
+                ),
+              ],
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
                 children: [
                   OutlinedButton.icon(
                     icon: const Icon(Icons.military_tech_outlined, size: 16),
@@ -1022,7 +1248,6 @@ class _UndercoverGameScreenState extends State<UndercoverGameScreen> {
                       );
                     },
                   ),
-                  const SizedBox(width: 12),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

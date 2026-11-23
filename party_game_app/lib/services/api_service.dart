@@ -16,21 +16,60 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  static const List<String> serverEndpoints = [
+  static const String envBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+
+  static const List<String> _defaultEndpoints = [
     'https://fwpt.cn/party-game',
     'http://39.97.158.22/party-game',
     'http://39.97.158.22:9001',
     'http://127.0.0.1:9001',
   ];
 
-  String _activeBaseUrl = serverEndpoints[0];
+  static List<String> get serverEndpoints {
+    final normalized = envBaseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    if (normalized.isEmpty) return _defaultEndpoints;
+    return [
+      normalized,
+      ..._defaultEndpoints.where((e) => e != normalized),
+    ];
+  }
+
+  late String _activeBaseUrl = serverEndpoints.first;
   String get activeBaseUrl => _activeBaseUrl;
+
+  Map<String, String> _buildHeaders({bool json = false}) {
+    final headers = <String, String>{};
+    if (json) {
+      headers['Content-Type'] = 'application/json';
+    }
+    final token = LocalStorage.getAuthToken();
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+
+  Future<void> _persistTokenFromMap(dynamic map) async {
+    if (map is! Map) return;
+    final data = map['data'];
+    String? tok;
+    if (data is Map && data['token'] != null) {
+      tok = data['token'].toString();
+    } else if (map['token'] != null) {
+      tok = map['token'].toString();
+    }
+    if (tok != null && tok.isNotEmpty) {
+      await LocalStorage.saveAuthToken(tok);
+    }
+  }
 
   Future<http.Response> _getWithFallback(String path) async {
     for (final base in serverEndpoints) {
       try {
         final url = Uri.parse('$base$path');
-        final res = await http.get(url).timeout(const Duration(seconds: 4));
+        final res = await http
+            .get(url, headers: _buildHeaders())
+            .timeout(const Duration(seconds: 4));
         if (res.statusCode == 200) {
           _activeBaseUrl = base;
           return res;
@@ -46,7 +85,7 @@ class ApiService {
         final url = Uri.parse('$base$path');
         final res = await http.post(
           url,
-          headers: {'Content-Type': 'application/json'},
+          headers: _buildHeaders(json: true),
           body: jsonEncode(body),
         ).timeout(const Duration(seconds: 4));
         if (res.statusCode == 200 || res.statusCode == 201) {
@@ -65,6 +104,7 @@ class ApiService {
       final res = await _postWithFallback('/api/auth/guest', {});
       final map = jsonDecode(utf8.decode(res.bodyBytes));
       if (map['code'] == 0 && map['data'] != null) {
+        await _persistTokenFromMap(map);
         return UserModel.fromJson(map['data']);
       }
     } catch (e) {
@@ -90,6 +130,7 @@ class ApiService {
       });
       final map = jsonDecode(utf8.decode(res.bodyBytes));
       if (map['code'] == 0 && map['data'] != null) {
+        await _persistTokenFromMap(map);
         return UserModel.fromJson(map['data']);
       }
     } catch (e) {
@@ -160,6 +201,7 @@ class ApiService {
       });
       final map = jsonDecode(utf8.decode(res.bodyBytes));
       if (map['code'] == 0 && map['data'] != null) {
+        await _persistTokenFromMap(map);
         return UserModel.fromJson(map['data']);
       }
       throw Exception(map['message'] ?? '试玩验证失败');
@@ -178,6 +220,7 @@ class ApiService {
       });
       final map = jsonDecode(utf8.decode(res.bodyBytes));
       if (map['code'] == 0 && map['data'] != null) {
+        await _persistTokenFromMap(map);
         return UserModel.fromJson(map['data']);
       }
       throw Exception(map['message'] ?? '登录失败');
@@ -203,6 +246,7 @@ class ApiService {
       });
       final map = jsonDecode(utf8.decode(res.bodyBytes));
       if (map['code'] == 0 && map['data'] != null) {
+        await _persistTokenFromMap(map);
         return UserModel.fromJson(map['data']);
       }
     } catch (e) {
@@ -919,6 +963,44 @@ class ApiService {
       'rechargeTiers': <RechargeTierItem>[],
       'userBalance': null,
     };
+  }
+
+  /// 创建商业化充值订单 (落库追踪待支付状态)
+  Future<Map<String, dynamic>> createPaymentOrder({
+    required String userId,
+    required String tierId,
+    required String payChannel,
+  }) async {
+    try {
+      final res = await _postWithFallback('/api/shop/order/create', {
+        'userId': userId,
+        'tierId': tierId,
+        'payChannel': payChannel,
+      });
+      final map = jsonDecode(utf8.decode(res.bodyBytes));
+      return Map<String, dynamic>.from(map);
+    } catch (e) {
+      debugPrint('创建充值订单失败: $e');
+      return {'code': -1, 'message': '下单失败，请检查网络连接'};
+    }
+  }
+
+  /// 确认商业化充值订单支付回调并核发货币
+  Future<Map<String, dynamic>> confirmPaymentOrder({
+    required String orderId,
+    String? tradeNo,
+  }) async {
+    try {
+      final res = await _postWithFallback('/api/shop/order/confirm', {
+        'orderId': orderId,
+        if (tradeNo != null && tradeNo.isNotEmpty) 'tradeNo': tradeNo,
+      });
+      final map = jsonDecode(utf8.decode(res.bodyBytes));
+      return Map<String, dynamic>.from(map);
+    } catch (e) {
+      debugPrint('确认支付订单失败: $e');
+      return {'code': -1, 'message': '确认支付失败，请稍后重试'};
+    }
   }
 
   /// 充值下单与即时到账

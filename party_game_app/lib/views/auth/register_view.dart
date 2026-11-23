@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/commercial_ui_kit.dart';
 import '../../providers/auth_provider.dart';
 
 class RegisterView extends StatefulWidget {
@@ -95,21 +96,24 @@ class _RegisterViewState extends State<RegisterView> {
         title: const Text('新玩家注册'),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '创建聚会通行证 🚀',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                '加入数万桌友联机狂欢，享受大话骰、牛头王与真心话大冒险',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 28),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '创建聚会通行证 🚀',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.adaptiveTextPrimary(context)),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '加入数万桌友联机狂欢，享受大话骰、牛头王与真心话大冒险',
+                    style: TextStyle(fontSize: 13, color: AppColors.adaptiveTextSecondary(context)),
+                  ),
+                  const SizedBox(height: 28),
 
               TextField(
                 controller: _nicknameCtrl,
@@ -180,22 +184,26 @@ class _RegisterViewState extends State<RegisterView> {
                     onChanged: (v) => setState(() => _agreeTerms = v ?? true),
                   ),
                   Expanded(
-                    child: Text.rich(
-                      TextSpan(
-                        text: '我已阅读并同意 ',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                        children: const [
-                          TextSpan(
-                            text: '《用户服务协议》',
-                            style: TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.bold),
+                    child: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text('我已阅读并同意 ', style: TextStyle(fontSize: 12, color: AppColors.adaptiveTextSecondary(context))),
+                        InkWell(
+                          onTap: () => LegalAgreementDialog.show(context),
+                          child: const Text(
+                            '《用户服务协议》',
+                            style: TextStyle(fontSize: 12, color: AppColors.primaryLight, fontWeight: FontWeight.bold),
                           ),
-                          TextSpan(text: ' 与 '),
-                          TextSpan(
-                            text: '《隐私保护声明》',
-                            style: TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.bold),
+                        ),
+                        Text(' 与 ', style: TextStyle(fontSize: 12, color: AppColors.adaptiveTextSecondary(context))),
+                        InkWell(
+                          onTap: () => LegalAgreementDialog.show(context, isPrivacy: true),
+                          child: const Text(
+                            '《隐私保护声明》',
+                            style: TextStyle(fontSize: 12, color: AppColors.primaryLight, fontWeight: FontWeight.bold),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -214,6 +222,8 @@ class _RegisterViewState extends State<RegisterView> {
               ),
             ],
           ),
+        ),
+        ),
         ),
       ),
     );

@@ -37,6 +37,7 @@ class DiceRulesEngine {
       lastResult: null,
       chipsScore: initialChips ?? {for (var p in players) p.id: 100},
       phase: DicePhase.bidding,
+      rerolledPlayerIds: {},
       eventLogs: [
         '🎲 摇骰完毕！每位玩家已扣好骰盅。1 点当前默认为【通配/飞】。',
         '👉 首位叫点：【${players[starterIndex % players.length].name}】',
@@ -110,6 +111,82 @@ class DiceRulesEngine {
 
     // 轮到下一位玩家
     _state.currentTurnIndex = (_state.currentTurnIndex + 1) % _state.players.length;
+    _emit();
+    return true;
+  }
+
+  /// 顺子重摇 (未开叫前且手中为 1-5 或 2-6 顺子，每局限一次)
+  bool playerRerollStraight(String playerId) {
+    if (_state.phase != DicePhase.bidding) return false;
+    if (_state.currentBid != null) return false;
+    if (_state.rerolledPlayerIds.contains(playerId)) return false;
+
+    final cup = _state.playerCups[playerId];
+    if (cup == null || !cup.isStraight) return false;
+
+    _state.playerCups[playerId] = DiceCupModel.rollNew(playerId);
+    _state.rerolledPlayerIds.add(playerId);
+    final playerName = _state.players
+        .firstWhere((p) => p.id == playerId, orElse: () => _state.currentPlayer)
+        .name;
+    _state.eventLogs.add('✨ 【$playerName】摇出顺子手牌，触发免费重摇一次！');
+    _emit();
+    return true;
+  }
+
+  /// 玩家发起“劈准 / 刚刚好”赌斗 (双倍 20 筹码：实际总数严格等于叫点数则胜，否则双倍受罚)
+  bool playerSpotOn(String callerId) {
+    if (_state.phase != DicePhase.bidding) return false;
+    if (_state.currentPlayer.id != callerId) return false;
+    if (_state.currentBid == null) return false;
+
+    final caller = _state.currentPlayer;
+    final bid = _state.currentBid!;
+    _state.phase = DicePhase.challenged;
+
+    int totalMatch = 0;
+    final detailsMap = <String, List<int>>{};
+
+    for (final p in _state.players) {
+      final cup = _state.playerCups[p.id]!;
+      detailsMap[p.name] = cup.dice.map((d) => d.value).toList();
+      totalMatch += cup.countFace(bid.face, isWild1: _state.isWild1Active && !bid.isPure);
+    }
+
+    final bool isExactMatch = totalMatch == bid.count;
+    final String loserId = isExactMatch ? bid.bidderId : caller.id;
+    final String loserName = isExactMatch ? bid.bidderName : caller.name;
+    final String winnerId = isExactMatch ? caller.id : bid.bidderId;
+
+    _state.chipsScore[loserId] = (_state.chipsScore[loserId] ?? 100) - 20;
+    _state.chipsScore[winnerId] = (_state.chipsScore[winnerId] ?? 100) + 20;
+
+    final detailDesc = detailsMap.entries.map((e) => '${e.key}: [${e.value.join(',')}]').join(' | ');
+
+    _state.lastResult = DiceChallengeResult(
+      challengerId: caller.id,
+      challengerName: caller.name,
+      challengedBid: bid,
+      actualMatchCount: totalMatch,
+      isChallengerWon: isExactMatch,
+      loserId: loserId,
+      loserName: loserName,
+      details: detailDesc,
+      isSpotOn: true,
+    );
+
+    _state.eventLogs.add(
+      '🎯 【${caller.name}】高喊“劈准（刚刚好）”！赌全场恰好 ${bid.count} 个 ${bid.face}！（双倍赏罚）',
+    );
+    _state.eventLogs.add(
+      '🔍 全场亮盅！实际总数：$totalMatch 个 ${bid.face} (${_state.isWild1Active && !bid.isPure ? '含1点通配' : '纯点无通配'})。',
+    );
+    _state.eventLogs.add(
+      isExactMatch
+          ? '🔥 神级预判！不多不少恰好 $totalMatch 个，【${caller.name}】赢得双倍筹码！'
+          : '💔 差之毫厘！实际为 $totalMatch 个，【$loserName】双倍受罚！',
+    );
+
     _emit();
     return true;
   }

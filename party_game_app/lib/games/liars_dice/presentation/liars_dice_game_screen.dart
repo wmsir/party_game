@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/room_provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/sound/dice_voice_announcer.dart';
 import '../../core/contracts/game_channel.dart';
 import '../../core/contracts/game_host_context.dart';
@@ -176,13 +177,15 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
         final action = data['action'];
         final payload = data['payload'];
         if (action == 'ROUND_RESTART') {
-          // 局内小轮重开（吹牛下一回合洗骰），重置回合与骰子，绝不退出大厅！
-          _engine.startNewRound(
-            players: widget.players,
-            starterIndex: (_currentState?.currentTurnIndex ?? 0) + 1,
-            initialChips: _currentState?.chipsScore,
-          );
-          GameAudioService().playSound('dice_shake');
+          final sender = data['senderId']?.toString();
+          if (sender == null || sender != widget.myPlayerId) {
+            _engine.startNewRound(
+              players: widget.players,
+              starterIndex: (_currentState?.currentTurnIndex ?? 0) + 1,
+              initialChips: _currentState?.chipsScore,
+            );
+            GameAudioService().playSound('dice_shake');
+          }
         } else if (action == 'GAME_RESTART') {
           _returnToRoomLobby(shouldBroadcast: false);
         } else if (action == 'DICE_SETTLEMENT' && payload is Map) {
@@ -220,7 +223,21 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
           if (sender != null && sender != widget.myPlayerId) {
             _engine.playerChallenge(sender);
           }
+        } else if (action == 'SPOT_ON') {
+          final sender = data['senderId']?.toString();
+          if (sender != null && sender != widget.myPlayerId) {
+            _engine.playerSpotOn(sender);
+          }
         }
+      } else if (type == 'ERROR_NOTICE') {
+        final msg = data['message']?.toString() ?? '操作不符合规则';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ $msg'),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 2),
+          ),
+        );
       } else if (type == 'ROOM_RECONNECT_SYNC') {
         final rawDice = data['myDice'] ?? data['dice'];
         if (rawDice is List) {
@@ -573,6 +590,66 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
     }
   }
 
+  void _onPlayerSpotOn() {
+    if (widget.isSpectator) return;
+    HapticFeedback.heavyImpact();
+    GameAudioService().playSound('challenge_bang');
+    final action = GameAction(
+      actionId: 'ACT-SPOTON-${DateTime.now().millisecondsSinceEpoch}',
+      playerId: widget.myPlayerId,
+      actionType: 'SPOT_ON',
+      payload: {},
+    );
+    widget.channel.dispatchAction(action);
+
+    final user = context.read<AuthProvider>().user;
+    final myName = user?.nickname ?? '我';
+    final myAvatar = user?.avatar ?? '🦊';
+
+    if (widget.roomCode != null && widget.roomCode!.isNotEmpty) {
+      SocketService().send({
+        'type': 'GAME_ACTION',
+        'action': 'SPOT_ON',
+        'roomCode': widget.roomCode,
+        'senderId': widget.myPlayerId,
+        'senderName': myName,
+      });
+
+      context.read<ChatProvider>().sendMessage(
+        senderId: widget.myPlayerId,
+        senderName: myName,
+        senderAvatar: myAvatar,
+        content: '🎯 劈准！！刚刚好就这么多！',
+        channel: 'ROOM',
+        roomCode: widget.roomCode,
+        textColor: user?.chatTextColor,
+        vipLevel: user?.vipLevel ?? 0,
+      );
+    }
+  }
+
+  void _onRerollStraight() {
+    if (widget.isSpectator) return;
+    HapticFeedback.mediumImpact();
+    GameAudioService().playSound('dice_shake');
+    if (widget.roomCode != null && widget.roomCode!.isNotEmpty) {
+      SocketService().send({
+        'type': 'GAME_ACTION',
+        'action': 'DICE_REROLL_STRAIGHT',
+        'roomCode': widget.roomCode,
+        'senderId': widget.myPlayerId,
+      });
+    } else {
+      final action = GameAction(
+        actionId: 'ACT-REROLL-${DateTime.now().millisecondsSinceEpoch}',
+        playerId: widget.myPlayerId,
+        actionType: 'DICE_REROLL_STRAIGHT',
+        payload: {},
+      );
+      widget.channel.dispatchAction(action);
+    }
+  }
+
   void _restartNextRound() {
     HapticFeedback.mediumImpact();
     GameAudioService().playSound('dice_shake');
@@ -673,7 +750,7 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
     final state = _currentState;
     if (state == null) {
       return const Scaffold(
-        backgroundColor: Color(0xFFF1F5F9),
+        backgroundColor: Color(0xFF0F172A),
         body: Center(child: CircularProgressIndicator(color: Color(0xFF0D9488))),
       );
     }
@@ -702,9 +779,13 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    '🎲 大话骰 (吹牛)',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFF8FAFC)),
+                  const Flexible(
+                    child: Text(
+                      '🎲 大话骰 (吹牛)',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFF8FAFC)),
+                    ),
                   ),
                 if (widget.isSpectator) ...[
                   const SizedBox(width: 6),
@@ -772,17 +853,7 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
         backgroundColor: const Color(0xFF1E293B),
         elevation: 1,
         actions: [
-          // 智能托管按钮 (旁观模式隐藏)
-          if (!widget.isSpectator)
-            IconButton(
-              icon: Icon(
-                _isAutoPlay ? Icons.smart_toy : Icons.smart_toy_outlined,
-                color: _isAutoPlay ? const Color(0xFFF59E0B) : const Color(0xFF94A3B8),
-              ),
-              tooltip: _isAutoPlay ? '取消托管' : '开启智能托管',
-              onPressed: _toggleAutoPlay,
-            ),
-                    // 手动摇骰扣盅按钮 (支持静音/无传感器场景一键扣盅)
+          // 手动摇骰扣盅按钮 (支持静音/无传感器场景一键扣盅)
           if (!widget.isSpectator)
             IconButton(
               icon: const Icon(Icons.casino_outlined, color: Color(0xFFFBBF24)),
@@ -793,7 +864,7 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
           IconButton(
             icon: Icon(
               _voiceAnnouncer.isEnabled ? Icons.record_voice_over : Icons.voice_over_off,
-              color: _voiceAnnouncer.isEnabled ? const Color(0xFF2DD4BF) : const Color(0xFF64748B),
+              color: _voiceAnnouncer.isEnabled ? const Color(0xFF2DD4BF) : const Color(0xFF94A3B8),
             ),
             tooltip: _voiceAnnouncer.isEnabled ? '语音喊点 (已开启)' : '语音喊点 (已静音)',
             onPressed: () {
@@ -808,16 +879,27 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
               );
             },
           ),
-          // 房间最小化按钮
-          IconButton(
-            icon: const Icon(Icons.picture_in_picture_alt_outlined, color: Color(0xFF94A3B8)),
-            tooltip: '最小化房间',
-            onPressed: _minimizeRoom,
-          ),
-          // 规则弹窗
-          IconButton(
-            icon: const Icon(Icons.help_outline, color: Color(0xFF94A3B8)),
-            onPressed: () => _showRulesDialog(context),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_horiz_rounded, color: Color(0xFFCBD5E1)),
+            tooltip: '更多房间操作',
+            onSelected: (value) {
+              if (value == 'autoplay') {
+                _toggleAutoPlay();
+              } else if (value == 'minimize') {
+                _minimizeRoom();
+              } else if (value == 'rules') {
+                _showRulesDialog(context);
+              }
+            },
+            itemBuilder: (ctx) => [
+              if (!widget.isSpectator)
+                PopupMenuItem(
+                  value: 'autoplay',
+                  child: Text(_isAutoPlay ? '🤖 取消AI托管' : '🤖 开启智能托管'),
+                ),
+              const PopupMenuItem(value: 'minimize', child: Text('🗗 最小化房间')),
+              const PopupMenuItem(value: 'rules', child: Text('📖 玩法规则')),
+            ],
           ),
         ],
       ),
@@ -842,11 +924,15 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
                   children: [
                     const Icon(Icons.smart_toy, color: Color(0xFFFDE68A), size: 15),
                     const SizedBox(width: 8),
-                    const Text(
-                      '智能托管代打中：轮到您时将自动分析博弈出招',
-                      style: TextStyle(color: Color(0xFFFEF3C7), fontSize: 11, fontWeight: FontWeight.bold),
+                    const Flexible(
+                      child: Text(
+                        '智能托管代打中：轮到您时将自动分析博弈出招',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Color(0xFFFEF3C7), fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     GestureDetector(
                       onTap: _toggleAutoPlay,
                       child: Container(
@@ -971,6 +1057,43 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
               ),
             ),
 
+            // 叫点走势记录胶囊条
+            if (state.bidHistory.isNotEmpty)
+              SizedBox(
+                height: 30,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: state.bidHistory.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  itemBuilder: (_, idx) {
+                    final b = state.bidHistory[idx];
+                    final isLatest = idx == state.bidHistory.length - 1;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isLatest ? const Color(0xFF78350F).withValues(alpha: 0.75) : const Color(0xFF1E293B),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isLatest ? const Color(0xFFF59E0B) : const Color(0xFF334155)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${b.bidderName}: ${b.count}个${b.face}${b.isPure ? "斋" : ""}',
+                            style: TextStyle(
+                              color: isLatest ? const Color(0xFFFDE68A) : const Color(0xFFCBD5E1),
+                              fontSize: 10.5,
+                              fontWeight: isLatest ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+
             // 中间：实时出价战报与真人喊点流
             Expanded(
               child: Container(
@@ -1029,67 +1152,75 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
               ),
 
             // 底部叫点控制面板 (旁观者显示静观指示条或申请入席按钮)
-            if (!isRevealed)
-              widget.isSpectator
-                  ? Container(
-                      height: 52,
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF334155)),
-                      ),
-                      alignment: Alignment.center,
-                      child: const Text('👀 旁观中，静观酒桌叫点风云...', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.bold)),
-                    )
-                  : BidDialWidget(
-                      currentBid: state.currentBid,
-                      totalPlayers: state.players.length,
-                      isWild1Active: state.isWild1Active,
-                      isMyTurn: isMyTurn,
-                      onBid: _onPlayerBid,
-                      onChallenge: _onPlayerChallenge,
-                    )
-            else
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: widget.isSpectator
-                    ? ElevatedButton.icon(
-                        onPressed: () {
-                          final user = context.read<AuthProvider>().user;
-                          SocketService().send({
-                            'type': 'GAME_ACTION',
-                            'action': 'SPECTATOR_JOIN_SEAT',
-                            'roomCode': widget.roomCode,
-                            'userId': user?.id ?? widget.myPlayerId,
-                            'userName': user?.nickname ?? '玩家',
-                            'userAvatar': user?.avatar ?? '🦊',
-                          });
-                          _returnToRoomLobby();
-                        },
-                        icon: const Icon(Icons.airline_seat_recline_normal),
-                        label: const Text('🪑 申请加入席位准备', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6366F1),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(48),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      )
-                    : ElevatedButton.icon(
-                        onPressed: _restartNextRound,
-                        icon: const Icon(Icons.play_arrow),
-                        label: const Text('准备好了，摇骰开下一局！', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0D9488),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(48),
-                          elevation: 1,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-              ),
+            SafeArea(
+              top: false,
+              child: !isRevealed
+                  ? (widget.isSpectator
+                      ? Container(
+                          height: 52,
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF334155)),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Text('👀 旁观中，静观酒桌叫点风云...', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.bold)),
+                        )
+                      : BidDialWidget(
+                          currentBid: state.currentBid,
+                          totalPlayers: state.players.length,
+                          isWild1Active: state.isWild1Active,
+                          isMyTurn: isMyTurn,
+                          onBid: _onPlayerBid,
+                          onChallenge: _onPlayerChallenge,
+                          onSpotOn: _onPlayerSpotOn,
+                          canRerollStraight: state.currentBid == null &&
+                              myCup != null &&
+                              myCup.isStraight &&
+                              !state.rerolledPlayerIds.contains(widget.myPlayerId),
+                          onRerollStraight: _onRerollStraight,
+                        ))
+                  : Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: widget.isSpectator
+                          ? ElevatedButton.icon(
+                              onPressed: () {
+                                final user = context.read<AuthProvider>().user;
+                                SocketService().send({
+                                  'type': 'GAME_ACTION',
+                                  'action': 'SPECTATOR_JOIN_SEAT',
+                                  'roomCode': widget.roomCode,
+                                  'userId': user?.id ?? widget.myPlayerId,
+                                  'userName': user?.nickname ?? '玩家',
+                                  'userAvatar': user?.avatar ?? '🦊',
+                                });
+                                _returnToRoomLobby();
+                              },
+                              icon: const Icon(Icons.airline_seat_recline_normal),
+                              label: const Text('🪑 申请加入席位准备', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF6366F1),
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size.fromHeight(48),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            )
+                          : ElevatedButton.icon(
+                              onPressed: _restartNextRound,
+                              icon: const Icon(Icons.play_arrow),
+                              label: const Text('准备好了，摇骰开下一局！', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0D9488),
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size.fromHeight(48),
+                                elevation: 1,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                    ),
+            ),
           ],
         ),
       ),
@@ -1157,9 +1288,9 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
           ),
           const SizedBox(height: 3),
           Text(
-            '【${res.challengerName}】抓【${res.challengedBid.bidderName}】叫的 ${res.challengedBid.count} 个：'
-            '${isSuccess ? "抓吹牛成功！" : "抓错了！"} '
-            '【${res.loserName}】受罚！',
+            res.isSpotOn
+                ? '🎯 【${res.challengerName}】高喊“劈准”校验 ${res.challengedBid.count} 个（2倍筹码）：${isSuccess ? "精准命中！" : "差之毫厘！"} 【${res.loserName}】双倍受罚！'
+                : '【${res.challengerName}】抓【${res.challengedBid.bidderName}】叫的 ${res.challengedBid.count} 个：${isSuccess ? "抓吹牛成功！" : "抓错了！"} 【${res.loserName}】受罚！',
             style: TextStyle(
               color: isSuccess ? const Color(0xFF6EE7B7) : const Color(0xFFFCA5A5),
               fontSize: 12,
@@ -1201,10 +1332,10 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.adaptiveCard(ctx),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('🎲 大话骰 / 骰子街 规则', style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16)),
-        content: const SingleChildScrollView(
+        title: Text('🎲 大话骰 / 骰子街 规则', style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 16)),
+        content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1215,8 +1346,8 @@ class _LiarsDiceGameScreenState extends State<LiarsDiceGameScreen> {
                 '4. 【开/劈】：如果你认为上一家在吹牛，实际没有那么多颗骰子，直接按“开/劈”！全场亮盅核对：\n'
                 '   - 实际数量 >= 叫点数：叫点者赢，开盅者受罚输 10 筹码。\n'
                 '   - 实际数量 < 叫点数：开盅者赢，叫点者吹牛被抓输 10 筹码。\n'
-                '5. 【智能托管】：点击顶部机器人按钮可随时交由 AI 帮您代打出牌与开盅。',
-                style: TextStyle(color: Color(0xFF475569), height: 1.5, fontSize: 13),
+                '5. 【智能托管】：点击顶部更多菜单中的机器人可随时交由 AI 帮您代打出牌与开盅。',
+                style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), height: 1.5, fontSize: 13),
               ),
             ],
           ),

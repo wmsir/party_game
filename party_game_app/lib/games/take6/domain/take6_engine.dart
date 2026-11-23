@@ -5,6 +5,24 @@ import 'take6_card.dart';
 import 'take6_row.dart';
 import 'take6_state.dart';
 
+class Take6PlacementPreview {
+  final int targetRowIndex; // -1 表示比 4 行末尾牌都小
+  final bool willOverflow;
+  final bool mustChooseRow;
+  final int diff;
+  final int bullheadsAtRisk;
+  final int recommendedTakeRowIndex;
+
+  const Take6PlacementPreview({
+    required this.targetRowIndex,
+    required this.willOverflow,
+    required this.mustChooseRow,
+    required this.diff,
+    required this.bullheadsAtRisk,
+    required this.recommendedTakeRowIndex,
+  });
+}
+
 /// 谁是牛头王 - 纯领域内核引擎 (Pure Dart Domain Engine)
 /// 零 Flutter UI / 零外部信道依赖，负责桌游全部运转规则状态机
 class Take6Engine {
@@ -16,6 +34,48 @@ class Take6Engine {
   Take6Engine({
     this.isHost = true,
   });
+
+  static Take6PlacementPreview previewCardPlacement(Take6Card card, List<Take6Row> rows) {
+    int bestRowIdx = -1;
+    int minDiff = 9999;
+    int minBulls = 999999;
+    int minBullsIdx = 0;
+
+    for (int i = 0; i < rows.length; i++) {
+      final row = rows[i];
+      if (row.totalBullheads < minBulls) {
+        minBulls = row.totalBullheads;
+        minBullsIdx = i;
+      }
+      final diff = card.number - row.lastCard.number;
+      if (diff > 0 && diff < minDiff) {
+        minDiff = diff;
+        bestRowIdx = i;
+      }
+    }
+
+    if (bestRowIdx == -1) {
+      return Take6PlacementPreview(
+        targetRowIndex: -1,
+        willOverflow: false,
+        mustChooseRow: true,
+        diff: 0,
+        bullheadsAtRisk: minBulls == 999999 ? 0 : minBulls,
+        recommendedTakeRowIndex: minBullsIdx,
+      );
+    }
+
+    final targetRow = rows[bestRowIdx];
+    final overflow = targetRow.willOverflowWith(card);
+    return Take6PlacementPreview(
+      targetRowIndex: bestRowIdx,
+      willOverflow: overflow,
+      mustChooseRow: false,
+      diff: minDiff,
+      bullheadsAtRisk: overflow ? targetRow.totalBullheads : 0,
+      recommendedTakeRowIndex: minBullsIdx,
+    );
+  }
 
   Take6State get state => _state;
   Stream<Take6State> get stateStream => _stateController.stream;
@@ -188,10 +248,11 @@ class Take6Engine {
     if (phase == Take6Phase.revealing ||
         phase == Take6Phase.resolving ||
         phase == Take6Phase.awaitingRowChoice ||
-        (revealedCards != null && revealedCards.values.any((v) => v > 1))) {
+        (revealedCards != null && revealedCards.values.any((v) => v >= 1))) {
+      _state.remoteReadyPlayerIds.clear();
       if (revealedCards != null && revealedCards.isNotEmpty) {
         revealedCards.forEach((pid, numVal) {
-          if (numVal > 1) {
+          if (numVal >= 1) {
             if (_state.selectedCards[pid]?.number != numVal) {
               _state.selectedCards[pid] = Take6Card.fromNumber(numVal);
               hasAnyChange = true;
@@ -209,25 +270,29 @@ class Take6Engine {
       _stepTimer = null;
       _state.currentResolvingEntry = null;
       // 进入新一轮选牌，清空上一轮已亮牌
-      if (_state.selectedCards.values.any((c) => c != null && c.number > 1)) {
+      if (_state.selectedCards.values.any((c) => c != null)) {
         _state.selectedCards.updateAll((key, value) => null);
         hasAnyChange = true;
       }
       if (readyPlayerIds != null) {
-        for (final p in _state.players) {
-          final shouldBeReady = readyPlayerIds.contains(p.id);
-          final isCurrentlyReady = _state.selectedCards[p.id] != null;
-          if (shouldBeReady != isCurrentlyReady) {
-            _state.selectedCards[p.id] = shouldBeReady ? Take6Card.fromNumber(1) : null;
-            hasAnyChange = true;
-          }
+        final nextReady = readyPlayerIds.toSet();
+        if (_state.remoteReadyPlayerIds.length != nextReady.length ||
+            !_state.remoteReadyPlayerIds.containsAll(nextReady)) {
+          _state.remoteReadyPlayerIds
+            ..clear()
+            ..addAll(nextReady);
+          hasAnyChange = true;
         }
+      } else if (_state.remoteReadyPlayerIds.isNotEmpty) {
+        _state.remoteReadyPlayerIds.clear();
+        hasAnyChange = true;
       }
     } else if (phase == Take6Phase.gameOver) {
       _stepTimer?.cancel();
       _stepTimer = null;
       _state.currentResolvingEntry = null;
       _state.selectedCards.updateAll((key, value) => null);
+      _state.remoteReadyPlayerIds.clear();
       hasAnyChange = true;
     }
 
@@ -442,6 +507,7 @@ class Take6Engine {
   void _finishTurn() {
     _state.currentResolvingEntry = null;
     _state.selectedCards.updateAll((key, value) => null);
+    _state.remoteReadyPlayerIds.clear();
 
     final isHandEmpty = _state.playerHands.values.every((h) => h.isEmpty);
 

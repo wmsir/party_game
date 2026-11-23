@@ -20,10 +20,14 @@ class DiceLocalAuditor implements IGameAuditor<DiceState> {
       final face = action.payload['face'] as int?;
       if (count == null || face == null || face < 1 || face > 6) return false;
       return true;
-    } else if (action.actionType == 'CHALLENGE') {
+    } else if (action.actionType == 'CHALLENGE' || action.actionType == 'SPOT_ON') {
       if (currentState.phase != DicePhase.bidding) return false;
       if (currentState.currentPlayer.id != action.playerId) return false;
       if (currentState.currentBid == null) return false;
+      return true;
+    } else if (action.actionType == 'DICE_REROLL_STRAIGHT') {
+      if (currentState.phase != DicePhase.bidding) return false;
+      if (currentState.currentBid != null) return false;
       return true;
     }
     return false;
@@ -69,6 +73,12 @@ class DiceLocalAuditor implements IGameAuditor<DiceState> {
       } else {
         return GameActionResult.fail('开盅失败');
       }
+    } else if (action.actionType == 'SPOT_ON') {
+      final success = engine.playerSpotOn(action.playerId);
+      return success ? GameActionResult.success : GameActionResult.fail('当前无法发起劈准');
+    } else if (action.actionType == 'DICE_REROLL_STRAIGHT') {
+      final success = engine.playerRerollStraight(action.playerId);
+      return success ? GameActionResult.success : GameActionResult.fail('仅顺子手牌且未叫点前可重摇');
     }
 
     return GameActionResult.fail('不支持的操作类型');

@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/app_colors.dart';
 import '../../core/sound/game_sound_service.dart';
 import '../../core/storage/local_storage.dart';
 import '../../providers/auth_provider.dart';
@@ -418,7 +417,7 @@ class _LuckyGachaWheelDialogState extends State<LuckyGachaWheelDialog>
             const SizedBox(height: 6),
             Text(
               '当前夺宝幸运值：$_luckyPityValue/60 (满60必出史诗以上)',
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
             ),
           ],
         ),
@@ -499,7 +498,7 @@ class _LuckyGachaWheelDialogState extends State<LuckyGachaWheelDialog>
               ),
               const SizedBox(height: 8),
               const Text('夺宝未中大奖将积累碎片，保底兑换绝版道具与豪华钻石！',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
               const Divider(color: Colors.white12, height: 24),
               _buildExchangeItem(
                 title: '500 钻石礼盒',
@@ -567,14 +566,17 @@ class _LuckyGachaWheelDialogState extends State<LuckyGachaWheelDialog>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-              const SizedBox(height: 2),
-              Text(desc, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(desc, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+              ],
+            ),
           ),
+          const SizedBox(width: 10),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: canBuy ? const Color(0xFFF59E0B) : Colors.white12,
@@ -605,7 +607,7 @@ class _LuckyGachaWheelDialogState extends State<LuckyGachaWheelDialog>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('为保障公平合规与良好游戏生态，夺宝算法严格公示如下：', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              const Text('为保障公平合规与良好游戏生态，夺宝算法严格公示如下：', style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 12)),
               const SizedBox(height: 12),
               _buildProbRow('👑 18,888大奖 (神话)', '0.30%', const Color(0xFFF59E0B)),
               _buildProbRow('💎 200钻石礼包 (传奇)', '1.20%', const Color(0xFFA855F7)),
@@ -616,7 +618,7 @@ class _LuckyGachaWheelDialogState extends State<LuckyGachaWheelDialog>
               const Text('🛡️ 双重防非酋保底机制：', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 4),
               const Text('1. 幸运值达到 60 次必出史诗或传奇大奖。\n2. 未中大奖将百分百回赠夺宝碎片，集齐碎片可直接在兑换所兑换心仪大礼！',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 11, height: 1.4)),
+                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11, height: 1.4)),
             ],
           ),
         ),
@@ -648,26 +650,29 @@ class _LuckyGachaWheelDialogState extends State<LuckyGachaWheelDialog>
     final user = context.watch<AuthProvider>().user;
     final adRemaining = max(0, 5 - _adSpinsToday);
 
+    final maxDialogHeight = (MediaQuery.sizeOf(context).height * 0.88).clamp(400.0, 720.0);
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 440),
+        constraints: BoxConstraints(maxWidth: 440, maxHeight: maxDialogHeight),
         decoration: BoxDecoration(
           color: const Color(0xFF0F0A1E),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: const Color(0xFFF59E0B), width: 1.8),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFF59E0B).withOpacity(0.35),
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
               blurRadius: 30,
               spreadRadius: 3,
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // 头部横幅
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -772,7 +777,7 @@ class _LuckyGachaWheelDialogState extends State<LuckyGachaWheelDialog>
                   Row(
                     children: [
                       Text('保底幸运值: $_luckyPityValue/60',
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+                          style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10)),
                       const SizedBox(width: 8),
                       Expanded(
                         child: ClipRRect(
@@ -941,7 +946,8 @@ class _LuckyGachaWheelDialogState extends State<LuckyGachaWheelDialog>
                 ],
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

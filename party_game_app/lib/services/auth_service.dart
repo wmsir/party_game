@@ -500,6 +500,7 @@ class AuthService {
   Future<void> logout() async {
     _currentUser = null;
     await LocalStorage.remove(_userKey);
+    await LocalStorage.clearAuthToken();
     FriendService().clear();
   }
 

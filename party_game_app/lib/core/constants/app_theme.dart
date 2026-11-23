@@ -85,6 +85,67 @@ class AppTheme {
         type: BottomNavigationBarType.fixed,
         elevation: 4,
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.bgCard,
+        indicatorColor: AppColors.primary.withValues(alpha: 0.14),
+        surfaceTintColor: Colors.transparent,
+        elevation: 3,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppColors.primary, size: 24);
+          }
+          return const IconThemeData(color: AppColors.textMuted, size: 22);
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 11);
+          }
+          return const TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w500, fontSize: 11);
+        }),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: const Color(0xFF1E293B),
+        contentTextStyle: const TextStyle(color: Colors.white, fontSize: 13),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: AppColors.border,
+        thickness: 0.8,
+      ),
+      dialogTheme: DialogTheme(
+        backgroundColor: AppColors.bgCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titleTextStyle: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+        contentTextStyle: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 14,
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.bgCard,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+      ),
+      tabBarTheme: const TabBarTheme(
+        dividerColor: AppColors.border,
+        labelColor: AppColors.primary,
+        unselectedLabelColor: AppColors.textSecondary,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+      ),
     );
   }
 
@@ -173,6 +234,24 @@ class AppTheme {
         type: BottomNavigationBarType.fixed,
         elevation: 4,
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.darkCard,
+        indicatorColor: AppColors.darkPrimary.withValues(alpha: 0.2),
+        surfaceTintColor: Colors.transparent,
+        elevation: 4,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppColors.darkPrimary, size: 24);
+          }
+          return const IconThemeData(color: AppColors.darkTextMuted, size: 22);
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(color: AppColors.darkPrimary, fontWeight: FontWeight.w700, fontSize: 11);
+          }
+          return const TextStyle(color: AppColors.darkTextMuted, fontWeight: FontWeight.w500, fontSize: 11);
+        }),
+      ),
       dialogTheme: const DialogTheme(
         backgroundColor: AppColors.darkCard,
         titleTextStyle: TextStyle(
@@ -185,13 +264,35 @@ class AppTheme {
           fontSize: 14,
         ),
       ),
-      snackBarTheme: const SnackBarThemeData(
-        backgroundColor: AppColors.darkCard,
-        contentTextStyle: TextStyle(color: AppColors.darkTextPrimary),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.darkElevated,
+        contentTextStyle: const TextStyle(color: AppColors.darkTextPrimary, fontSize: 13),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.darkBorder,
         thickness: 0.8,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.darkCard,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+      ),
+      tabBarTheme: const TabBarTheme(
+        dividerColor: AppColors.darkBorder,
+        labelColor: AppColors.darkPrimary,
+        unselectedLabelColor: AppColors.darkTextSecondary,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.darkPrimary,
+          foregroundColor: const Color(0xFF0F172A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
       ),
     );
   }

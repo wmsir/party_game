@@ -45,16 +45,17 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<AuthProvider>(context).user;
+    final maxDialogHeight = (MediaQuery.sizeOf(context).height * 0.84).clamp(360.0, 620.0);
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 600),
+        constraints: BoxConstraints(maxWidth: 480, maxHeight: maxDialogHeight),
         decoration: BoxDecoration(
-          color: AppColors.cardSurface,
+          color: AppColors.adaptiveCard(context),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.primary, width: 1.5),
+          border: Border.all(color: AppColors.adaptivePrimary(context), width: 1.5),
           boxShadow: [
             BoxShadow(
               color: AppColors.primary.withAlpha(50),
@@ -127,17 +128,20 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
             // 我的排名底栏
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: const BoxDecoration(
-                color: AppColors.bgDark,
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
-                border: Border(top: BorderSide(color: AppColors.border)),
+              decoration: BoxDecoration(
+                color: AppColors.adaptiveBg(context),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
+                border: Border(top: BorderSide(color: AppColors.adaptiveBorder(context))),
               ),
               child: Row(
                 children: [
-                  const Text('我的战绩: ', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                  Text(
-                    user?.rankTier ?? '暂无段位',
-                    style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 13),
+                  Text('我的战绩: ', style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 12)),
+                  Flexible(
+                    child: Text(
+                      user?.rankTier ?? '暂无段位',
+                      style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -147,7 +151,7 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
                   const Spacer(),
                   Text(
                     '胜率: ${(user?.winRate ?? 0).toStringAsFixed(1)}%',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 12),
                   ),
                 ],
               ),
@@ -160,15 +164,15 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
 
   Widget _buildRankList(List<LeaderboardItem> list) {
     if (list.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.leaderboard_outlined, size: 48, color: AppColors.textMuted),
-              SizedBox(height: 12),
-              Text('暂无全服排位数据，参与对局即可登上榜单！', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+              Icon(Icons.leaderboard_outlined, size: 48, color: AppColors.adaptiveTextMuted(context)),
+              const SizedBox(height: 12),
+              Text('暂无全服排位数据，参与对局即可登上榜单！', style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 13)),
             ],
           ),
         ),
@@ -185,9 +189,9 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
         return Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: idx < 3 ? AppColors.bgElevated : AppColors.cardSurface,
+            color: idx < 3 ? AppColors.adaptiveElevated(ctx) : AppColors.adaptiveCard(ctx),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: idx < 3 ? Colors.amber.withAlpha(80) : AppColors.border),
+            border: Border.all(color: idx < 3 ? Colors.amber.withAlpha(80) : AppColors.adaptiveBorder(ctx)),
           ),
           child: Row(
             children: [
@@ -198,7 +202,7 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
                   style: TextStyle(
                     fontSize: idx < 3 ? 20 : 14,
                     fontWeight: FontWeight.bold,
-                    color: idx < 3 ? Colors.amber : AppColors.textMuted,
+                    color: idx < 3 ? Colors.amber : AppColors.adaptiveTextMuted(ctx),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -206,7 +210,7 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
               const SizedBox(width: 10),
               CircleAvatar(
                 radius: 20,
-                backgroundColor: AppColors.bgDark,
+                backgroundColor: AppColors.adaptiveBg(ctx),
                 child: Text(item.avatar, style: const TextStyle(fontSize: 20)),
               ),
               const SizedBox(width: 10),
@@ -219,7 +223,7 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
                         Flexible(
                           child: Text(
                             item.nickname,
-                            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
+                            style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 13),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -243,7 +247,7 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
                     const SizedBox(height: 2),
                     Text(
                       '${item.rankTier} · ${item.rankScore}分 · 胜率 ${item.winRate.toStringAsFixed(0)}%',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                      style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 11),
                     ),
                   ],
                 ),
@@ -262,10 +266,10 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.military_tech_outlined, size: 48, color: AppColors.textMuted),
-              SizedBox(height: 12),
-              Text('暂无全服财富榜数据', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            children: [
+              Icon(Icons.military_tech_outlined, size: 48, color: AppColors.adaptiveTextMuted(context)),
+              const SizedBox(height: 12),
+              Text('暂无全服财富榜数据', style: TextStyle(color: AppColors.adaptiveTextSecondary(context), fontSize: 13)),
             ],
           ),
         ),
@@ -282,9 +286,9 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
         return Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: idx < 3 ? AppColors.bgElevated : AppColors.cardSurface,
+            color: idx < 3 ? AppColors.adaptiveElevated(ctx) : AppColors.adaptiveCard(ctx),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: idx < 3 ? const Color(0xFF38BDF8).withAlpha(80) : AppColors.border),
+            border: Border.all(color: idx < 3 ? const Color(0xFF38BDF8).withAlpha(80) : AppColors.adaptiveBorder(ctx)),
           ),
           child: Row(
             children: [
@@ -295,7 +299,7 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
                   style: TextStyle(
                     fontSize: idx < 3 ? 20 : 14,
                     fontWeight: FontWeight.bold,
-                    color: idx < 3 ? const Color(0xFF38BDF8) : AppColors.textMuted,
+                    color: idx < 3 ? const Color(0xFF38BDF8) : AppColors.adaptiveTextMuted(ctx),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -303,7 +307,7 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
               const SizedBox(width: 10),
               CircleAvatar(
                 radius: 20,
-                backgroundColor: AppColors.bgDark,
+                backgroundColor: AppColors.adaptiveBg(ctx),
                 child: Text(item.avatar, style: const TextStyle(fontSize: 20)),
               ),
               const SizedBox(width: 10),
@@ -316,7 +320,7 @@ class _RankLeaderboardDialogState extends State<RankLeaderboardDialog> with Sing
                         Flexible(
                           child: Text(
                             item.nickname,
-                            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
+                            style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold, fontSize: 13),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),

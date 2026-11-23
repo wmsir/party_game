@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/commercial_ui_kit.dart';
 import '../../models/friend_model.dart';
 import '../../models/game_player.dart';
 import '../../providers/auth_provider.dart';
@@ -108,35 +109,36 @@ class _DirectChatViewState extends State<DirectChatView> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: AppColors.adaptiveCard(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
         final games = [
-          {'type': 'LIARS_DICE', 'name': '大话骰', 'icon': '🎲'},
-          {'type': 'TAKE6', 'name': '谁是牛头王', 'icon': '🐂'},
-          {'type': 'PARTY_WHEEL', 'name': '聚会大冒险转盘', 'icon': '🎡'},
-          {'type': 'UNDERCOVER', 'name': '谁是卧底', 'icon': '🕵️'},
+          {'type': 'liars_dice', 'name': '大话骰', 'icon': '🎲'},
+          {'type': 'take6', 'name': '谁是牛头王', 'icon': '🐂'},
+          {'type': 'party_wheel', 'name': '聚会大冒险转盘', 'icon': '🎡'},
+          {'type': 'undercover', 'name': '谁是卧底', 'icon': '🕵️'},
         ];
 
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                const CommercialSheetHandle(),
+                Text(
                   '选择游戏发起对决邀请：',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.adaptiveTextPrimary(ctx)),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 ...games.map((g) {
                   return ListTile(
                     leading: Text(g['icon']!, style: const TextStyle(fontSize: 24)),
-                    title: Text(g['name']!, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.primary),
+                    title: Text(g['name']!, style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontWeight: FontWeight.bold)),
+                    trailing: Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.adaptivePrimary(ctx)),
                     onTap: () {
                       Navigator.pop(ctx);
                       final mePlayer = GamePlayer(
@@ -222,65 +224,93 @@ class _DirectChatViewState extends State<DirectChatView> {
   @override
   Widget build(BuildContext context) {
     final friendProv = Provider.of<FriendProvider>(context);
+    final auth = Provider.of<AuthProvider>(context);
+    final myAvatar = auth.user?.avatar ?? '🦊';
     final messages = friendProv.getMessages(widget.friend.id);
+    final primaryColor = AppColors.adaptivePrimary(context);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: AppColors.adaptiveBg(context),
       appBar: AppBar(
-        backgroundColor: AppColors.cardSurface,
+        backgroundColor: AppColors.adaptiveCard(context),
         elevation: 0,
         title: Row(
           children: [
             CircleAvatar(
               radius: 16,
-              backgroundColor: AppColors.primary.withAlpha(25),
+              backgroundColor: primaryColor.withAlpha(25),
               child: Text(widget.friend.avatar, style: const TextStyle(fontSize: 18)),
             ),
             const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.friend.nickname, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                Text(
-                  widget.friend.isOnline ? '🟢 在线 | ${widget.friend.levelTitle}' : '⚪ 离线 | ${widget.friend.levelTitle}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: widget.friend.isOnline ? AppColors.cyan : AppColors.textSecondary,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.friend.displayNickname,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.adaptiveTextPrimary(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                  Text(
+                    widget.friend.isOnline ? '🟢 在线 | ${widget.friend.levelTitle}' : '⚪ 离线 | ${widget.friend.levelTitle}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: widget.friend.isOnline ? AppColors.cyan : AppColors.adaptiveTextSecondary(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
           IconButton(
             tooltip: '邀TA对战',
-            icon: const Icon(Icons.sports_esports, color: AppColors.primary),
+            icon: Icon(Icons.sports_esports, color: primaryColor),
             onPressed: _inviteToGameDialog,
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollCtrl,
-              padding: const EdgeInsets.all(12),
-              itemCount: messages.length,
-              itemBuilder: (context, idx) {
-                final msg = messages[idx];
-                return _buildMessageItem(msg);
-              },
+      body: ResponsiveContentFrame(
+        maxWidth: 920,
+        child: Column(
+          children: [
+            Expanded(
+              child: messages.isEmpty
+                  ? CommercialEmptyState(
+                      icon: Icons.mark_chat_unread_outlined,
+                      title: '和 ${widget.friend.displayNickname} 打个招呼吧',
+                      subtitle: '发送文字开聊，或点击右上角游戏手柄一键发起房间对决邀请！',
+                      quickChips: const ['在吗？来开一局！🎲', '牛头王走起？🐂', '拉你进房开黑！'],
+                      onChipTap: _sendDirectText,
+                    )
+                  : ListView.builder(
+                      controller: _scrollCtrl,
+                      padding: const EdgeInsets.all(12),
+                      itemCount: messages.length,
+                      itemBuilder: (context, idx) {
+                        final msg = messages[idx];
+                        return _buildMessageItem(msg, myAvatar);
+                      },
+                    ),
             ),
-          ),
-          _buildBottomInput(),
-        ],
+            _buildBottomInput(),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildMessageItem(DirectMessage msg) {
+  Widget _buildMessageItem(DirectMessage msg, String myAvatar) {
     final isMe = msg.isFromMe;
+    final isDark = AppColors.isDarkMode(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -290,7 +320,7 @@ class _DirectChatViewState extends State<DirectChatView> {
           if (!isMe) ...[
             CircleAvatar(
               radius: 16,
-              backgroundColor: AppColors.cardSurface,
+              backgroundColor: AppColors.adaptiveCard(context),
               child: Text(widget.friend.avatar, style: const TextStyle(fontSize: 16)),
             ),
             const SizedBox(width: 8),
@@ -302,14 +332,18 @@ class _DirectChatViewState extends State<DirectChatView> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isMe ? AppColors.primary : AppColors.cardSurface,
+                    color: isMe ? AppColors.primary : AppColors.adaptiveCard(context),
                     borderRadius: BorderRadius.circular(14).copyWith(
                       bottomRight: isMe ? Radius.zero : const Radius.circular(14),
                       bottomLeft: !isMe ? Radius.zero : const Radius.circular(14),
                     ),
-                    border: isMe ? null : Border.all(color: AppColors.border),
-                    boxShadow: const [
-                      BoxShadow(color: AppColors.shadow, blurRadius: 4, offset: Offset(0, 2)),
+                    border: isMe ? null : Border.all(color: AppColors.adaptiveBorder(context)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDark ? AppColors.darkShadow : AppColors.shadow,
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
                     ],
                   ),
                   child: Column(
@@ -318,7 +352,7 @@ class _DirectChatViewState extends State<DirectChatView> {
                       Text(
                         msg.text,
                         style: TextStyle(
-                          color: isMe ? Colors.white : AppColors.textPrimary,
+                          color: isMe ? Colors.white : AppColors.adaptiveTextPrimary(context),
                           fontSize: 14,
                         ),
                       ),
@@ -328,21 +362,24 @@ class _DirectChatViewState extends State<DirectChatView> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.bgElevated,
+                            color: AppColors.adaptiveElevated(context),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.border),
+                            border: Border.all(color: AppColors.adaptiveBorder(context)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.vpn_key, color: AppColors.accent, size: 16),
                               const SizedBox(width: 6),
-                              Text(
-                                '房间号: ${msg.inviteRoomCode}',
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                              Flexible(
+                                child: Text(
+                                  '房间号: ${msg.inviteRoomCode}',
+                                  style: TextStyle(
+                                    color: AppColors.adaptiveTextPrimary(context),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               const SizedBox(width: 10),
@@ -379,7 +416,7 @@ class _DirectChatViewState extends State<DirectChatView> {
             CircleAvatar(
               radius: 16,
               backgroundColor: AppColors.primary.withAlpha(30),
-              child: const Text('我', style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold)),
+              child: Text(myAvatar, style: const TextStyle(fontSize: 16)),
             ),
           ],
         ],
@@ -388,11 +425,13 @@ class _DirectChatViewState extends State<DirectChatView> {
   }
 
   Widget _buildBottomInput() {
+    final borderColor = AppColors.adaptiveBorder(context);
+    final primaryColor = AppColors.adaptivePrimary(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: const BoxDecoration(
-        color: AppColors.cardSurface,
-        border: Border(top: BorderSide(color: AppColors.border, width: 0.8)),
+      decoration: BoxDecoration(
+        color: AppColors.adaptiveCard(context),
+        border: Border(top: BorderSide(color: borderColor, width: 0.8)),
       ),
       child: SafeArea(
         top: false,
@@ -401,24 +440,24 @@ class _DirectChatViewState extends State<DirectChatView> {
             Expanded(
               child: TextField(
                 controller: _msgCtrl,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                style: TextStyle(color: AppColors.adaptiveTextPrimary(context), fontSize: 14),
                 decoration: InputDecoration(
                   hintText: '发送好友私信...',
-                  hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                  hintStyle: TextStyle(color: AppColors.adaptiveTextMuted(context), fontSize: 13),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   filled: true,
-                  fillColor: AppColors.bgDark,
+                  fillColor: AppColors.adaptiveBg(context),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
-                    borderSide: const BorderSide(color: AppColors.border),
+                    borderSide: BorderSide(color: borderColor),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
-                    borderSide: const BorderSide(color: AppColors.border),
+                    borderSide: BorderSide(color: borderColor),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
-                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    borderSide: BorderSide(color: primaryColor, width: 1.5),
                   ),
                 ),
                 onSubmitted: _sendDirectText,

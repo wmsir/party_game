@@ -27,6 +27,7 @@ class MainFrameView extends StatefulWidget {
 class _MainFrameViewState extends State<MainFrameView> with WidgetsBindingObserver {
   String _lastCheckedClipboard = '';
   int _currentIndex = 0;
+  DateTime? _lastBackPressedAt;
 
   @override
   void initState() {
@@ -215,6 +216,7 @@ class _MainFrameViewState extends State<MainFrameView> with WidgetsBindingObserv
   ];
 
   void _onNavSelected(int idx) {
+    HapticFeedback.selectionClick();
     setState(() => _currentIndex = idx);
     if (idx == 3) {
       final myUser = Provider.of<AuthProvider>(context, listen: false).user;
@@ -240,18 +242,77 @@ class _MainFrameViewState extends State<MainFrameView> with WidgetsBindingObserv
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 720;
 
-        return Stack(
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            if (_currentIndex != 0) {
+              _onNavSelected(0);
+              return;
+            }
+            final now = DateTime.now();
+            if (_lastBackPressedAt == null ||
+                now.difference(_lastBackPressedAt!) > const Duration(seconds: 2)) {
+              _lastBackPressedAt = now;
+              ScaffoldMessenger.of(context)
+                ..hideCurrentSnackBar()
+                ..showSnackBar(
+                  const SnackBar(
+                    content: Text('再按一次返回键退出聚会桌游吧'),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              return;
+            }
+            SystemNavigator.pop();
+          },
+          child: Stack(
           children: [
             Scaffold(
               backgroundColor: AppColors.adaptiveBg(context),
               body: isWide
                   ? Row(
                       children: [
-                        NavigationRail(
+                        SafeArea(
+                          right: false,
+                          child: NavigationRail(
                           selectedIndex: _currentIndex,
                           onDestinationSelected: _onNavSelected,
                           backgroundColor: cardBg,
+                          useIndicator: true,
+                          indicatorColor: primaryColor.withValues(alpha: 0.14),
                           labelType: NavigationRailLabelType.all,
+                          leading: Padding(
+                            padding: const EdgeInsets.only(top: 12, bottom: 10),
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [AppColors.primary, AppColors.accent],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: const Text('🎲', style: TextStyle(fontSize: 20)),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '聚会吧',
+                                  style: TextStyle(
+                                    color: primaryColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                           selectedIconTheme: IconThemeData(color: primaryColor),
                           unselectedIconTheme: IconThemeData(color: mutedColor),
                           selectedLabelTextStyle: TextStyle(
@@ -301,6 +362,7 @@ class _MainFrameViewState extends State<MainFrameView> with WidgetsBindingObserv
                             ),
                           ],
                         ),
+                        ),
                         VerticalDivider(thickness: 1, width: 1, color: borderColor),
                         Expanded(
                           child: IndexedStack(
@@ -328,49 +390,47 @@ class _MainFrameViewState extends State<MainFrameView> with WidgetsBindingObserv
                           ),
                         ],
                       ),
-                      child: BottomNavigationBar(
-                        currentIndex: _currentIndex,
+                      child: NavigationBar(
+                        height: 66,
+                        selectedIndex: _currentIndex,
+                        onDestinationSelected: _onNavSelected,
                         backgroundColor: cardBg,
-                        selectedItemColor: primaryColor,
-                        unselectedItemColor: mutedColor,
-                        type: BottomNavigationBarType.fixed,
-                        selectedFontSize: 12,
-                        unselectedFontSize: 12,
-                        onTap: _onNavSelected,
-                        items: [
-                          BottomNavigationBarItem(
-                            icon: const Icon(Icons.casino_outlined),
-                            activeIcon: Icon(Icons.casino, color: primaryColor),
+                        indicatorColor: primaryColor.withValues(alpha: 0.14),
+                        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                        destinations: [
+                          const NavigationDestination(
+                            icon: Icon(Icons.casino_outlined),
+                            selectedIcon: Icon(Icons.casino),
                             label: '大厅',
                           ),
-                          BottomNavigationBarItem(
-                            icon: const Icon(Icons.chat_bubble_outline),
-                            activeIcon: Icon(Icons.chat_bubble, color: primaryColor),
+                          const NavigationDestination(
+                            icon: Icon(Icons.chat_bubble_outline),
+                            selectedIcon: Icon(Icons.chat_bubble),
                             label: '广场',
                           ),
-                          BottomNavigationBarItem(
-                            icon: const Icon(Icons.storefront_outlined),
-                            activeIcon: Icon(Icons.storefront, color: primaryColor),
+                          const NavigationDestination(
+                            icon: Icon(Icons.storefront_outlined),
+                            selectedIcon: Icon(Icons.storefront),
                             label: '商城',
                           ),
-                          BottomNavigationBarItem(
+                          NavigationDestination(
                             icon: Badge(
                               isLabelVisible: unreadFriends > 0,
                               label: Text('$unreadFriends'),
                               backgroundColor: AppColors.secondary,
                               child: const Icon(Icons.people_alt_outlined),
                             ),
-                            activeIcon: Badge(
+                            selectedIcon: Badge(
                               isLabelVisible: unreadFriends > 0,
                               label: Text('$unreadFriends'),
                               backgroundColor: AppColors.secondary,
-                              child: Icon(Icons.people_alt, color: primaryColor),
+                              child: const Icon(Icons.people_alt),
                             ),
                             label: '好友',
                           ),
-                          BottomNavigationBarItem(
-                            icon: const Icon(Icons.person_outline),
-                            activeIcon: Icon(Icons.person, color: primaryColor),
+                          const NavigationDestination(
+                            icon: Icon(Icons.person_outline),
+                            selectedIcon: Icon(Icons.person),
                             label: '我的',
                           ),
                         ],
@@ -392,6 +452,7 @@ class _MainFrameViewState extends State<MainFrameView> with WidgetsBindingObserv
             // 全局常驻最小化房间悬浮挂件 (点击可随时重返正在进行的对决)
             const MiniRoomFloatingWidget(),
           ],
+        ),
         );
       },
     );

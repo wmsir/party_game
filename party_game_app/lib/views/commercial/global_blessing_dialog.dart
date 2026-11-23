@@ -159,20 +159,23 @@ class _GlobalBlessingDialogState extends State<GlobalBlessingDialog> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardSurface,
+        backgroundColor: AppColors.adaptiveCard(ctx),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.monetization_on, color: Colors.amber),
-            SizedBox(width: 8),
-            Text('资产余额不足', style: TextStyle(color: Colors.white, fontSize: 16)),
+            const Icon(Icons.monetization_on, color: Colors.amber),
+            const SizedBox(width: 8),
+            Text('资产余额不足', style: TextStyle(color: AppColors.adaptiveTextPrimary(ctx), fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
-        content: Text('发送该全服特效需要 $coins 金币 或 $diamonds 钻石，您的账户余额不足，请先前往充值！'),
+        content: Text(
+          '发送该全服特效需要 $coins 金币 或 $diamonds 钻石，您的账户余额不足，请先前往充值！',
+          style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 13),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消', style: TextStyle(color: Colors.white70)),
+            child: Text('取消', style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -250,11 +253,13 @@ class _GlobalBlessingDialogState extends State<GlobalBlessingDialog> {
     final diamonds = user?.diamonds ?? 0;
     final tier = _tiers[_selectedTierIndex];
 
+    final maxDialogHeight = (MediaQuery.sizeOf(context).height * 0.88).clamp(380.0, 700.0);
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 480),
+        constraints: BoxConstraints(maxWidth: 480, maxHeight: maxDialogHeight),
         decoration: BoxDecoration(
           color: const Color(0xFF1E1428),
           borderRadius: BorderRadius.circular(24),
@@ -341,7 +346,7 @@ class _GlobalBlessingDialogState extends State<GlobalBlessingDialog> {
                         crossAxisCount: 2,
                         mainAxisSpacing: 8,
                         crossAxisSpacing: 8,
-                        childAspectRatio: 1.6,
+                        childAspectRatio: 1.48,
                       ),
                       itemBuilder: (ctx, idx) {
                         final item = _tiers[idx];

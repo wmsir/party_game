@@ -19,6 +19,7 @@ import '../../../views/widgets/in_game_chat_overlay.dart';
 import '../../../views/room/game_room_lobby_view.dart';
 import '../../../models/game_room_model.dart';
 import '../../../providers/chat_provider.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../main.dart';
 import '../../../views/main_frame_view.dart';
 import '../domain/take6_ai.dart';
@@ -1063,224 +1064,304 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
         _showExitDialog();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC), // 护眼柔和浅米灰
+        backgroundColor: AppColors.adaptiveBg(context),
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E293B), size: 18),
+            icon: Icon(Icons.arrow_back_ios_new, color: AppColors.adaptiveTextPrimary(context), size: 18),
             tooltip: '返回或最小化',
             onPressed: _showExitDialog,
           ),
-        title: Column(
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  '🐮 谁是牛头王 (Take 6!)',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B)),
-                ),
-                if (widget.isSpectator) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEEF2FF),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: const Color(0xFF6366F1)),
-                    ),
-                    child: const Text(
-                      '👀 旁观中',
-                      style: TextStyle(color: Color(0xFF4F46E5), fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ] else if (_isAutoPlay) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: const Color(0xFFD97706)),
-                    ),
-                    child: const Text(
-                      '托管中',
-                      style: TextStyle(color: Color(0xFFD97706), fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            if (widget.roomCode != null)
-              GestureDetector(
-                onTap: _copyRoomCode,
-                child: Container(
-                  margin: const EdgeInsets.only(top: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFFFCD34D), width: 1.0),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.meeting_room, color: Color(0xFFD97706), size: 12),
-                      const SizedBox(width: 4),
-                      Text(
-                        '房间号: ${widget.roomCode} (点击复制)',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF92400E), fontWeight: FontWeight.bold),
+          title: Column(
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      '🐮 谁是牛头王 (Take 6!)',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: AppColors.adaptiveTextPrimary(context),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              )
-            else if (widget.hostContext.roomOrTableName != null)
-              Text(
-                widget.hostContext.roomOrTableName!,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-              ),
-          ],
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        actions: [
-          // 智能托管按钮 (旁观者视角隐藏)
-          if (!widget.isSpectator)
-            IconButton(
-              icon: Icon(
-                _isAutoPlay ? Icons.smart_toy : Icons.smart_toy_outlined,
-                color: _isAutoPlay ? const Color(0xFFD97706) : const Color(0xFF64748B),
-              ),
-              tooltip: _isAutoPlay ? '取消AI托管' : '开启AI智能托管',
-              onPressed: _toggleAutoPlay,
-            ),
-          // 房间最小化按钮
-          IconButton(
-            icon: const Icon(Icons.picture_in_picture_alt_outlined, color: Color(0xFF475569)),
-            tooltip: '最小化房间',
-            onPressed: _minimizeRoom,
-          ),
-          IconButton(
-            icon: Icon(
-              GameAudioService().isBgmEnabled ? Icons.music_note : Icons.music_off,
-              color: GameAudioService().isBgmEnabled ? const Color(0xFFD97706) : const Color(0xFF94A3B8),
-            ),
-            tooltip: '背景音乐开关',
-            onPressed: () {
-              setState(() {
-                GameAudioService().toggleBgm();
-              });
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.help_outline, color: Color(0xFF475569)),
-            tooltip: '牛头王规则',
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  title: const Text('🐮 谁是牛头王 · 规则速览', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                  content: const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('1️⃣ 【同时盲选】每回合全员暗选 1 张手牌同时亮出，按数字【从小到大】依次接龙入行。', style: TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF334155))),
-                      SizedBox(height: 8),
-                      Text('2️⃣ 【差值最小原则】牌必须接在【末尾数字比它小、且差值最小】的那一行后面。', style: TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF334155))),
-                      SizedBox(height: 8),
-                      Text('3️⃣ 【第6张爆行】每行最多放 5 张牌！放入第 6 张牌的玩家必须收走该行前 5 张牌作为牛头惩罚。', style: TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF334155))),
-                      SizedBox(height: 8),
-                      Text('4️⃣ 【过小选行】若出的牌比 4 行末尾数字都小，需任选一行收走全部牌。10 回合后牛头最少者获胜！', style: TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF334155))),
-                    ],
-                  ),
-                  actions: [
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD97706), foregroundColor: Colors.white),
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('我知道了'),
+                  if (widget.isSpectator) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.isDarkMode(context) ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFF6366F1)),
+                      ),
+                      child: Text(
+                        '👀 旁观中',
+                        style: TextStyle(
+                          color: AppColors.isDarkMode(context) ? const Color(0xFFC7D2FE) : const Color(0xFF4F46E5),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ] else if (_isAutoPlay) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.isDarkMode(context) ? const Color(0xFF451A03) : const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFFD97706)),
+                      ),
+                      child: const Text(
+                        '托管中',
+                        style: TextStyle(color: Color(0xFFD97706), fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ],
+                ],
+              ),
+              if (widget.roomCode != null)
+                GestureDetector(
+                  onTap: _copyRoomCode,
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.isDarkMode(context) ? const Color(0xFF451A03) : const Color(0xFFFFFBEB),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: AppColors.isDarkMode(context) ? const Color(0xFFD97706) : const Color(0xFFFCD34D),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.meeting_room, color: Color(0xFFD97706), size: 12),
+                        const SizedBox(width: 4),
+                        Text(
+                          '房间号: ${widget.roomCode} (点击复制)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.isDarkMode(context) ? const Color(0xFFFCD34D) : const Color(0xFF92400E),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (widget.hostContext.roomOrTableName != null)
+                Text(
+                  widget.hostContext.roomOrTableName!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: AppColors.adaptiveTextSecondary(context)),
                 ),
-              );
-            },
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF475569)),
-            tooltip: '重新开局',
-            onPressed: () {
-              if (widget.roomCode != null && widget.roomCode!.isNotEmpty) {
-                final room = context.read<RoomProvider>().currentRoom;
-                final nonHosts = room?.players.where((p) => p.id != widget.localPlayerId && !p.isAi).toList() ?? [];
-                final allReady = nonHosts.isEmpty || nonHosts.every((p) => p.isReady);
-                if (!allReady) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('尚有玩家未准备就绪，无法直接开局！请在房间大厅等待全员就绪。'),
-                      backgroundColor: Color(0xFFF59E0B),
+          centerTitle: true,
+          backgroundColor: AppColors.adaptiveCard(context),
+          elevation: 0.5,
+          actions: [
+            // 智能托管按钮 (旁观者视角隐藏)
+            if (!widget.isSpectator)
+              IconButton(
+                icon: Icon(
+                  _isAutoPlay ? Icons.smart_toy : Icons.smart_toy_outlined,
+                  color: _isAutoPlay ? const Color(0xFFD97706) : AppColors.adaptiveTextSecondary(context),
+                ),
+                tooltip: _isAutoPlay ? '取消AI托管' : '开启AI智能托管',
+                onPressed: _toggleAutoPlay,
+              ),
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_horiz_rounded, color: AppColors.adaptiveTextPrimary(context)),
+              tooltip: '更多房间操作',
+              onSelected: (value) {
+                if (value == 'minimize') {
+                  _minimizeRoom();
+                } else if (value == 'bgm') {
+                  setState(() {
+                    GameAudioService().toggleBgm();
+                  });
+                } else if (value == 'rules') {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: AppColors.adaptiveCard(ctx),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      title: Text(
+                        '🐮 谁是牛头王 · 规则速览',
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.adaptiveTextPrimary(ctx)),
+                      ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('1️⃣ 【同时盲选】每回合全员暗选 1 张手牌同时亮出，按数字【从小到大】依次接龙入行。', style: TextStyle(fontSize: 13, height: 1.5, color: AppColors.adaptiveTextSecondary(ctx))),
+                          const SizedBox(height: 8),
+                          Text('2️⃣ 【差值最小原则】牌必须接在【末尾数字比它小、且差值最小】的那一行后面。', style: TextStyle(fontSize: 13, height: 1.5, color: AppColors.adaptiveTextSecondary(ctx))),
+                          const SizedBox(height: 8),
+                          Text('3️⃣ 【第6张爆行】每行最多放 5 张牌！放入第 6 张牌的玩家必须收走该行前 5 张牌作为牛头惩罚。', style: TextStyle(fontSize: 13, height: 1.5, color: AppColors.adaptiveTextSecondary(ctx))),
+                          const SizedBox(height: 8),
+                          Text('4️⃣ 【过小选行】若出的牌比 4 行末尾数字都小，需任选一行收走全部牌。10 回合后牛头最少者获胜！', style: TextStyle(fontSize: 13, height: 1.5, color: AppColors.adaptiveTextSecondary(ctx))),
+                        ],
+                      ),
+                      actions: [
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD97706), foregroundColor: Colors.white),
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('我知道了'),
+                        ),
+                      ],
                     ),
                   );
-                  return;
-                }
-              }
-              _lastHandledLogCount = 0;
-              _engine.startNewMatch(players: widget.players);
-            },
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Column(
-          children: [
-            // 托管状态高亮横幅
-            if (_isAutoPlay)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFEF3C7),
-                  border: Border(bottom: BorderSide(color: Color(0xFFFDE68A))),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.smart_toy, color: Color(0xFFD97706), size: 16),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'AI 智能托管代打算牌中：正在帮您分析最佳避坑出牌',
-                      style: TextStyle(color: Color(0xFF92400E), fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: _toggleAutoPlay,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD97706),
-                          borderRadius: BorderRadius.circular(4),
+                } else if (value == 'restart') {
+                  if (widget.roomCode != null && widget.roomCode!.isNotEmpty) {
+                    final room = context.read<RoomProvider>().currentRoom;
+                    final nonHosts = room?.players.where((p) => p.id != widget.localPlayerId && !p.isAi).toList() ?? [];
+                    final allReady = nonHosts.isEmpty || nonHosts.every((p) => p.isReady);
+                    if (!allReady) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('尚有玩家未准备就绪，无法直接开局！请在房间大厅等待全员就绪。'),
+                          backgroundColor: Color(0xFFF59E0B),
                         ),
-                        child: const Text('取消托管', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                      );
+                      return;
+                    }
+                  }
+                  _lastHandledLogCount = 0;
+                  _engine.startNewMatch(players: widget.players);
+                }
+              },
+              itemBuilder: (ctx) => [
+                const PopupMenuItem(value: 'minimize', child: Text('🗗 最小化房间')),
+                PopupMenuItem(
+                  value: 'bgm',
+                  child: Text(GameAudioService().isBgmEnabled ? '🎵 关闭背景音乐' : '🔇 开启背景音乐'),
+                ),
+                const PopupMenuItem(value: 'rules', child: Text('📖 牛头王规则')),
+                const PopupMenuItem(value: 'restart', child: Text('🔄 重新开局')),
+              ],
+            ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            SafeArea(
+              child: Column(
+                children: [
+                  // 托管状态高亮横幅
+                  if (_isAutoPlay)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.isDarkMode(context) ? const Color(0xFF451A03) : const Color(0xFFFEF3C7),
+                        border: Border(
+                          bottom: BorderSide(
+                            color: AppColors.isDarkMode(context) ? const Color(0xFFB45309) : const Color(0xFFFDE68A),
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.smart_toy, color: Color(0xFFD97706), size: 16),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'AI 智能托管代打算牌中：正在帮您分析最佳避坑出牌',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppColors.isDarkMode(context) ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: _toggleAutoPlay,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD97706),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text('取消托管', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-            // 顶部玩家状态与牛头惩罚榜
-            _buildPlayerScoreBar(state),
+                  // 顶部玩家状态与牛头惩罚榜
+                  _buildPlayerScoreBar(state),
 
-            // 中间游戏牌阵对决主桌面
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                child: Column(
-                  children: [
+                  // 中间游戏牌阵对决主桌面
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 760),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          child: Column(
+                            children: [
                     // 回合提示与当前状态指示条
                     _buildRoundStatusBar(state, isMyTurnToChooseRow),
                     const SizedBox(height: 6),
+
+                    // 战术落位实时预判提示条（选中未提交手牌时生效）
+                    Builder(
+                      builder: (ctx) {
+                        final preview = (_selectedCard != null &&
+                                !widget.isSpectator &&
+                                state.phase == Take6Phase.selectingCard &&
+                                mySelectedCard == null)
+                            ? Take6Engine.previewCardPlacement(_selectedCard!, state.rows)
+                            : null;
+                        if (preview == null) return const SizedBox.shrink();
+
+                        late Color bannerColor;
+                        late String bannerText;
+                        if (preview.mustChooseRow) {
+                          final recRow = state.rows[preview.recommendedTakeRowIndex];
+                          bannerColor = const Color(0xFFDC2626);
+                          bannerText = '⚠️ 牌面过小！打出将任选一行收走（推荐第${preview.recommendedTakeRowIndex + 1}行 · 🐮${recRow.totalBullheads}）';
+                        } else if (preview.willOverflow) {
+                          bannerColor = const Color(0xFFDC2626);
+                          bannerText = '💥 高危预警：直接落入第${preview.targetRowIndex + 1}行第6张爆行（将吃 🐮${preview.bullheadsAtRisk}）';
+                        } else if (state.rows[preview.targetRowIndex].count >= 4) {
+                          bannerColor = const Color(0xFFD97706);
+                          bannerText = '⚡ 谨慎：预计落入第${preview.targetRowIndex + 1}行第5张（差值+${preview.diff}，易被挤爆）';
+                        } else {
+                          bannerColor = const Color(0xFF059669);
+                          bannerText = '✅ 安全落位：预计接在第${preview.targetRowIndex + 1}行后（差值+${preview.diff}，当前${state.rows[preview.targetRowIndex].count}/5）';
+                        }
+
+                        return Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: bannerColor.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: bannerColor.withValues(alpha: 0.5)),
+                          ),
+                          child: Text(
+                            bannerText,
+                            style: TextStyle(color: bannerColor, fontSize: 11.5, fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      },
+                    ),
 
                     // 本轮亮牌展示区 (翻牌、入行结算或等待选行时展示)
                     if (_hasRevealedCards(state))
@@ -1291,9 +1372,9 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.adaptiveCard(context),
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: AppColors.adaptiveBorder(context)),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.04),
@@ -1314,14 +1395,41 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
                                 }
                               }
                             }
+                            final preview = (_selectedCard != null &&
+                                    !widget.isSpectator &&
+                                    state.phase == Take6Phase.selectingCard &&
+                                    mySelectedCard == null)
+                                ? Take6Engine.previewCardPlacement(_selectedCard!, state.rows)
+                                : null;
                             return Column(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: state.rows.map((row) {
+                                String? pBadge;
+                                Color? pColor;
+                                if (preview != null) {
+                                  if (preview.mustChooseRow && row.rowIndex == preview.recommendedTakeRowIndex) {
+                                    pBadge = '推荐吃行';
+                                    pColor = const Color(0xFFD97706);
+                                  } else if (!preview.mustChooseRow && row.rowIndex == preview.targetRowIndex) {
+                                    if (preview.willOverflow) {
+                                      pBadge = '第6爆行!';
+                                      pColor = const Color(0xFFDC2626);
+                                    } else if (row.count >= 4) {
+                                      pBadge = '+${preview.diff} 危';
+                                      pColor = const Color(0xFFD97706);
+                                    } else {
+                                      pBadge = '落此(+${preview.diff})';
+                                      pColor = const Color(0xFF10B981);
+                                    }
+                                  }
+                                }
                                 return Take6RowWidget(
                                   key: ValueKey('take6-row-${row.rowIndex}'),
                                   row: row,
                                   isSelectableToTake: isMyTurnToChooseRow,
                                   isRecommendedRow: isMyTurnToChooseRow && (row.rowIndex == minBullsRowIdx),
+                                  previewBadge: pBadge,
+                                  previewHighlightColor: pColor,
                                   onSelectRow: () => _onSelectRowToTake(row.rowIndex),
                                 );
                               }).toList(),
@@ -1334,6 +1442,8 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
                 ),
               ),
             ),
+          ),
+        ),
 
             // 底部玩家手牌操作托盘 (旁观者显示专属全员亮牌大席，不可看私密手牌)
             if (state.phase != Take6Phase.gameOver)
@@ -1379,79 +1489,103 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
 
   Widget _buildPlayerScoreBar(Take6State state) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.adaptiveCard(context),
+        border: Border(bottom: BorderSide(color: AppColors.adaptiveBorder(context))),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: state.players.map((p) {
-          final isMe = p.id == widget.localPlayerId;
-          final penalty = state.penaltyScores[p.id] ?? 0;
-          final isReady = state.selectedCards[p.id] != null;
-          final remainCards = state.playerHands[p.id]?.length ?? (11 - state.currentTurn).clamp(0, 10);
-
-          return InkWell(
-            onTap: isMe
-                ? null
-                : () {
-                    InGameThrowDialog.show(
-                      context,
-                      targetPlayerId: p.id,
-                      targetPlayerName: p.name,
-                    );
-                  },
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isMe ? const Color(0xFFCCFBF1).withOpacity(0.5) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(8),
-                border: isMe ? Border.all(color: const Color(0xFF0D9488), width: 1.2) : Border.all(color: const Color(0xFFE2E8F0)),
-              ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
               child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 12,
-                    backgroundColor: isMe ? const Color(0xFF0D9488) : const Color(0xFF059669),
-                    child: Text(
-                      p.name.isNotEmpty ? p.name[0] : '玩',
-                      style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: state.players.map((p) {
+                  final isMe = p.id == widget.localPlayerId;
+                  final penalty = state.penaltyScores[p.id] ?? 0;
+                  final isReady = state.isPlayerReady(p.id);
+                  final remainCards = state.playerHands[p.id]?.length ?? (11 - state.currentTurn).clamp(0, 10);
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: InkWell(
+                      onTap: isMe
+                          ? null
+                          : () {
+                              InGameThrowDialog.show(
+                                context,
+                                targetPlayerId: p.id,
+                                targetPlayerName: p.name,
+                              );
+                            },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isMe
+                              ? const Color(0xFF0D9488).withValues(alpha: 0.15)
+                              : AppColors.adaptiveElevated(context),
+                          borderRadius: BorderRadius.circular(8),
+                          border: isMe
+                              ? Border.all(color: const Color(0xFF0D9488), width: 1.2)
+                              : Border.all(color: AppColors.adaptiveBorder(context)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircleAvatar(
+                              radius: 12,
+                              backgroundColor: isMe ? const Color(0xFF0D9488) : const Color(0xFF059669),
+                              child: Text(
+                                p.name.isNotEmpty ? p.name[0] : '玩',
+                                style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 72),
+                                  child: Text(
+                                    p.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: isMe ? const Color(0xFF0D9488) : AppColors.adaptiveTextPrimary(context),
+                                      fontSize: 11,
+                                      fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  state.phase == Take6Phase.selectingCard
+                                      ? (isReady ? '🎴 剩$remainCards张 · 已出' : '⏳ 剩$remainCards张 · 思考')
+                                      : '🐮 $penalty 头 (剩$remainCards张)',
+                                  style: TextStyle(
+                                    color: state.phase == Take6Phase.selectingCard
+                                        ? (isReady ? const Color(0xFF059669) : const Color(0xFFD97706))
+                                        : (penalty > 15 ? const Color(0xFFDC2626) : AppColors.adaptiveTextSecondary(context)),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 5),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        p.name,
-                        style: TextStyle(
-                          color: isMe ? const Color(0xFF0F766E) : const Color(0xFF1E293B),
-                          fontSize: 11,
-                          fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                      Text(
-                        state.phase == Take6Phase.selectingCard
-                            ? (isReady ? '🎴 剩$remainCards张 · 已出' : '⏳ 剩$remainCards张 · 思考')
-                            : '🐮 $penalty 头 (剩$remainCards张)',
-                        style: TextStyle(
-                          color: state.phase == Take6Phase.selectingCard
-                              ? (isReady ? const Color(0xFF059669) : const Color(0xFFD97706))
-                              : (penalty > 15 ? const Color(0xFFDC2626) : const Color(0xFF475569)),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  );
+                }).toList(),
               ),
             ),
           );
-        }).toList(),
+        },
       ),
     );
   }
@@ -1459,9 +1593,9 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
   Widget _buildRoundStatusBar(Take6State state, bool isMyTurnToChooseRow) {
     String statusText;
     Color statusColor = const Color(0xFF0D9488);
-    Color statusBg = const Color(0xFFF0FDFA);
+    Color statusBg = AppColors.isDarkMode(context) ? const Color(0xFF0F2E2A) : const Color(0xFFF0FDFA);
 
-    final readyCount = state.selectedCards.values.where((c) => c != null).length;
+    final readyCount = state.players.where((p) => state.isPlayerReady(p.id)).length;
     final totalCount = state.players.length;
 
     final isSelecting = state.phase == Take6Phase.selectingCard;
@@ -1470,18 +1604,18 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
     final isUrgent = _remainingSeconds <= 5 && _remainingSeconds > 0;
 
     if (isSelecting) {
-      final mySelected = state.selectedCards[widget.localPlayerId] != null;
+      final mySelected = state.isPlayerReady(widget.localPlayerId);
       statusText = mySelected
           ? '🎴 您已暗扣出牌，等待其他玩家 ($readyCount/$totalCount 人已扣牌)...'
           : '第 ${state.currentTurn}/10 轮 · 请秘密暗扣一张手牌 ($readyCount/$totalCount 人已出)';
     } else if (state.phase == Take6Phase.revealing) {
       statusText = '🃏 全员出牌完毕！正在同时翻牌展示每位玩家手牌...';
       statusColor = const Color(0xFFD97706);
-      statusBg = const Color(0xFFFFFBEB);
+      statusBg = AppColors.isDarkMode(context) ? const Color(0xFF451A03) : const Color(0xFFFFFBEB);
     } else if (isAwaitingChoice) {
       statusText = isMyTurnToChooseRow ? '⚠️ 您的牌太小！请在上方选择收走任意一行' : '等待玩家挑选收走的行牌...';
       statusColor = const Color(0xFFDC2626);
-      statusBg = const Color(0xFFFEF2F2);
+      statusBg = AppColors.isDarkMode(context) ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2);
     } else if (state.phase == Take6Phase.resolving) {
       statusText = '👉 正在从小到大依次入行结算...';
     } else {
@@ -1494,7 +1628,7 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
       decoration: BoxDecoration(
         color: statusBg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: statusColor.withOpacity(0.35)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
@@ -1511,7 +1645,9 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
-                color: isUrgent ? const Color(0xFFFEE2E2) : const Color(0xFFE0F2FE),
+                color: isUrgent
+                    ? (AppColors.isDarkMode(context) ? const Color(0xFF7F1D1D) : const Color(0xFFFEE2E2))
+                    : (AppColors.isDarkMode(context) ? const Color(0xFF0C4A6E) : const Color(0xFFE0F2FE)),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isUrgent ? const Color(0xFFEF4444) : const Color(0xFF38BDF8),
@@ -1524,7 +1660,9 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
                   Icon(
                     Icons.timer_outlined,
                     size: 13,
-                    color: isUrgent ? const Color(0xFFDC2626) : const Color(0xFF0284C7),
+                    color: isUrgent
+                        ? (AppColors.isDarkMode(context) ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626))
+                        : (AppColors.isDarkMode(context) ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7)),
                   ),
                   const SizedBox(width: 3),
                   Text(
@@ -1532,7 +1670,9 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: isUrgent ? const Color(0xFFDC2626) : const Color(0xFF0284C7),
+                      color: isUrgent
+                          ? (AppColors.isDarkMode(context) ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626))
+                          : (AppColors.isDarkMode(context) ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7)),
                     ),
                   ),
                 ],
@@ -1550,114 +1690,120 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
     final winner = ranking.first;
     final isMeWinner = winner.id == widget.localPlayerId;
 
+    final isDark = AppColors.isDarkMode(context);
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: AppColors.adaptiveCard(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border(top: BorderSide(color: AppColors.adaptiveBorder(context))),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
             blurRadius: 10,
-            offset: Offset(0, -3),
+            offset: const Offset(0, -3),
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            isMeWinner ? '🎉 恭喜您获得最终胜利！' : '🏁 游戏结束',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '获胜者：${winner.name} (仅累计 🐮x${state.penaltyScores[winner.id]} 头牛)',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF0D9488), fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              OutlinedButton.icon(
-                icon: const Icon(Icons.military_tech_outlined, size: 16),
-                label: const Text('结算明细', style: TextStyle(fontWeight: FontWeight.bold)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF0D9488),
-                  side: const BorderSide(color: Color(0xFF0D9488)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: () {
-                  final ranking = List<GamePlayer>.from(state.players)
-                    ..sort((a, b) => (state.penaltyScores[a.id] ?? 0).compareTo(state.penaltyScores[b.id] ?? 0));
-                  final rankItems = ranking.map((p) {
-                    final score = state.penaltyScores[p.id] ?? 0;
-                    final isMe = p.id == widget.localPlayerId;
-                    return GameSettlementRankItem(
-                      id: p.id,
-                      name: p.name,
-                      avatar: p.avatar,
-                      scoreText: '🐮 $score 个',
-                      isMe: isMe,
-                    );
-                  }).toList();
-
-                  final winner = ranking.first;
-                  final winnerScore = state.penaltyScores[winner.id] ?? 0;
-                  final subtitle = '🏆 【${winner.name}】荣获本场冠军！最终吃下 $winnerScore 个牛头惩罚，避坑王者！';
-
-                  GameSettlementDialog.show(
-                    context,
-                    isWin: isMeWinner,
-                    gameTitle: '谁是牛头王',
-                    gameIcon: '🐮',
-                    subtitle: subtitle,
-                    rankItems: rankItems,
-                    isSpectator: widget.isSpectator,
-                    onPlayAgain: _handlePlayAgain,
-                    onExit: () => Navigator.pop(context),
-                  );
-                },
-              ),
-              const SizedBox(width: 12),
-              if (widget.isSpectator)
-                ElevatedButton.icon(
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isMeWinner ? '🎉 恭喜您获得最终胜利！' : '🏁 游戏结束',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.adaptiveTextPrimary(context)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '获胜者：${winner.name} (仅累计 🐮x${state.penaltyScores[winner.id]} 头牛)',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF0D9488), fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.military_tech_outlined, size: 16),
+                  label: const Text('结算明细', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0D9488),
+                    side: const BorderSide(color: Color(0xFF0D9488)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                   onPressed: () {
-                    final user = context.read<AuthProvider>().user;
-                    SocketService().send({
-                      'type': 'GAME_ACTION',
-                      'action': 'SPECTATOR_JOIN_SEAT',
-                      'roomCode': widget.roomCode,
-                      'userId': user?.id ?? widget.localPlayerId,
-                      'userName': user?.nickname ?? '玩家',
-                      'userAvatar': user?.avatar ?? '🦊',
-                    });
-                    _handlePlayAgain();
+                    final ranking = List<GamePlayer>.from(state.players)
+                      ..sort((a, b) => (state.penaltyScores[a.id] ?? 0).compareTo(state.penaltyScores[b.id] ?? 0));
+                    final rankItems = ranking.map((p) {
+                      final score = state.penaltyScores[p.id] ?? 0;
+                      final isMe = p.id == widget.localPlayerId;
+                      return GameSettlementRankItem(
+                        id: p.id,
+                        name: p.name,
+                        avatar: p.avatar,
+                        scoreText: '🐮 $score 个',
+                        isMe: isMe,
+                      );
+                    }).toList();
+
+                    final winner = ranking.first;
+                    final winnerScore = state.penaltyScores[winner.id] ?? 0;
+                    final subtitle = '🏆 【${winner.name}】荣获本场冠军！最终吃下 $winnerScore 个牛头惩罚，避坑王者！';
+
+                    GameSettlementDialog.show(
+                      context,
+                      isWin: isMeWinner,
+                      gameTitle: '谁是牛头王',
+                      gameIcon: '🐮',
+                      subtitle: subtitle,
+                      rankItems: rankItems,
+                      isSpectator: widget.isSpectator,
+                      onPlayAgain: _handlePlayAgain,
+                      onExit: () => Navigator.pop(context),
+                    );
                   },
-                  icon: const Icon(Icons.airline_seat_recline_normal, size: 16),
-                  label: const Text('🪑 加入席位上桌准备', style: TextStyle(fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6366F1),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  ),
-                )
-              else
-                ElevatedButton(
-                  onPressed: _handlePlayAgain,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF059669),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                  ),
-                  child: const Text('再来一局 🐮', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-            ],
-          ),
-        ],
+                if (widget.isSpectator)
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      final user = context.read<AuthProvider>().user;
+                      SocketService().send({
+                        'type': 'GAME_ACTION',
+                        'action': 'SPECTATOR_JOIN_SEAT',
+                        'roomCode': widget.roomCode,
+                        'userId': user?.id ?? widget.localPlayerId,
+                        'userName': user?.nickname ?? '玩家',
+                        'userAvatar': user?.avatar ?? '🦊',
+                      });
+                      _handlePlayAgain();
+                    },
+                    icon: const Icon(Icons.airline_seat_recline_normal, size: 16),
+                    label: const Text('🪑 加入席位上桌准备', style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    ),
+                  )
+                else
+                  ElevatedButton(
+                    onPressed: _handlePlayAgain,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF059669),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                    ),
+                    child: const Text('再来一局 🐮', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1694,13 +1840,16 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
       }
     }
 
+    final isDark = AppColors.isDarkMode(context);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFEF3C7), Color(0xFFFFFBEB)],
+        gradient: LinearGradient(
+          colors: isDark
+              ? const [Color(0xFF451A03), Color(0xFF291404)]
+              : const [Color(0xFFFEF3C7), Color(0xFFFFFBEB)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1708,7 +1857,7 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
         border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF59E0B).withOpacity(0.15),
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -1722,9 +1871,13 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
             children: [
               const Text('🎴', style: TextStyle(fontSize: 13)),
               const SizedBox(width: 4),
-              const Text(
+              Text(
                 '本轮亮牌展示',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                ),
               ),
               const SizedBox(width: 6),
               Container(
@@ -1735,11 +1888,20 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
                 ),
                 child: const Text('从小到大入行', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold)),
               ),
-              const Spacer(),
+              const SizedBox(width: 6),
               if (state.currentResolvingEntry != null)
-                Text(
-                  '👉 【${state.currentResolvingEntry!.playerName}】入行中',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
+                Expanded(
+                  child: Text(
+                    '👉 【${state.currentResolvingEntry!.playerName}】入行中',
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? const Color(0xFFFCD34D) : const Color(0xFFB45309),
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -1754,26 +1916,26 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
                 final isChoosing = state.playerChoosingRowId == p.id;
                 final isPlaced = cardsOnRows.contains(card.number);
 
-                Color borderColor = const Color(0xFFCBD5E1);
-                Color bgColor = Colors.white;
+                Color borderColor = AppColors.adaptiveBorder(context);
+                Color bgColor = AppColors.adaptiveCard(context);
                 String tag = '待入行';
-                Color tagColor = const Color(0xFF64748B);
+                Color tagColor = AppColors.adaptiveTextSecondary(context);
 
                 if (isChoosing) {
                   borderColor = const Color(0xFFEF4444);
-                  bgColor = const Color(0xFFFEF2F2);
+                  bgColor = isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2);
                   tag = '⚠️ 选行';
-                  tagColor = const Color(0xFFDC2626);
+                  tagColor = isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626);
                 } else if (isCurrent) {
                   borderColor = const Color(0xFFF59E0B);
-                  bgColor = const Color(0xFFFEF3C7);
+                  bgColor = isDark ? const Color(0xFF451A03) : const Color(0xFFFEF3C7);
                   tag = '▶ 当前';
-                  tagColor = const Color(0xFFD97706);
+                  tagColor = isDark ? const Color(0xFFFCD34D) : const Color(0xFFD97706);
                 } else if (isPlaced) {
                   borderColor = const Color(0xFF10B981);
-                  bgColor = const Color(0xFFECFDF5);
+                  bgColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5);
                   tag = '✓ 已入';
-                  tagColor = const Color(0xFF059669);
+                  tagColor = isDark ? const Color(0xFF6EE7B7) : const Color(0xFF059669);
                 }
 
                 return Container(
@@ -1784,7 +1946,7 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: borderColor, width: isCurrent || isChoosing ? 2 : 1),
                     boxShadow: (isCurrent || isChoosing)
-                        ? [BoxShadow(color: borderColor.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 1))]
+                        ? [BoxShadow(color: borderColor.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 1))]
                         : null,
                   ),
                   child: Row(
@@ -1800,7 +1962,11 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
                             constraints: const BoxConstraints(maxWidth: 55),
                             child: Text(
                               p.name,
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.adaptiveTextPrimary(context),
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -1810,7 +1976,11 @@ class _Take6GameScreenState extends State<Take6GameScreen> {
                             children: [
                               Text(
                                 '${card.number}',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.adaptiveTextPrimary(context),
+                                ),
                               ),
                               const SizedBox(width: 2),
                               Text('🐮${card.bullheads}', style: const TextStyle(fontSize: 9, color: Color(0xFFD97706))),

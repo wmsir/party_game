@@ -52,8 +52,27 @@ class DiceCupModel {
     );
   }
 
-  /// 统计某一点数的出现频次 (如果 1 点为通配且 targetFace != 1，则同时把 1 点算入)
-  int countFace(int targetFace, {bool isWild1 = true}) {
+  bool get isBaozi => isSpecialCombo;
+
+  bool get isStraight {
+    if (dice.length != 5) return false;
+    final vals = dice.map((d) => d.value).toList()..sort();
+    return (vals[0] == 1 && vals[1] == 2 && vals[2] == 3 && vals[3] == 4 && vals[4] == 5) ||
+        (vals[0] == 2 && vals[1] == 3 && vals[2] == 4 && vals[3] == 5 && vals[4] == 6);
+  }
+
+  /// 5 颗同点数（豹子）匹配目标点数时额外计 +1 个
+  int baoziBonus(int targetFace, {bool isWild1 = true}) {
+    if (!isSpecialCombo || dice.isEmpty) return 0;
+    final face = dice.first.value;
+    if (face == targetFace || (isWild1 && targetFace != 1 && face == 1)) {
+      return 1;
+    }
+    return 0;
+  }
+
+  /// 统计某一点数的出现频次 (如果 1 点为通配且 targetFace != 1，则同时把 1 点算入；豹子命中时追加 +1)
+  int countFace(int targetFace, {bool isWild1 = true, bool includeBaoziBonus = true}) {
     int count = 0;
     for (final d in dice) {
       if (d.value == targetFace) {
@@ -61,6 +80,9 @@ class DiceCupModel {
       } else if (isWild1 && targetFace != 1 && d.value == 1) {
         count++; // 1点作为通配符
       }
+    }
+    if (includeBaoziBonus) {
+      count += baoziBonus(targetFace, isWild1: isWild1);
     }
     return count;
   }

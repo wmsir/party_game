@@ -30,7 +30,7 @@ class AvatarWithFrame extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           // 边框容器
-          _buildFrameContainer(),
+          _buildFrameContainer(context),
 
           // VIP 尊贵角标 (右下角，仅在明确指定 showVipBadge 为 true 时展示，避免与主标题处 VIP 图标重复)
           if (showVipBadge && vipLevel > 0)
@@ -88,7 +88,7 @@ class AvatarWithFrame extends StatelessWidget {
     return child;
   }
 
-  Widget _buildFrameContainer() {
+  Widget _buildFrameContainer(BuildContext context) {
     final size = radius * 2;
 
     switch (avatarFrame) {
@@ -107,7 +107,7 @@ class AvatarWithFrame extends StatelessWidget {
               BoxShadow(color: const Color(0xFF06B6D4).withAlpha(100), blurRadius: 6, spreadRadius: 1),
             ],
           ),
-          child: _buildAvatarCircle(),
+          child: _buildAvatarCircle(context),
         );
 
       case 'FRAME_GOLD':
@@ -127,7 +127,7 @@ class AvatarWithFrame extends StatelessWidget {
               BoxShadow(color: const Color(0xFFF59E0B).withAlpha(120), blurRadius: 8, spreadRadius: 1),
             ],
           ),
-          child: _buildAvatarCircle(),
+          child: _buildAvatarCircle(context),
         );
 
       case 'FRAME_GALAXY_DOMINATOR':
@@ -145,7 +145,7 @@ class AvatarWithFrame extends StatelessWidget {
               BoxShadow(color: const Color(0xFF818CF8).withAlpha(140), blurRadius: 10, spreadRadius: 1.5),
             ],
           ),
-          child: _buildAvatarCircle(),
+          child: _buildAvatarCircle(context),
         );
 
       case 'FRAME_BLACK_GOLD_ROYAL':
@@ -165,7 +165,7 @@ class AvatarWithFrame extends StatelessWidget {
               BoxShadow(color: Colors.amber.withAlpha(160), blurRadius: 12, spreadRadius: 2),
             ],
           ),
-          child: _buildAvatarCircle(),
+          child: _buildAvatarCircle(context),
         );
 
       case 'FRAME_DEFAULT':
@@ -179,15 +179,15 @@ class AvatarWithFrame extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: AppColors.primary.withAlpha(60), width: 1.5),
           ),
-          child: _buildAvatarCircle(),
+          child: _buildAvatarCircle(context),
         );
     }
   }
 
-  Widget _buildAvatarCircle() {
+  Widget _buildAvatarCircle(BuildContext context) {
     return CircleAvatar(
       radius: radius,
-      backgroundColor: AppColors.bgElevated,
+      backgroundColor: AppColors.adaptiveElevated(context),
       child: Text(avatar, style: TextStyle(fontSize: radius * 1.05)),
     );
   }

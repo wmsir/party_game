@@ -4,8 +4,11 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.partygame.entity.DirectMessageRecord;
 import com.partygame.entity.UserIntimacy;
+import com.partygame.game.PartyWheelPromptBank;
+import com.partygame.game.UndercoverWordBank;
 import com.partygame.repository.DirectMessageRepository;
 import com.partygame.repository.UserIntimacyRepository;
+import com.partygame.service.ShopService;
 import com.partygame.controller.IntimacyController;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,39 +59,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             "谢谢小伙伴，亲密度蹭蹭涨！🥰"
     );
 
-    // 谁是卧底经典丰富词库（权威题库）
-    public static final List<List<String>> UNDERCOVER_WORDS = List.of(
-            List.of("微信", "QQ"),
-            List.of("可口可乐", "百事可乐"),
-            List.of("汉堡包", "肉夹馍"),
-            List.of("小龙虾", "大闸蟹"),
-            List.of("秋裤", "毛裤"),
-            List.of("自行车", "电动车"),
-            List.of("玫瑰", "月季"),
-            List.of("鸭脖", "鸡爪"),
-            List.of("雨伞", "雨衣"),
-            List.of("口红", "唇膏"),
-            List.of("牛奶", "豆浆"),
-            List.of("烤肉", "火锅"),
-            List.of("手机", "平板"),
-            List.of("吉他", "尤克里里"),
-            List.of("咖啡", "奶茶"),
-            List.of("枕头", "抱枕"),
-            List.of("毛巾", "浴巾"),
-            List.of("眉毛", "睫毛"),
-            List.of("包子", "饺子"),
-            List.of("橙子", "橘子"),
-            List.of("西瓜", "哈密瓜"),
-            List.of("拖鞋", "凉鞋"),
-            List.of("镜子", "玻璃"),
-            List.of("风扇", "空调"),
-            List.of("辣椒", "芥末"),
-            List.of("面条", "米线"),
-            List.of("跳绳", "拔河"),
-            List.of("象棋", "围棋"),
-            List.of("铅笔", "钢笔"),
-            List.of("森林", "树林")
-    );
+    // 谁是卧底权威词库 (60 组双词词对)
+    public static final List<List<String>> UNDERCOVER_WORDS = UndercoverWordBank.WORD_PAIRS;
 
     private static class ClientMeta {
         String userId;
@@ -134,6 +106,14 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
     private static final Map<WebSocketSession, ClientMeta> clients = new ConcurrentHashMap<>();
     private final Map<String, List<Map<String, Object>>> OFFLINE_MESSAGES = new ConcurrentHashMap<>();
+
+    public static int getOnlineSessionCount() {
+        int count = 0;
+        for (WebSocketSession s : clients.keySet()) {
+            if (s != null && s.isOpen()) count++;
+        }
+        return count;
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -369,40 +349,61 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                                     Map<String, List<Integer>> diceHands = (Map<String, List<Integer>>) room.get("diceHands");
                                     List<Integer> myDice = diceHands.get(joinUid);
                                     if (myDice != null) {
+                                        boolean isBaozi = isDiceBaozi(myDice);
+                                        boolean isStraight = isDiceStraight(myDice);
                                         syncMsg.put("myDice", myDice);
                                         syncMsg.put("dice", myDice);
-                                        // 定向推送玩家专属手骰
+                                        syncMsg.put("isBaozi", isBaozi);
+                                        syncMsg.put("isStraight", isStraight);
+                                        Map<String, Object> handPayload = new HashMap<>();
+                                        handPayload.put("dice", myDice);
+                                        handPayload.put("isBaozi", isBaozi);
+                                        handPayload.put("isStraight", isStraight);
                                         sendToUser(joinUid, Map.of(
                                                 "type", "GAME_ACTION",
                                                 "action", "DICE_MY_HAND",
                                                 "roomCode", meta.roomCode,
-                                                "payload", Map.of("dice", myDice)
+                                                "payload", handPayload
                                         ));
                                     }
                                 }
+                                syncMsg.put("isWild1Active", !Boolean.FALSE.equals(room.get("diceWild1Active")));
                                 syncMsg.put("currentBid", room.get("currentDiceBid"));
                                 syncMsg.put("lastBid", room.get("currentDiceBid"));
                             }
 
-                            // 3. 谁是卧底 (undercover) 麦序、词汇与存活状态快照
+                            // 3. 谁是卧底 (undercover) 麦序、词汇与存活状态快照 (严禁提前剧透真实阵营)
                             if ("undercover".equals(gType)) {
                                 syncMsg.put("undercoverPhase", room.get("undercoverPhase"));
                                 syncMsg.put("undercoverRound", room.get("undercoverRound"));
                                 syncMsg.put("undercoverSpeakerIndex", room.get("undercoverSpeakerIndex"));
                                 syncMsg.put("alivePlayerIds", room.get("undercoverAlivePlayerIds"));
+                                syncMsg.put("undercoverIsRunoff", Boolean.TRUE.equals(room.get("undercoverIsRunoff")));
+                                syncMsg.put("undercoverRunoffCandidates", room.get("undercoverRunoffCandidates"));
                                 if (room.get("undercoverRoles") instanceof Map && joinUid != null) {
                                     Map<String, Map<String, Object>> roles = (Map<String, Map<String, Object>>) room.get("undercoverRoles");
                                     Map<String, Object> myRole = roles.get(joinUid);
                                     if (myRole != null) {
+                                        boolean isBlank = Boolean.TRUE.equals(myRole.get("isBlank"));
+                                        String roleLabel = isBlank ? "白板(无词)" : "秘密底词";
                                         syncMsg.put("myWord", myRole.get("word"));
-                                        syncMsg.put("isUndercover", myRole.get("isUndercover"));
-                                        syncMsg.put("roleName", Boolean.TRUE.equals(myRole.get("isUndercover")) ? "卧底" : "平民");
-                                        // 定向私发玩家专属身份与底词
+                                        syncMsg.put("isBlank", isBlank);
+                                        syncMsg.put("roleName", roleLabel);
+                                        syncMsg.put("totalPlayers", roles.size());
+                                        syncMsg.put("undercoverCount", room.getOrDefault("undercoverCount", 1));
+
+                                        Map<String, Object> dealPayload = new HashMap<>();
+                                        dealPayload.put("myWord", myRole.get("word"));
+                                        dealPayload.put("isBlank", isBlank);
+                                        dealPayload.put("roleName", roleLabel);
+                                        dealPayload.put("totalPlayers", roles.size());
+                                        dealPayload.put("undercoverCount", room.getOrDefault("undercoverCount", 1));
+                                        dealPayload.put("round", room.getOrDefault("undercoverRound", 1));
                                         sendToUser(joinUid, Map.of(
                                                 "type", "GAME_ACTION",
                                                 "action", "UNDERCOVER_ROLE_DEAL",
                                                 "roomCode", meta.roomCode,
-                                                "payload", Map.of("myWord", myRole.get("word"), "isUndercover", myRole.get("isUndercover"), "roleName", Boolean.TRUE.equals(myRole.get("isUndercover")) ? "卧底" : "平民")
+                                                "payload", dealPayload
                                         ));
                                     }
                                 }
@@ -700,6 +701,10 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     Integer totalIntimacy = null;
                     String intimacyRelationship = null;
 
+                    if (senderId != null) {
+                        ShopService.recordDailyThrow(senderId);
+                    }
+
                     // 赠送道具 / 投掷礼物自动增加双方亲密度 (支持所有玩家包括拟真人)
                     if (senderId != null && targetPlayerId != null && !senderId.equals(targetPlayerId)) {
                         try {
@@ -864,34 +869,13 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                                     room.remove("take6Rows");
                                     room.remove("take6Scores");
                                 } else if ("liars_dice".equals(gType)) {
-                                    // 大话骰：服务端为全桌玩家（真人与AI）生成真实 5 颗骰子
-                                    Map<String, List<Integer>> diceHands = new HashMap<>();
-                                    List<Map<String, Object>> players = (List<Map<String, Object>>) room.get("players");
-                                    Random rand = new Random();
-                                    if (players != null) {
-                                        for (Map<String, Object> p : players) {
-                                            String pid = (String) p.get("id");
-                                            if (pid != null) {
-                                                List<Integer> hand = new ArrayList<>();
-                                                for (int d = 0; d < 5; d++) hand.add(rand.nextInt(6) + 1);
-                                                Collections.sort(hand);
-                                                diceHands.put(pid, hand);
-                                                sendToUser(pid, Map.of(
-                                                        "type", "GAME_ACTION",
-                                                        "action", "DICE_MY_HAND",
-                                                        "roomCode", gameRoom,
-                                                        "payload", Map.of("dice", hand)
-                                                ));
-                                            }
-                                        }
-                                    }
-                                    room.put("diceHands", diceHands);
-                                    room.put("currentDiceBid", null);
+                                    rollAndDealDiceHands(gameRoom, room);
                                     payloadMap.put("diceHandsInitialized", true);
+                                    payloadMap.put("isWild1Active", true);
                                 } else if ("undercover".equals(gType)) {
-                                    // 谁是卧底：服务端权威抽取词对并安全定向私发身份底词
+                                    // 谁是卧底：服务端权威抽取词对并安全定向私发秘密底词（绝不提前剧透阵营身份）
                                     Random rand = new Random();
-                                    List<String> pair = UNDERCOVER_WORDS.get(rand.nextInt(UNDERCOVER_WORDS.size()));
+                                    List<String> pair = UndercoverWordBank.pickRandomPair();
                                     boolean swap = rand.nextBoolean();
                                     String civilianWord = swap ? pair.get(0) : pair.get(1);
                                     String undercoverWord = swap ? pair.get(1) : pair.get(0);
@@ -904,6 +888,14 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                                         ucIndices.add(rand.nextInt(total));
                                     }
 
+                                    boolean enableBlank = total >= 5 && Boolean.TRUE.equals(payloadMap.get("enableBlank"));
+                                    int blankIdx = -1;
+                                    if (enableBlank && total - ucIndices.size() >= 3) {
+                                        do {
+                                            blankIdx = rand.nextInt(total);
+                                        } while (ucIndices.contains(blankIdx));
+                                    }
+
                                     Map<String, Map<String, Object>> roles = new HashMap<>();
                                     List<String> aliveList = new ArrayList<>();
                                     if (players != null) {
@@ -912,21 +904,33 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                                             String pid = (String) p.get("id");
                                             if (pid == null) continue;
                                             boolean isUc = ucIndices.contains(i);
-                                            String word = isUc ? undercoverWord : civilianWord;
+                                            boolean isBlank = (i == blankIdx);
+                                            String word = isBlank ? "" : (isUc ? undercoverWord : civilianWord);
+
                                             Map<String, Object> rMap = new HashMap<>();
                                             rMap.put("id", pid);
                                             rMap.put("name", p.get("name"));
                                             rMap.put("isUndercover", isUc);
+                                            rMap.put("isBlank", isBlank);
                                             rMap.put("word", word);
                                             rMap.put("isOut", false);
                                             roles.put(pid, rMap);
                                             aliveList.add(pid);
 
+                                            Map<String, Object> dealPayload = new HashMap<>();
+                                            dealPayload.put("myWord", word);
+                                            dealPayload.put("isBlank", isBlank);
+                                            dealPayload.put("roleName", isBlank ? "白板(无词)" : "秘密底词");
+                                            dealPayload.put("totalPlayers", total);
+                                            dealPayload.put("undercoverCount", ucCount);
+                                            dealPayload.put("hasBlank", blankIdx >= 0);
+                                            dealPayload.put("round", 1);
+
                                             sendToUser(pid, Map.of(
                                                     "type", "GAME_ACTION",
                                                     "action", "UNDERCOVER_ROLE_DEAL",
                                                     "roomCode", gameRoom,
-                                                    "payload", Map.of("myWord", word, "isUndercover", isUc, "roleName", isUc ? "卧底" : "平民")
+                                                    "payload", dealPayload
                                             ));
                                         }
                                     }
@@ -936,8 +940,17 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                                     room.put("undercoverRound", 1);
                                     room.put("undercoverSpeakerIndex", 0);
                                     room.put("undercoverAlivePlayerIds", aliveList);
+                                    room.put("undercoverCount", ucCount);
+                                    room.put("undercoverIsRunoff", false);
+                                    room.remove("undercoverRunoffCandidates");
+                                    room.put("undercoverUsedClues", ConcurrentHashMap.newKeySet());
+
                                     payloadMap.put("undercoverPhase", "SPEAKING");
                                     payloadMap.put("alivePlayerIds", aliveList);
+                                    payloadMap.put("totalPlayers", total);
+                                    payloadMap.put("undercoverCount", ucCount);
+                                    payloadMap.put("hasBlank", blankIdx >= 0);
+
                                     if (!aliveList.isEmpty()) {
                                         String firstSpeakerId = aliveList.get(0);
                                         SCHEDULER.schedule(() -> {
@@ -952,22 +965,26 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                                     }
                                 }
                             } else if ("GAME_OVER".equals(actName)) {
-                                // 仅广播 GAME_OVER 动作与积分战绩，通知各端展示结算榜，绝不提前触发 GAME_RESTART
+                                // 广播结构化 payloadMap，确保前端战绩结算板准确读取 scores 与 phase
                                 Map<String, Object> gameOverAction = new HashMap<>();
                                 gameOverAction.put("type", "GAME_ACTION");
                                 gameOverAction.put("action", "GAME_OVER");
                                 gameOverAction.put("roomCode", gameRoom);
                                 gameOverAction.put("senderId", meta.userId);
-                                gameOverAction.put("payload", payload);
+                                gameOverAction.put("payload", payloadMap);
                                 broadcastToRoom(gameRoom, gameOverAction, null);
+                                return;
                             } else if ("ROUND_RESTART".equals(actName)) {
-                                // 局内小轮重开（吹牛下一回合摇骰），房间保持 PLAYING 状态，广播 ROUND_RESTART 动作让各端洗骰重开，绝不退出大厅！
+                                if ("liars_dice".equals(room.get("gameType"))) {
+                                    rollAndDealDiceHands(gameRoom, room);
+                                }
                                 Map<String, Object> roundRestartAction = new HashMap<>();
                                 roundRestartAction.put("type", "GAME_ACTION");
                                 roundRestartAction.put("action", "ROUND_RESTART");
                                 roundRestartAction.put("roomCode", gameRoom);
                                 roundRestartAction.put("senderId", meta.userId);
                                 broadcastToRoom(gameRoom, roundRestartAction, null);
+                                return;
                             } else if ("GAME_RESTART".equals(actName) || "RESET_ROOM".equals(actName)) {
                                 room.put("status", "WAITING");
                                 room.remove("take6Rows");
@@ -1088,32 +1105,154 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                         }
 
                         // 观战防作弊：观战者不可发送对局出牌或决策动作
-                        if (meta.isSpectator && ("PLAY_CARD".equals(actName) || "TAKE_ROW".equals(actName) || "BID".equals(actName) || "CHALLENGE".equals(actName))) {
+                        if (meta.isSpectator && ("PLAY_CARD".equals(actName) || "TAKE_ROW".equals(actName)
+                                || "BID".equals(actName) || "CHALLENGE".equals(actName)
+                                || "SPOT_ON".equals(actName) || "DICE_REROLL_STRAIGHT".equals(actName)
+                                || "UNDERCOVER_VOTE".equals(actName) || "UNDERCOVER_SPEAKER_FINISH".equals(actName)
+                                || "WHEEL_SPIN".equals(actName))) {
                             log.warn("[AntiCheat] Spectator {} blocked from game action {}", meta.userId, actName);
                             return;
                         }
 
-                        // 1. 大话骰叫点处理
+                        // 1a. 大话骰顺子重摇 (未开叫前且手骰为顺子，每局限一次)
+                        if ("DICE_REROLL_STRAIGHT".equals(actName) && room != null) {
+                            if (room.get("currentDiceBid") != null) {
+                                sendToUser(meta.userId, Map.of("type", "ERROR_NOTICE", "message", "本轮已有玩家叫点，不可再重摇顺子！"));
+                                return;
+                            }
+                            Map<String, List<Integer>> diceHands = (Map<String, List<Integer>>) room.get("diceHands");
+                            Set<String> rerolled = (Set<String>) room.computeIfAbsent("diceRerolledIds", k -> ConcurrentHashMap.newKeySet());
+                            List<Integer> myHand = diceHands != null ? diceHands.get(meta.userId) : null;
+                            if (myHand == null || !isDiceStraight(myHand) || rerolled.contains(meta.userId)) {
+                                sendToUser(meta.userId, Map.of("type", "ERROR_NOTICE", "message", "仅顺子手牌且每局未重摇前可使用顺子重摇！"));
+                                return;
+                            }
+                            List<Integer> newHand = generateSortedDiceHand();
+                            diceHands.put(meta.userId, newHand);
+                            rerolled.add(meta.userId);
+                            Map<String, Object> handPayload = new HashMap<>();
+                            handPayload.put("dice", newHand);
+                            handPayload.put("isBaozi", isDiceBaozi(newHand));
+                            handPayload.put("isStraight", isDiceStraight(newHand));
+                            handPayload.put("rerolled", true);
+                            sendToUser(meta.userId, Map.of(
+                                    "type", "GAME_ACTION",
+                                    "action", "DICE_MY_HAND",
+                                    "roomCode", gameRoom,
+                                    "payload", handPayload
+                            ));
+                            Map<String, Object> sysNotice = new HashMap<>();
+                            sysNotice.put("type", "CHAT_MESSAGE");
+                            sysNotice.put("id", "SYS-" + System.currentTimeMillis());
+                            sysNotice.put("channel", "ROOM");
+                            sysNotice.put("roomCode", gameRoom);
+                            sysNotice.put("senderId", "SYSTEM");
+                            sysNotice.put("senderName", "裁判官");
+                            sysNotice.put("senderAvatar", "🎲");
+                            sysNotice.put("content", "🎲 【" + (meta.nickname != null ? meta.nickname : "玩家") + "】摇出顺子触发【重摇一次】！");
+                            broadcastToRoom(gameRoom, sysNotice, null);
+                            return;
+                        }
+
+                        // 1b. 大话骰叫点校验与状态推进
                         if ("BID".equals(actName) && room != null) {
-                            room.put("currentDiceBid", payloadMap);
+                            int bidCount = parseIntSafe(payloadMap.get("count"), 0);
+                            int bidFace = parseIntSafe(payloadMap.get("face"), 0);
+                            boolean reqPure = Boolean.TRUE.equals(payloadMap.get("isPure"));
+                            boolean wild1Active = !Boolean.FALSE.equals(room.get("diceWild1Active"));
+                            boolean effectivePure = reqPure || !wild1Active || bidFace == 1;
+
+                            Map<String, Object> prevBid = (Map<String, Object>) room.get("currentDiceBid");
+                            if (!isValidLiarsDiceBid(prevBid, bidCount, bidFace, effectivePure)) {
+                                sendToUser(meta.userId, Map.of("type", "ERROR_NOTICE", "message", "叫点必须严格大于上一家出价！"));
+                                return;
+                            }
+
                             String bidSenderId = msg.getString("senderId") != null ? msg.getString("senderId") : meta.userId;
-                            scheduleLiarsDiceAiTurnIfNeeded(gameRoom, room, bidSenderId);
+                            String bidSenderName = msg.getString("senderName") != null ? msg.getString("senderName") : (meta.nickname != null ? meta.nickname : "玩家");
+                            payloadMap.put("count", bidCount);
+                            payloadMap.put("face", bidFace);
+                            payloadMap.put("isPure", effectivePure);
+                            payloadMap.put("bidderId", bidSenderId);
+                            payloadMap.put("bidderName", bidSenderName);
+
+                            if (effectivePure) {
+                                room.put("diceWild1Active", false);
+                            }
+                            room.put("currentDiceBid", payloadMap);
+                            List<Map<String, Object>> history = (List<Map<String, Object>>) room.computeIfAbsent("diceBidHistory", k -> new CopyOnWriteArrayList<>());
+                            history.add(new HashMap<>(payloadMap));
+
+                            long roundSeq = ((Number) room.getOrDefault("diceRoundSeq", 0L)).longValue();
+                            scheduleLiarsDiceAiTurnIfNeeded(gameRoom, room, bidSenderId, roundSeq);
                         }
 
-                        // 2. 大话骰开盅验骰与权威胜负裁决
+                        // 2. 大话骰开盅验骰与精准(Spot On)双倍裁决
                         if ("CHALLENGE".equals(actName) && room != null) {
-                            resolveLiarsDiceChallenge(gameRoom, room, meta.userId, meta.nickname);
+                            if (room.get("currentDiceBid") == null) {
+                                sendToUser(meta.userId, Map.of("type", "ERROR_NOTICE", "message", "尚未有玩家叫点，暂不可开盅！"));
+                                return;
+                            }
+                            resolveLiarsDiceChallenge(gameRoom, room, meta.userId, meta.nickname, false);
+                        }
+                        if ("SPOT_ON".equals(actName) && room != null) {
+                            if (room.get("currentDiceBid") == null) {
+                                sendToUser(meta.userId, Map.of("type", "ERROR_NOTICE", "message", "尚未有玩家叫点，暂不可喊刚好！"));
+                                return;
+                            }
+                            resolveLiarsDiceChallenge(gameRoom, room, meta.userId, meta.nickname, true);
                         }
 
-                        // 3. 谁是卧底麦序推进
+                        // 3. 聚会大转盘权威随机题库下发
+                        if ("WHEEL_SPIN".equals(actName) && room != null) {
+                            int reqIdx = parseIntSafe(payloadMap.get("targetIdx"), -1);
+                            String scenePack = payloadMap.get("scenePack") != null ? String.valueOf(payloadMap.get("scenePack")) : "icebreaker";
+                            String spinnerName = msg.getString("senderName") != null ? msg.getString("senderName") : (meta.nickname != null ? meta.nickname : "桌友");
+                            Set<String> usedPrompts = (Set<String>) room.computeIfAbsent("wheelUsedPrompts", k -> ConcurrentHashMap.newKeySet());
+                            Map<String, Object> enriched = PartyWheelPromptBank.buildSpinPayload(reqIdx, scenePack, spinnerName, usedPrompts);
+                            payloadMap.putAll(enriched);
+                        }
+
+                        // 4. 谁是卧底麦序推进 (严格校验阶段与当前麦序/房主)
                         if ("UNDERCOVER_SPEAKER_FINISH".equals(actName) && room != null) {
-                            advanceUndercoverSpeaker(gameRoom, room);
+                            if (!"SPEAKING".equals(room.get("undercoverPhase"))) {
+                                return;
+                            }
+                            List<String> alive = (List<String>) room.get("undercoverAlivePlayerIds");
+                            int curIdx = (int) room.getOrDefault("undercoverSpeakerIndex", 0);
+                            String curSpeakerId = (alive != null && curIdx >= 0 && curIdx < alive.size()) ? alive.get(curIdx) : null;
+                            Map<String, Object> host = (Map<String, Object>) room.get("hostPlayer");
+                            String hostId = host != null ? String.valueOf(host.get("id")) : "";
+                            if (Objects.equals(curSpeakerId, meta.userId) || Objects.equals(hostId, meta.userId)) {
+                                advanceUndercoverSpeaker(gameRoom, room);
+                            }
                         }
 
-                        // 4. 谁是卧底公投指认与公决出局
+                        // 5. 谁是卧底公投指认与公决出局 (校验资格、防重投、平票PK)
                         if ("UNDERCOVER_VOTE".equals(actName) && room != null) {
+                            if (!"VOTING".equals(room.get("undercoverPhase"))) {
+                                sendToUser(meta.userId, Map.of("type", "ERROR_NOTICE", "message", "当前不在投票公决阶段！"));
+                                return;
+                            }
+                            List<String> alive = (List<String>) room.get("undercoverAlivePlayerIds");
+                            if (alive == null || !alive.contains(meta.userId)) {
+                                sendToUser(meta.userId, Map.of("type", "ERROR_NOTICE", "message", "已出局或旁观玩家无法参与投票！"));
+                                return;
+                            }
+                            boolean isRunoff = Boolean.TRUE.equals(room.get("undercoverIsRunoff"));
+                            List<String> candidates = isRunoff
+                                    ? (List<String>) room.get("undercoverRunoffCandidates")
+                                    : alive;
+                            String targetId = payloadMap.get("targetId") != null ? String.valueOf(payloadMap.get("targetId")) : "";
+                            if (candidates == null || !candidates.contains(targetId)) {
+                                sendToUser(meta.userId, Map.of("type", "ERROR_NOTICE", "message", "所选投票目标无效！"));
+                                return;
+                            }
                             Map<String, String> votes = (Map<String, String>) room.computeIfAbsent("undercoverVotes", k -> new ConcurrentHashMap<>());
-                            String targetId = String.valueOf(payloadMap.get("targetId"));
+                            if (votes.containsKey(meta.userId)) {
+                                sendToUser(meta.userId, Map.of("type", "ERROR_NOTICE", "message", "本轮您已投过票，请等待其他玩家！"));
+                                return;
+                            }
                             votes.put(meta.userId, targetId);
                             evaluateUndercoverVotesIfComplete(gameRoom, room);
                         }
@@ -1205,48 +1344,165 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private void resolveLiarsDiceChallenge(String gameRoom, Map<String, Object> room, String challengerId, String challengerName) {
-        Map<String, Object> curBid = (Map<String, Object>) room.get("currentDiceBid");
-        Map<String, List<Integer>> diceHands = (Map<String, List<Integer>>) room.get("diceHands");
-        if (curBid != null && diceHands != null) {
-            int targetFace = Integer.parseInt(curBid.get("face").toString());
-            int bidCount = Integer.parseInt(curBid.get("count").toString());
-            boolean isPure = Boolean.parseBoolean(String.valueOf(curBid.get("isPure")));
-            int actualCount = 0;
-            for (List<Integer> dList : diceHands.values()) {
-                for (Integer val : dList) {
-                    if (isPure || targetFace == 1) {
-                        if (val == targetFace) actualCount++;
-                    } else {
-                        if (val == targetFace || val == 1) actualCount++;
-                    }
+    private int parseIntSafe(Object val, int fallback) {
+        if (val == null) return fallback;
+        try {
+            if (val instanceof Number) return ((Number) val).intValue();
+            return Integer.parseInt(val.toString().trim());
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
+    private List<Integer> generateSortedDiceHand() {
+        List<Integer> hand = new ArrayList<>(5);
+        ThreadLocalRandom rand = ThreadLocalRandom.current();
+        for (int d = 0; d < 5; d++) {
+            hand.add(rand.nextInt(6) + 1);
+        }
+        Collections.sort(hand);
+        return hand;
+    }
+
+    private boolean isDiceBaozi(List<Integer> hand) {
+        if (hand == null || hand.size() < 5) return false;
+        int first = hand.get(0);
+        for (Integer v : hand) {
+            if (!Objects.equals(v, first)) return false;
+        }
+        return true;
+    }
+
+    private boolean isDiceStraight(List<Integer> hand) {
+        if (hand == null || hand.size() != 5) return false;
+        List<Integer> sorted = new ArrayList<>(hand);
+        Collections.sort(sorted);
+        return sorted.equals(List.of(1, 2, 3, 4, 5)) || sorted.equals(List.of(2, 3, 4, 5, 6));
+    }
+
+    private void rollAndDealDiceHands(String gameRoom, Map<String, Object> room) {
+        long nextSeq = ((Number) room.getOrDefault("diceRoundSeq", 0L)).longValue() + 1L;
+        room.put("diceRoundSeq", nextSeq);
+        room.put("currentDiceBid", null);
+        room.put("diceWild1Active", true);
+        room.put("diceBidHistory", new CopyOnWriteArrayList<Map<String, Object>>());
+        room.put("diceRerolledIds", ConcurrentHashMap.newKeySet());
+
+        Map<String, List<Integer>> diceHands = new ConcurrentHashMap<>();
+        List<Map<String, Object>> players = (List<Map<String, Object>>) room.get("players");
+        if (players != null) {
+            for (Map<String, Object> p : players) {
+                String pid = (String) p.get("id");
+                if (pid != null) {
+                    List<Integer> hand = generateSortedDiceHand();
+                    diceHands.put(pid, hand);
+                    Map<String, Object> handPayload = new HashMap<>();
+                    handPayload.put("dice", hand);
+                    handPayload.put("isBaozi", isDiceBaozi(hand));
+                    handPayload.put("isStraight", isDiceStraight(hand));
+                    handPayload.put("roundSeq", nextSeq);
+                    sendToUser(pid, Map.of(
+                            "type", "GAME_ACTION",
+                            "action", "DICE_MY_HAND",
+                            "roomCode", gameRoom,
+                            "payload", handPayload
+                    ));
                 }
             }
-            boolean isBluffCaught = actualCount < bidCount;
-            String winnerId = isBluffCaught ? challengerId : String.valueOf(curBid.get("bidderId"));
-            String loserId = isBluffCaught ? String.valueOf(curBid.get("bidderId")) : challengerId;
-            String winnerName = isBluffCaught ? challengerName : String.valueOf(curBid.get("bidderName"));
-            String loserName = isBluffCaught ? String.valueOf(curBid.get("bidderName")) : challengerName;
+        }
+        room.put("diceHands", diceHands);
+    }
 
-            updatePlayerCoinsSafely(winnerId, 200);
-            updatePlayerCoinsSafely(loserId, -200);
+    private boolean isValidLiarsDiceBid(Map<String, Object> prevBid, int count, int face, boolean effectivePure) {
+        if (count < 1 || face < 1 || face > 6) return false;
+        if (prevBid == null) return true;
+
+        int prevCount = parseIntSafe(prevBid.get("count"), 0);
+        int prevFace = parseIntSafe(prevBid.get("face"), 0);
+        boolean prevPure = Boolean.parseBoolean(String.valueOf(prevBid.get("isPure")));
+        if (prevPure && !effectivePure) return false;
+
+        if (count > prevCount) return true;
+        if (count < prevCount) return false;
+
+        int newRank = effectivePure ? (face == 1 ? 7 : face) : face;
+        int prevRank = (prevPure || prevFace == 1) ? (prevFace == 1 ? 7 : prevFace) : prevFace;
+
+        if (newRank > prevRank) return true;
+        return newRank == prevRank && !prevPure && effectivePure;
+    }
+
+    private void resolveLiarsDiceChallenge(
+            String gameRoom,
+            Map<String, Object> room,
+            String challengerId,
+            String challengerName,
+            boolean isSpotOn) {
+        synchronized (room) {
+            Map<String, Object> curBid = (Map<String, Object>) room.get("currentDiceBid");
+            Map<String, List<Integer>> diceHands = (Map<String, List<Integer>>) room.get("diceHands");
+            if (curBid == null || diceHands == null) return;
+
             room.put("currentDiceBid", null);
+            long nextSeq = ((Number) room.getOrDefault("diceRoundSeq", 0L)).longValue() + 1L;
+            room.put("diceRoundSeq", nextSeq);
+
+            int targetFace = parseIntSafe(curBid.get("face"), 2);
+            int bidCount = parseIntSafe(curBid.get("count"), 1);
+            boolean isPure = Boolean.parseBoolean(String.valueOf(curBid.get("isPure")));
+
+            int actualCount = 0;
+            int baoziBonusCount = 0;
+            for (List<Integer> dList : diceHands.values()) {
+                if (dList == null || dList.isEmpty()) continue;
+                int matched = 0;
+                for (Integer val : dList) {
+                    if (val == null) continue;
+                    if (isPure || targetFace == 1) {
+                        if (val == targetFace) matched++;
+                    } else {
+                        if (val == targetFace || val == 1) matched++;
+                    }
+                }
+                if (isDiceBaozi(dList) && matched == dList.size()) {
+                    matched += 1; // 豹子全一致额外+1颗加成
+                    baoziBonusCount++;
+                }
+                actualCount += matched;
+            }
+
+            boolean isChallengerWon = isSpotOn ? (actualCount == bidCount) : (actualCount < bidCount);
+            String bidderId = String.valueOf(curBid.get("bidderId"));
+            String bidderName = String.valueOf(curBid.get("bidderName"));
+            String safeChallengerName = challengerName != null ? challengerName : "玩家";
+
+            String winnerId = isChallengerWon ? challengerId : bidderId;
+            String loserId = isChallengerWon ? bidderId : challengerId;
+            String winnerName = isChallengerWon ? safeChallengerName : bidderName;
+            String loserName = isChallengerWon ? bidderName : safeChallengerName;
+
+            int rewardCoins = isSpotOn ? 400 : 200;
+            updatePlayerCoinsSafely(winnerId, rewardCoins);
+            updatePlayerCoinsSafely(loserId, -rewardCoins);
 
             Map<String, Object> settlePayload = new HashMap<>();
             settlePayload.put("challengerId", challengerId);
-            settlePayload.put("challengerName", challengerName);
+            settlePayload.put("challengerName", safeChallengerName);
             settlePayload.put("bid", curBid);
             settlePayload.put("actualCount", actualCount);
             settlePayload.put("targetFace", targetFace);
             settlePayload.put("bidCount", bidCount);
             settlePayload.put("isPure", isPure);
-            settlePayload.put("isBluffCaught", isBluffCaught);
+            settlePayload.put("isSpotOn", isSpotOn);
+            settlePayload.put("baoziBonusCount", baoziBonusCount);
+            settlePayload.put("isBluffCaught", isChallengerWon);
+            settlePayload.put("isChallengerWon", isChallengerWon);
             settlePayload.put("winnerId", winnerId);
             settlePayload.put("winnerName", winnerName);
             settlePayload.put("loserId", loserId);
             settlePayload.put("loserName", loserName);
             settlePayload.put("allHands", diceHands);
-            settlePayload.put("rewardCoins", 200);
+            settlePayload.put("rewardCoins", rewardCoins);
 
             Map<String, Object> settleAct = new HashMap<>();
             settleAct.put("type", "GAME_ACTION");
@@ -1257,7 +1513,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private void scheduleLiarsDiceAiTurnIfNeeded(String gameRoom, Map<String, Object> room, String lastBidderId) {
+    private void scheduleLiarsDiceAiTurnIfNeeded(String gameRoom, Map<String, Object> room, String lastBidderId, long roundSeq) {
         List<Map<String, Object>> players = (List<Map<String, Object>>) room.get("players");
         if (players == null || players.size() < 2) return;
         int idx = -1;
@@ -1275,14 +1531,39 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         String aiAvatar = String.valueOf(nextP.getOrDefault("avatar", "🦊"));
 
         SCHEDULER.schedule(() -> {
+            if (!"PLAYING".equals(room.get("status"))) return;
+            long curSeq = ((Number) room.getOrDefault("diceRoundSeq", -1L)).longValue();
+            if (curSeq != roundSeq) return;
+
             Map<String, Object> curBid = (Map<String, Object>) room.get("currentDiceBid");
             if (curBid == null) return;
-            int bidCount = Integer.parseInt(curBid.get("count").toString());
-            int bidFace = Integer.parseInt(curBid.get("face").toString());
+
+            int bidCount = parseIntSafe(curBid.get("count"), 1);
+            int bidFace = parseIntSafe(curBid.get("face"), 2);
             boolean isPure = Boolean.parseBoolean(String.valueOf(curBid.get("isPure")));
-            int threshold = Math.max(4, players.size() * 2);
-            Random rnd = new Random();
-            if (bidCount >= threshold || (bidCount >= players.size() + 2 && rnd.nextInt(100) < 45)) {
+            boolean wild1Active = !Boolean.FALSE.equals(room.get("diceWild1Active")) && !isPure && bidFace != 1;
+
+            Map<String, List<Integer>> diceHands = (Map<String, List<Integer>>) room.get("diceHands");
+            List<Integer> myHand = diceHands != null ? diceHands.get(aiId) : Collections.emptyList();
+            int myMatch = 0;
+            if (myHand != null) {
+                for (Integer d : myHand) {
+                    if (d != null && (d == bidFace || (wild1Active && d == 1))) {
+                        myMatch++;
+                    }
+                }
+                if (isDiceBaozi(myHand) && myMatch == myHand.size()) myMatch++;
+            }
+
+            int totalPlayers = players.size();
+            int unknownDice = Math.max(0, (totalPlayers - 1) * 5);
+            double probSingle = wild1Active ? (2.0 / 6.0) : (1.0 / 6.0);
+            double expectedTotal = myMatch + unknownDice * probSingle;
+
+            ThreadLocalRandom rnd = ThreadLocalRandom.current();
+            double tolerance = 1.65;
+
+            if (bidCount > expectedTotal + tolerance || bidCount >= totalPlayers * 5) {
                 Map<String, Object> chAct = new HashMap<>();
                 chAct.put("type", "GAME_ACTION");
                 chAct.put("roomCode", gameRoom);
@@ -1291,47 +1572,102 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 chAct.put("senderName", aiName);
                 chAct.put("payload", Map.of("challengerId", aiId, "challengerName", aiName));
                 broadcastToRoom(gameRoom, chAct, null);
-                resolveLiarsDiceChallenge(gameRoom, room, aiId, aiName);
-            } else {
-                int nextCount = bidCount;
-                int nextFace = bidFace;
-                if (bidFace < 6 && rnd.nextBoolean()) {
+                resolveLiarsDiceChallenge(gameRoom, room, aiId, aiName, false);
+                return;
+            }
+
+            if (bidCount >= totalPlayers + 2 && Math.abs(bidCount - expectedTotal) <= 0.4 && rnd.nextInt(100) < 22) {
+                Map<String, Object> spotAct = new HashMap<>();
+                spotAct.put("type", "GAME_ACTION");
+                spotAct.put("roomCode", gameRoom);
+                spotAct.put("action", "SPOT_ON");
+                spotAct.put("senderId", aiId);
+                spotAct.put("senderName", aiName);
+                spotAct.put("payload", Map.of("challengerId", aiId, "challengerName", aiName));
+                broadcastToRoom(gameRoom, spotAct, null);
+                resolveLiarsDiceChallenge(gameRoom, room, aiId, aiName, true);
+                return;
+            }
+
+            // 根据真实手骰挑最强点数跟叫或加码
+            boolean roomWildActive = !Boolean.FALSE.equals(room.get("diceWild1Active"));
+            int bestFace = 2;
+            int bestHold = -1;
+            int onesHold = 0;
+            if (myHand != null) {
+                for (Integer d : myHand) {
+                    if (d != null && d == 1) onesHold++;
+                }
+                for (int f = 2; f <= 6; f++) {
+                    int cnt = 0;
+                    for (Integer d : myHand) {
+                        if (d != null && (d == f || (roomWildActive && !isPure && d == 1))) cnt++;
+                    }
+                    if (cnt > bestHold) {
+                        bestHold = cnt;
+                        bestFace = f;
+                    }
+                }
+            }
+
+            int nextCount = bidCount;
+            int nextFace = bestFace;
+            boolean nextPure = isPure || !roomWildActive;
+            if (!nextPure && onesHold == 0 && rnd.nextInt(100) < 20) {
+                nextPure = true;
+            }
+
+            int prevRank = (isPure || bidFace == 1) ? (bidFace == 1 ? 7 : bidFace) : bidFace;
+            int candRank = nextPure ? (nextFace == 1 ? 7 : nextFace) : nextFace;
+            if (!(candRank > prevRank || (candRank == prevRank && !isPure && nextPure))) {
+                if (!nextPure && bidFace < 6 && bestFace > bidFace) {
+                    nextFace = bestFace;
+                } else if (bidFace < 6 && rnd.nextBoolean()) {
                     nextFace = bidFace + 1;
                 } else {
                     nextCount = bidCount + 1;
-                    nextFace = rnd.nextInt(5) + 2;
+                    nextFace = bestFace;
                 }
-                Map<String, Object> newBid = new HashMap<>();
-                newBid.put("count", nextCount);
-                newBid.put("face", nextFace);
-                newBid.put("isPure", isPure);
-                newBid.put("bidderId", aiId);
-                newBid.put("bidderName", aiName);
-                room.put("currentDiceBid", newBid);
-
-                Map<String, Object> bidAct = new HashMap<>();
-                bidAct.put("type", "GAME_ACTION");
-                bidAct.put("roomCode", gameRoom);
-                bidAct.put("action", "BID");
-                bidAct.put("senderId", aiId);
-                bidAct.put("senderName", aiName);
-                bidAct.put("payload", newBid);
-                broadcastToRoom(gameRoom, bidAct, null);
-
-                Map<String, Object> chat = new HashMap<>();
-                chat.put("type", "CHAT_MESSAGE");
-                chat.put("id", "MSG-" + System.currentTimeMillis());
-                chat.put("channel", "ROOM");
-                chat.put("roomCode", gameRoom);
-                chat.put("senderId", aiId);
-                chat.put("senderName", aiName);
-                chat.put("senderAvatar", aiAvatar);
-                chat.put("content", "📢 我跟叫 " + nextCount + " 个 " + nextFace + " 点！");
-                broadcastToRoom(gameRoom, chat, null);
-
-                scheduleLiarsDiceAiTurnIfNeeded(gameRoom, room, aiId);
             }
-        }, 2000, TimeUnit.MILLISECONDS);
+
+            if (nextFace == 1) nextPure = true;
+            if (!isValidLiarsDiceBid(curBid, nextCount, nextFace, nextPure)) {
+                nextCount = bidCount + 1;
+                nextFace = Math.max(2, bestFace);
+            }
+
+            Map<String, Object> newBid = new HashMap<>();
+            newBid.put("count", nextCount);
+            newBid.put("face", nextFace);
+            newBid.put("isPure", nextPure);
+            newBid.put("bidderId", aiId);
+            newBid.put("bidderName", aiName);
+
+            if (nextPure) room.put("diceWild1Active", false);
+            room.put("currentDiceBid", newBid);
+
+            Map<String, Object> bidAct = new HashMap<>();
+            bidAct.put("type", "GAME_ACTION");
+            bidAct.put("roomCode", gameRoom);
+            bidAct.put("action", "BID");
+            bidAct.put("senderId", aiId);
+            bidAct.put("senderName", aiName);
+            bidAct.put("payload", newBid);
+            broadcastToRoom(gameRoom, bidAct, null);
+
+            Map<String, Object> chat = new HashMap<>();
+            chat.put("type", "CHAT_MESSAGE");
+            chat.put("id", "MSG-" + System.currentTimeMillis());
+            chat.put("channel", "ROOM");
+            chat.put("roomCode", gameRoom);
+            chat.put("senderId", aiId);
+            chat.put("senderName", aiName);
+            chat.put("senderAvatar", aiAvatar);
+            chat.put("content", "📢 我跟叫 " + nextCount + " 个 " + nextFace + " 点" + (nextPure ? "【斋】" : "") + "！");
+            broadcastToRoom(gameRoom, chat, null);
+
+            scheduleLiarsDiceAiTurnIfNeeded(gameRoom, room, aiId, roundSeq);
+        }, 1800, TimeUnit.MILLISECONDS);
     }
 
     private void advanceUndercoverSpeaker(String gameRoom, Map<String, Object> room) {
@@ -1340,6 +1676,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         curIdx++;
         if (alive != null && curIdx >= alive.size()) {
             room.put("undercoverPhase", "VOTING");
+            room.put("undercoverIsRunoff", false);
+            room.remove("undercoverRunoffCandidates");
             room.put("undercoverVotes", new ConcurrentHashMap<String, String>());
             Map<String, Object> pChange = new HashMap<>();
             pChange.put("type", "GAME_ACTION");
@@ -1355,7 +1693,11 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             nextTurn.put("type", "GAME_ACTION");
             nextTurn.put("action", "UNDERCOVER_NEXT_SPEAKER");
             nextTurn.put("roomCode", gameRoom);
-            nextTurn.put("payload", Map.of("speakerId", nextSpeakerId != null ? nextSpeakerId : "", "speakerIndex", curIdx));
+            nextTurn.put("payload", Map.of(
+                    "speakerId", nextSpeakerId != null ? nextSpeakerId : "",
+                    "speakerIndex", curIdx,
+                    "round", room.getOrDefault("undercoverRound", 1)
+            ));
             broadcastToRoom(gameRoom, nextTurn, null);
             checkAndScheduleUndercoverAiTurn(gameRoom, room);
         }
@@ -1378,13 +1720,13 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         if (speakerPlayer == null || !Boolean.TRUE.equals(speakerPlayer.get("isAi"))) return;
         String aiName = String.valueOf(speakerPlayer.getOrDefault("name", "AI桌友"));
         String aiAvatar = String.valueOf(speakerPlayer.getOrDefault("avatar", "🦊"));
-        String[] clues = {
-            "日常生活中经常能见到它，大家应该都很熟悉~",
-            "这个东西很有特点，我平时也挺喜欢的！",
-            "跟大家的生活息息相关，不用说太白了吧~",
-            "感觉前面有人说得有点可疑哦，我的词很常见！"
-        };
-        String clue = clues[new Random().nextInt(clues.length)];
+
+        Map<String, Map<String, Object>> roles = (Map<String, Map<String, Object>>) room.get("undercoverRoles");
+        Map<String, Object> aiRole = roles != null ? roles.get(speakerId) : null;
+        String aiWord = aiRole != null && aiRole.get("word") != null ? String.valueOf(aiRole.get("word")) : "";
+        Set<String> usedClues = (Set<String>) room.computeIfAbsent("undercoverUsedClues", k -> ConcurrentHashMap.newKeySet());
+        String clue = UndercoverWordBank.pickClue(aiWord, usedClues);
+
         SCHEDULER.schedule(() -> {
             if (!"SPEAKING".equals(room.get("undercoverPhase"))) return;
             Map<String, Object> chat = new HashMap<>();
@@ -1398,29 +1740,36 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             chat.put("content", "🎤 【麦序发言】" + clue);
             broadcastToRoom(gameRoom, chat, null);
             advanceUndercoverSpeaker(gameRoom, room);
-        }, 1800, TimeUnit.MILLISECONDS);
+        }, 1600, TimeUnit.MILLISECONDS);
     }
 
     private void scheduleUndercoverAiVotes(String gameRoom, Map<String, Object> room) {
         List<String> alive = (List<String>) room.get("undercoverAlivePlayerIds");
         List<Map<String, Object>> players = (List<Map<String, Object>>) room.get("players");
         if (alive == null || players == null || alive.size() < 2) return;
+
+        boolean isRunoff = Boolean.TRUE.equals(room.get("undercoverIsRunoff"));
+        List<String> pool = isRunoff && room.get("undercoverRunoffCandidates") instanceof List
+                ? new ArrayList<>((List<String>) room.get("undercoverRunoffCandidates"))
+                : new ArrayList<>(alive);
+
         SCHEDULER.schedule(() -> {
             if (!"VOTING".equals(room.get("undercoverPhase"))) return;
             Map<String, String> votes = (Map<String, String>) room.computeIfAbsent("undercoverVotes", k -> new ConcurrentHashMap<>());
-            Random rnd = new Random();
+            ThreadLocalRandom rnd = ThreadLocalRandom.current();
             for (Map<String, Object> p : players) {
                 String pid = String.valueOf(p.get("id"));
                 if (Boolean.TRUE.equals(p.get("isAi")) && alive.contains(pid) && !votes.containsKey(pid)) {
-                    List<String> candidates = new ArrayList<>(alive);
+                    List<String> candidates = new ArrayList<>(pool);
                     candidates.remove(pid);
+                    if (candidates.isEmpty()) candidates = new ArrayList<>(pool);
                     if (!candidates.isEmpty()) {
                         votes.put(pid, candidates.get(rnd.nextInt(candidates.size())));
                     }
                 }
             }
             evaluateUndercoverVotesIfComplete(gameRoom, room);
-        }, 2200, TimeUnit.MILLISECONDS);
+        }, 2000, TimeUnit.MILLISECONDS);
     }
 
     private synchronized void evaluateUndercoverVotesIfComplete(String gameRoom, Map<String, Object> room) {
@@ -1429,42 +1778,118 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         List<String> alive = (List<String>) room.get("undercoverAlivePlayerIds");
         if (votes == null || alive == null || votes.size() < alive.size()) return;
 
-        room.put("undercoverPhase", "SETTLING");
         Map<String, Integer> counts = new HashMap<>();
-        for (String t : votes.values()) counts.put(t, counts.getOrDefault(t, 0) + 1);
-        String outId = Collections.max(counts.entrySet(), Map.Entry.comparingByValue()).getKey();
+        for (String t : votes.values()) {
+            counts.put(t, counts.getOrDefault(t, 0) + 1);
+        }
+        int maxVotes = counts.isEmpty() ? 0 : Collections.max(counts.values());
+        List<String> tied = new ArrayList<>();
+        for (Map.Entry<String, Integer> e : counts.entrySet()) {
+            if (e.getValue() == maxVotes) tied.add(e.getKey());
+        }
+
+        boolean wasRunoff = Boolean.TRUE.equals(room.get("undercoverIsRunoff"));
+        if (tied.size() > 1 && !wasRunoff) {
+            // 首次平票：进入平票 PK 复投
+            room.put("undercoverIsRunoff", true);
+            room.put("undercoverRunoffCandidates", tied);
+            room.put("undercoverVotes", new ConcurrentHashMap<String, String>());
+            Map<String, Object> tiePayload = new HashMap<>();
+            tiePayload.put("tiedPlayerIds", tied);
+            tiePayload.put("voteCounts", counts);
+            tiePayload.put("timeoutSeconds", 20);
+            Map<String, Object> tieAct = new HashMap<>();
+            tieAct.put("type", "GAME_ACTION");
+            tieAct.put("action", "UNDERCOVER_TIE_BREAKER");
+            tieAct.put("roomCode", gameRoom);
+            tieAct.put("payload", tiePayload);
+            broadcastToRoom(gameRoom, tieAct, null);
+            scheduleUndercoverAiVotes(gameRoom, room);
+            return;
+        }
+
+        room.put("undercoverIsRunoff", false);
+        room.remove("undercoverRunoffCandidates");
+
+        if (tied.size() > 1 && wasRunoff) {
+            // PK 复投仍平票：本轮无人出局，进入下一轮发言
+            int nextRound = (int) room.getOrDefault("undercoverRound", 1) + 1;
+            room.put("undercoverRound", nextRound);
+            room.put("undercoverSpeakerIndex", 0);
+            room.put("undercoverPhase", "SPEAKING");
+
+            Map<String, Object> skipRes = new HashMap<>();
+            skipRes.put("outPlayerId", null);
+            skipRes.put("outPlayerName", "");
+            skipRes.put("isTieSkip", true);
+            skipRes.put("voteCounts", counts);
+            skipRes.put("gameOver", false);
+            skipRes.put("remainingAlive", alive);
+
+            Map<String, Object> vAct = new HashMap<>();
+            vAct.put("type", "GAME_ACTION");
+            vAct.put("action", "UNDERCOVER_VOTE_RESULT");
+            vAct.put("roomCode", gameRoom);
+            vAct.put("payload", skipRes);
+            broadcastToRoom(gameRoom, vAct, null);
+
+            String firstSpeakerId = !alive.isEmpty() ? alive.get(0) : "";
+            Map<String, Object> nextTurn = new HashMap<>();
+            nextTurn.put("type", "GAME_ACTION");
+            nextTurn.put("action", "UNDERCOVER_NEXT_SPEAKER");
+            nextTurn.put("roomCode", gameRoom);
+            nextTurn.put("payload", Map.of("speakerId", firstSpeakerId, "speakerIndex", 0, "round", nextRound));
+            broadcastToRoom(gameRoom, nextTurn, null);
+            checkAndScheduleUndercoverAiTurn(gameRoom, room);
+            return;
+        }
+
+        room.put("undercoverPhase", "SETTLING");
+        String outId = tied.get(0);
         Map<String, Map<String, Object>> roles = (Map<String, Map<String, Object>>) room.get("undercoverRoles");
         Map<String, Object> outRole = roles != null ? roles.get(outId) : null;
+        if (outRole != null) outRole.put("isOut", true);
+
         boolean wasUndercover = outRole != null && Boolean.TRUE.equals(outRole.get("isUndercover"));
+        boolean wasBlank = outRole != null && Boolean.TRUE.equals(outRole.get("isBlank"));
         String outName = outRole != null ? String.valueOf(outRole.get("name")) : "玩家";
 
         alive.remove(outId);
 
         int remUc = 0;
+        int remBlank = 0;
         int remCiv = 0;
         for (String pid : alive) {
-            if (roles != null && roles.get(pid) != null && Boolean.TRUE.equals(roles.get(pid).get("isUndercover"))) remUc++;
+            Map<String, Object> r = roles != null ? roles.get(pid) : null;
+            if (r != null && Boolean.TRUE.equals(r.get("isUndercover"))) remUc++;
+            else if (r != null && Boolean.TRUE.equals(r.get("isBlank"))) remBlank++;
             else remCiv++;
         }
 
         boolean gameOver = false;
         String winTeam = null;
-        if (remUc == 0) {
+        if (remUc == 0 && remBlank == 0) {
             gameOver = true;
             winTeam = "CIVILIAN";
-        } else if (remCiv <= remUc) {
+        } else if (remCiv <= (remUc + remBlank)) {
             gameOver = true;
-            winTeam = "UNDERCOVER";
+            winTeam = (remUc == 0 && remBlank > 0) ? "BLANK" : "UNDERCOVER";
         }
 
         Map<String, Object> vRes = new HashMap<>();
         vRes.put("outPlayerId", outId);
         vRes.put("outPlayerName", outName);
         vRes.put("wasUndercover", wasUndercover);
+        vRes.put("wasBlank", wasBlank);
+        vRes.put("isTieSkip", false);
         vRes.put("voteCounts", counts);
         vRes.put("gameOver", gameOver);
         vRes.put("winnerTeam", winTeam);
         vRes.put("remainingAlive", alive);
+        if (gameOver) {
+            vRes.put("words", room.get("undercoverWords"));
+            vRes.put("revealedRoles", roles);
+        }
 
         Map<String, Object> vAct = new HashMap<>();
         vAct.put("type", "GAME_ACTION");

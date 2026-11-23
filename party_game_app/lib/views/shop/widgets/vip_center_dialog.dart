@@ -85,14 +85,15 @@ class VipCenterDialog extends StatelessWidget {
       }
     }
     final progress = nextExp > 0 ? (currentExp / nextExp).clamp(0.0, 1.0) : 1.0;
+    final maxDialogHeight = (MediaQuery.sizeOf(context).height * 0.86).clamp(380.0, 680.0);
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 480),
+        constraints: BoxConstraints(maxWidth: 480, maxHeight: maxDialogHeight),
         decoration: BoxDecoration(
-          color: AppColors.cardSurface,
+          color: AppColors.adaptiveCard(context),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: Colors.amber, width: 1.5),
           boxShadow: [
@@ -185,10 +186,10 @@ class VipCenterDialog extends StatelessWidget {
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isUnlocked ? Colors.amber.withAlpha(15) : AppColors.bgDark,
+                      color: isUnlocked ? Colors.amber.withAlpha(15) : AppColors.adaptiveBg(ctx),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: isUnlocked ? Colors.amber.withAlpha(120) : AppColors.border,
+                        color: isUnlocked ? Colors.amber.withAlpha(120) : AppColors.adaptiveBorder(ctx),
                         width: isUnlocked ? 1.5 : 1,
                       ),
                     ),
@@ -198,24 +199,29 @@ class VipCenterDialog extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              v['name'] as String,
-                              style: TextStyle(
-                                color: isUnlocked ? Colors.amber : AppColors.textPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
+                            Expanded(
+                              child: Text(
+                                v['name'] as String,
+                                style: TextStyle(
+                                  color: isUnlocked ? Colors.amber : AppColors.adaptiveTextPrimary(ctx),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: isUnlocked ? Colors.amber.withAlpha(40) : AppColors.bgElevated,
+                                color: isUnlocked ? Colors.amber.withAlpha(40) : AppColors.adaptiveElevated(ctx),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 isUnlocked ? '已享此特权' : '需 ${v['needExp']} EXP',
                                 style: TextStyle(
-                                  color: isUnlocked ? Colors.amber : AppColors.textMuted,
+                                  color: isUnlocked ? Colors.amber : AppColors.adaptiveTextMuted(ctx),
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -226,7 +232,7 @@ class VipCenterDialog extends StatelessWidget {
                         const SizedBox(height: 6),
                         Text(
                           v['privileges'] as String,
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.5),
+                          style: TextStyle(color: AppColors.adaptiveTextSecondary(ctx), fontSize: 12, height: 1.5),
                         ),
                       ],
                     ),
@@ -253,6 +259,8 @@ class VipCenterDialog extends StatelessWidget {
                         icon: const Icon(Icons.card_giftcard, size: 18),
                         label: Text(
                           '领取今日 VIP $currentLevel 俸禄 (🪙 ${currentLevel * 1000} + 💎 ${currentLevel * 20})',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                         onPressed: () {

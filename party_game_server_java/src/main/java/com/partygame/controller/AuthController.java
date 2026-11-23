@@ -4,7 +4,8 @@ import com.partygame.entity.User;
 import com.partygame.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +22,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AuthController {
 
     private final UserService userService;
+
+    @Value("${party.auth.allow-passwordless-phone:false}")
+    private boolean allowPasswordlessPhone;
+
+    @Value("${party.public-base-url:https://fwpt.cn/party-game}")
+    private String publicBaseUrl;
 
     /**
      * 发送模拟手机短信验证码
@@ -98,8 +105,10 @@ public class AuthController {
             User user;
             if (code != null && !code.trim().isEmpty()) {
                 user = userService.phoneCodeLogin(phone, code);
-            } else {
+            } else if (allowPasswordlessPhone) {
                 user = userService.phoneLogin(phone);
+            } else {
+                return ResponseEntity.badRequest().body(createError("请输入短信验证码"));
             }
             return ResponseEntity.ok(createSuccess(user));
         } catch (Exception e) {
@@ -138,7 +147,7 @@ public class AuthController {
             if (code != null) map.put("code", code.trim());
             return phoneLogin(map);
         }
-        if (username != null && username.trim().matches("^1\\d{10}$")) {
+        if (username != null && username.trim().matches("^1\\d{10}$") && (password == null || password.trim().isEmpty())) {
             Map<String, String> map = new HashMap<>();
             map.put("phone", username.trim());
             if (code != null) map.put("code", code.trim());
@@ -172,25 +181,55 @@ public class AuthController {
     }
 
     /**
-     * 同步最新玩家档案
+     * 同步基础玩家资料 (仅允许携带匹配登录凭证更新昵称与头像，严禁篡改资产、VIP、战绩与密码)
      */
     @PostMapping({"/api/auth/sync-user", "/party-game/api/auth/sync-user"})
-    public ResponseEntity<?> syncUser(@RequestBody User user) {
-        if (user == null || user.getId() == null) {
+    public ResponseEntity<?> syncUser(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody User user) {
+        if (user == null || user.getId() == null || user.getId().trim().isEmpty()) {
             return ResponseEntity.badRequest().body(createError("无效用户数据"));
         }
-        User saved = userService.saveUser(user);
+        User existing = userService.getUserById(user.getId().trim()).orElse(null);
+        if (existing == null) {
+            return ResponseEntity.badRequest().body(createError("用户档案不存在"));
+        }
+        String suppliedToken = extractToken(authHeader, user.getToken());
+        if (existing.getToken() != null && !existing.getToken().isBlank() && !existing.getToken().equals(suppliedToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createError("登录凭证无效，禁止同步修改档案"));
+        }
+        if (user.getNickname() != null && !user.getNickname().trim().isEmpty()) {
+            String cleanNick = user.getNickname().trim();
+            existing.setNickname(cleanNick.length() > 32 ? cleanNick.substring(0, 32) : cleanNick);
+        }
+        if (user.getAvatar() != null && !user.getAvatar().trim().isEmpty()) {
+            String cleanAvatar = user.getAvatar().trim();
+            existing.setAvatar(cleanAvatar.length() > 16 ? cleanAvatar.substring(0, 16) : cleanAvatar);
+        }
+        User saved = userService.saveUser(existing);
         return ResponseEntity.ok(createSuccess(saved));
     }
 
     /**
-     * 账号与安全中心：更新账号、密码、手机号、昵称、头像
+     * 账号与安全中心：更新账号、密码、手机号、昵称、头像 (校验登录凭证)
      */
-    @PostMapping("/api/auth/update-account")
-    public ResponseEntity<?> updateAccount(@RequestBody Map<String, String> body) {
+    @PostMapping({"/api/auth/update-account", "/party-game/api/auth/update-account"})
+    public ResponseEntity<?> updateAccount(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody Map<String, String> body) {
         try {
+            String userId = body.get("userId");
+            if (userId != null && !userId.trim().isEmpty()) {
+                User dbUser = userService.getUserById(userId.trim()).orElse(null);
+                if (dbUser != null && dbUser.getToken() != null && !dbUser.getToken().isBlank()) {
+                    String suppliedToken = extractToken(authHeader, body.get("token"));
+                    if (suppliedToken == null || !suppliedToken.equals(dbUser.getToken())) {
+                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createError("登录凭证校验失败，请重新登录后操作"));
+                    }
+                }
+            }
             User user = userService.updateAccountSecurity(
-                    body.get("userId"),
+                    userId,
                     body.get("username"),
                     body.get("nickname"),
                     body.get("password"),
@@ -202,6 +241,17 @@ public class AuthController {
             log.error("更新账号信息异常: {}", e.getMessage());
             return ResponseEntity.badRequest().body(createError(e.getMessage()));
         }
+    }
+
+    private String extractToken(String authHeader, String fallbackToken) {
+        if (authHeader != null && !authHeader.isBlank()) {
+            String t = authHeader.trim();
+            if (t.regionMatches(true, 0, "Bearer ", 0, 7)) {
+                t = t.substring(7).trim();
+            }
+            if (!t.isEmpty()) return t;
+        }
+        return (fallbackToken != null && !fallbackToken.isBlank()) ? fallbackToken.trim() : null;
     }
 
     /**
@@ -293,9 +343,10 @@ public class AuthController {
         QrSession session = new QrSession(ticket, roomId);
         QR_STORE.put(ticket, session);
 
+        String base = publicBaseUrl.endsWith("/") ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1) : publicBaseUrl;
         Map<String, Object> res = new HashMap<>();
         res.put("ticket", ticket);
-        res.put("qrUrl", "http://39.97.158.22/party-game/qr-auth?ticket=" + ticket + "&roomId=" + roomId);
+        res.put("qrUrl", base + "/qr-auth?ticket=" + ticket + "&roomId=" + roomId);
         res.put("expireSeconds", 300);
         return ResponseEntity.ok(createSuccess(res));
     }

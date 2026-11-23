@@ -1,5 +1,7 @@
 package com.partygame.party_game_app
 
+import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import io.flutter.embedding.android.FlutterActivity
@@ -11,6 +13,17 @@ class MainActivity: FlutterActivity(), TextToSpeech.OnInitListener {
     private val CHANNEL = "com.fwpt.party_game/tts"
     private var tts: TextToSpeech? = null
     private var isTtsReady = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = Color.TRANSPARENT
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isStatusBarContrastEnforced = false
+            window.isNavigationBarContrastEnforced = false
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

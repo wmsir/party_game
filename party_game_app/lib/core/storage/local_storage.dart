@@ -48,6 +48,29 @@ class LocalStorage {
     return _prefs?.getStringList(key);
   }
 
+  static const String _authTokenKey = 'party_game_auth_token';
+  static const String _themeModeKey = 'party_game_theme_mode';
+
+  static Future<bool> saveAuthToken(String token) async {
+    return setString(_authTokenKey, token.trim());
+  }
+
+  static String? getAuthToken() {
+    final token = getString(_authTokenKey);
+    if (token == null || token.trim().isEmpty) return null;
+    return token.trim();
+  }
+
+  static Future<bool> clearAuthToken() async {
+    return remove(_authTokenKey);
+  }
+
+  static Future<bool> saveThemeMode(String mode) async {
+    return setString(_themeModeKey, mode);
+  }
+
+  static String? getThemeMode() => getString(_themeModeKey);
+
   static Future<bool> clear() async {
     final p = _prefs ?? await SharedPreferences.getInstance();
     return p.clear();

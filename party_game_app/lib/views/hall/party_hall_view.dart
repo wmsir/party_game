@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/sound/game_sound_service.dart';
+import '../../core/widgets/commercial_ui_kit.dart';
 import '../../models/game_player.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/room_provider.dart';
@@ -192,6 +193,174 @@ class _PartyHallViewState extends State<PartyHallView> {
         });
       }
     } catch (_) {}
+  }
+
+  Widget _buildGameShowcaseCard(BuildContext context, Map<String, dynamic> g) {
+    final gradient = g['bgGradient'] as List<Color>;
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: gradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: (g['color'] as Color).withOpacity(0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onQuickMatch(context, g['type'] as String),
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.all(14.0),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Center(
+                    child: Text(g['icon'] as String, style: const TextStyle(fontSize: 32)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              g['title'] as String,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              g['tag'] as String,
+                              style: const TextStyle(fontSize: 9.5, color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        g['subtitle'] as String,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11.5, color: Colors.white.withOpacity(0.85)),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.25),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              g['onlineCount'] as String? ?? '🔥 热游',
+                              style: const TextStyle(color: Color(0xFFFEF08A), fontSize: 9.5, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              g['ante'] as String? ?? '免门票',
+                              style: const TextStyle(color: Colors.white70, fontSize: 9.5),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => _showGameRulesModal(context, g['type'] as String),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.22),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                '📖 规则',
+                                style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black87,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        minimumSize: Size.zero,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => _onQuickMatch(context, g['type'] as String),
+                      child: const Text('⚡ 速配', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () {
+                        _checkRoomConflict(context, () {
+                          showDialog(
+                            context: context,
+                            builder: (_) => CreateRoomDialog(initialGameType: g['type'] as String),
+                          );
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          '🏠 创房',
+                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _checkRoomConflict(BuildContext context, VoidCallback onContinue) {
@@ -404,9 +573,11 @@ class _PartyHallViewState extends State<PartyHallView> {
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            child: ResponsiveContentFrame(
+              maxWidth: 1040,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // 活跃正在进行中的对局横幅（支持一键恢复与接管托管）
               if (_serverActiveRoom != null && _serverActiveRoom!['roomCode'] != null) ...[
                 _buildOngoingGameBanner(_serverActiveRoom!),
@@ -538,10 +709,10 @@ class _PartyHallViewState extends State<PartyHallView> {
                                         children: [
                                           Text(
                                             'ID: ${user?.cleanId ?? ""}',
-                                            style: const TextStyle(fontSize: 10, color: AppColors.textMuted, fontWeight: FontWeight.w600),
+                                            style: TextStyle(fontSize: 10, color: AppColors.adaptiveTextMuted(context), fontWeight: FontWeight.w600),
                                           ),
                                           const SizedBox(width: 3),
-                                          const Icon(Icons.copy_rounded, size: 10, color: AppColors.textMuted),
+                                          Icon(Icons.copy_rounded, size: 10, color: AppColors.adaptiveTextMuted(context)),
                                         ],
                                       ),
                                     ),
@@ -613,7 +784,221 @@ class _PartyHallViewState extends State<PartyHallView> {
               ),
               const SizedBox(height: 12),
 
-              // 聚会商业街与全服互动核心专区 (超大超显眼入口，让玩家在首页一眼看到商城与全服大喇叭)
+              // 快速操作条 (创建对局 / 加入房间)
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: const Icon(Icons.add_circle_outline, size: 20),
+                      label: const Text('创建对局房间', style: TextStyle(fontWeight: FontWeight.bold)),
+                      onPressed: () {
+                        _checkRoomConflict(context, () {
+                          showDialog(
+                            context: context,
+                            builder: (_) => const CreateRoomDialog(),
+                          );
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.adaptivePrimary(context),
+                        side: BorderSide(color: AppColors.adaptivePrimary(context)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: const Icon(Icons.keyboard_outlined, size: 20),
+                      label: const Text('输入号码进房', style: TextStyle(fontWeight: FontWeight.bold)),
+                      onPressed: () {
+                        _checkRoomConflict(context, () {
+                          showDialog(
+                            context: context,
+                            builder: (_) => const JoinRoomDialog(),
+                          );
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // 微信/QQ 一键组局快捷召集令
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF064E3B), Color(0xFF0F766E)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.6), width: 1.2),
+                  boxShadow: [
+                    BoxShadow(color: const Color(0xFF10B981).withOpacity(0.18), blurRadius: 10, offset: const Offset(0, 2)),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF07C160),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(color: const Color(0xFF07C160).withOpacity(0.4), blurRadius: 6),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text('💬', style: TextStyle(fontSize: 22)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('微信 / QQ 聚会一键开黑令', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5)),
+                          SizedBox(height: 2),
+                          Text('一键生成房间并复制开黑口令，微信好友免输入秒进房', style: TextStyle(color: Colors.white70, fontSize: 10.5)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF07C160),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        minimumSize: Size.zero,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () {
+                        _checkRoomConflict(context, () {
+                          final me = GamePlayer(
+                            id: user?.id ?? 'host',
+                            name: user?.nickname ?? '房主',
+                            avatar: user?.avatar ?? '🦊',
+                          );
+                          final room = context.read<RoomProvider>().createRoom(
+                            roomName: '【开黑】${user?.nickname ?? "我"}的聚会局',
+                            gameType: 'liars_dice',
+                            hostPlayer: me,
+                          );
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => GameRoomLobbyView(room: room)),
+                          );
+                        });
+                      },
+                      child: const Text('立即召唤', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // 聚会桌游精选（大屏自适应双列 Bento 网格，核心玩法优先触达）
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('聚会桌游精选 🎯', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.adaptiveTextPrimary(context))),
+                  InkWell(
+                    onTap: () => _showGameRulesModal(context, 'take6'),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.primary.withOpacity(0.35)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.menu_book_rounded, size: 12, color: AppColors.primary),
+                          SizedBox(width: 4),
+                          Text('玩法宝典', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    {'id': 'all', 'label': '🔥 全部玩法 (4)'},
+                    {'id': 'strategy', 'label': '🎲 策略博弈'},
+                    {'id': 'party', 'label': '🎡 酒桌破冰'},
+                    {'id': 'deduction', 'label': '🕵️ 推理猜词'},
+                  ].map((cat) {
+                    final isSelected = _selectedCategory == cat['id'];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(
+                          cat['label']!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? Colors.white : AppColors.adaptiveTextSecondary(context),
+                          ),
+                        ),
+                        selected: isSelected,
+                        selectedColor: AppColors.primary,
+                        backgroundColor: AppColors.adaptiveCard(context),
+                        side: BorderSide(color: isSelected ? AppColors.primary : AppColors.adaptiveBorder(context)),
+                        showCheckmark: false,
+                        visualDensity: VisualDensity.compact,
+                        onSelected: (_) => setState(() => _selectedCategory = cat['id']!),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              LayoutBuilder(
+                builder: (ctx, box) {
+                  final useGrid = box.maxWidth >= 680;
+                  if (useGrid) {
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: filteredGames.length,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        mainAxisExtent: 134,
+                      ),
+                      itemBuilder: (_, idx) => _buildGameShowcaseCard(context, filteredGames[idx]),
+                    );
+                  }
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: filteredGames.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (_, idx) => _buildGameShowcaseCard(context, filteredGames[idx]),
+                  );
+                },
+              ),
+              const SizedBox(height: 18),
+
+              // 聚会商业街与全服互动核心专区
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -737,7 +1122,7 @@ class _PartyHallViewState extends State<PartyHallView> {
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const DressingShopView(initialTabIndex: 3)),
+                                MaterialPageRoute(builder: (_) => const DressingShopView(initialTabIndex: 4)),
                               );
                             },
                             borderRadius: BorderRadius.circular(12),
@@ -772,7 +1157,7 @@ class _PartyHallViewState extends State<PartyHallView> {
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const DressingShopView(initialTabIndex: 4)),
+                                MaterialPageRoute(builder: (_) => const DressingShopView(initialTabIndex: 5)),
                               );
                             },
                             borderRadius: BorderRadius.circular(12),
@@ -807,7 +1192,7 @@ class _PartyHallViewState extends State<PartyHallView> {
               ),
               const SizedBox(height: 12),
 
-              // 腾讯风格运营活动自动轮播横幅 (多活动精彩轮巡)
+              // 运营活动自动轮播横幅
               const _TencentEventBannerCarousel(),
               const SizedBox(height: 12),
 
@@ -917,367 +1302,7 @@ class _PartyHallViewState extends State<PartyHallView> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
-              // 快速操作条 (加入房间 / 创建房间)
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      icon: const Icon(Icons.add_circle_outline, size: 20),
-                      label: const Text('创建对局房间', style: TextStyle(fontWeight: FontWeight.bold)),
-                      onPressed: () {
-                        _checkRoomConflict(context, () {
-                          showDialog(
-                            context: context,
-                            builder: (_) => const CreateRoomDialog(),
-                          );
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      icon: const Icon(Icons.keyboard_outlined, size: 20),
-                      label: const Text('输入号码进房', style: TextStyle(fontWeight: FontWeight.bold)),
-                      onPressed: () {
-                        _checkRoomConflict(context, () {
-                          showDialog(
-                            context: context,
-                            builder: (_) => const JoinRoomDialog(),
-                          );
-                        });
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // 腾讯式微信/QQ 一键组局快捷召集令
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF064E3B), Color(0xFF0F766E)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.6), width: 1.2),
-                  boxShadow: [
-                    BoxShadow(color: const Color(0xFF10B981).withOpacity(0.18), blurRadius: 10, offset: const Offset(0, 2)),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF07C160),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(color: const Color(0xFF07C160).withOpacity(0.4), blurRadius: 6),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: const Text('💬', style: TextStyle(fontSize: 22)),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text('微信 / QQ 聚会一键开黑令', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5)),
-                          SizedBox(height: 2),
-                          Text('一键生成房间并复制开黑口令，微信好友免输入秒进房', style: TextStyle(color: Colors.white70, fontSize: 10.5)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF07C160),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        minimumSize: Size.zero,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      onPressed: () {
-                        _checkRoomConflict(context, () {
-                          final me = GamePlayer(
-                            id: user?.id ?? 'host',
-                            name: user?.nickname ?? '房主',
-                            avatar: user?.avatar ?? '🦊',
-                          );
-                          final room = context.read<RoomProvider>().createRoom(
-                            roomName: '【开黑】${user?.nickname ?? "我"}的聚会局',
-                            gameType: 'liars_dice',
-                            hostPlayer: me,
-                          );
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => GameRoomLobbyView(room: room)),
-                          );
-                        });
-                      },
-                      child: const Text('立即召唤', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 游戏玩法矩阵卡片与分类筛选条
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('聚会桌游精选 🎯', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.adaptiveTextPrimary(context))),
-                  InkWell(
-                    onTap: () => _showGameRulesModal(context, 'take6'),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.primary.withOpacity(0.35)),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.menu_book_rounded, size: 12, color: AppColors.primary),
-                          SizedBox(width: 4),
-                          Text('玩法宝典', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    {'id': 'all', 'label': '🔥 全部玩法 (4)'},
-                    {'id': 'strategy', 'label': '🎲 策略博弈'},
-                    {'id': 'party', 'label': '🎡 酒桌破冰'},
-                    {'id': 'deduction', 'label': '🕵️ 推理猜词'},
-                  ].map((cat) {
-                    final isSelected = _selectedCategory == cat['id'];
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(
-                          cat['label']!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.white : AppColors.adaptiveTextSecondary(context),
-                          ),
-                        ),
-                        selected: isSelected,
-                        selectedColor: AppColors.primary,
-                        backgroundColor: AppColors.adaptiveCard(context),
-                        side: BorderSide(color: isSelected ? AppColors.primary : AppColors.adaptiveBorder(context)),
-                        showCheckmark: false,
-                        visualDensity: VisualDensity.compact,
-                        onSelected: (_) => setState(() => _selectedCategory = cat['id']!),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: filteredGames.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (ctx, idx) {
-                  final g = filteredGames[idx];
-                  final gradient = g['bgGradient'] as List<Color>;
-                  return Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: gradient,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (g['color'] as Color).withOpacity(0.25),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => _onQuickMatch(context, g['type'] as String),
-                        borderRadius: BorderRadius.circular(18),
-                        child: Padding(
-                          padding: const EdgeInsets.all(14.0),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Center(
-                                  child: Text(g['icon'] as String, style: const TextStyle(fontSize: 32)),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            g['title'] as String,
-                                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(6),
-                                          ),
-                                          child: Text(
-                                            g['tag'] as String,
-                                            style: const TextStyle(fontSize: 9.5, color: Colors.white, fontWeight: FontWeight.bold),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      g['subtitle'] as String,
-                                      style: TextStyle(fontSize: 11.5, color: Colors.white.withOpacity(0.85)),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    // 腾讯特色底注与在玩热度标签 + 规则速览
-                                    Wrap(
-                                      spacing: 6,
-                                      runSpacing: 4,
-                                      crossAxisAlignment: WrapCrossAlignment.center,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                          decoration: BoxDecoration(
-                                            color: Colors.black.withOpacity(0.25),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            g['onlineCount'] as String? ?? '🔥 热游',
-                                            style: const TextStyle(color: Color(0xFFFEF08A), fontSize: 9.5, fontWeight: FontWeight.bold),
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                          decoration: BoxDecoration(
-                                            color: Colors.black.withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            g['ante'] as String? ?? '免门票',
-                                            style: const TextStyle(color: Colors.white70, fontSize: 9.5),
-                                          ),
-                                        ),
-                                        InkWell(
-                                          onTap: () => _showGameRulesModal(context, g['type'] as String),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white.withOpacity(0.22),
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: const Text(
-                                              '📖 规则',
-                                              style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white,
-                                      foregroundColor: Colors.black87,
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      minimumSize: Size.zero,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    ),
-                                    onPressed: () => _onQuickMatch(context, g['type'] as String),
-                                    child: const Text('⚡ 速配', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  InkWell(
-                                    onTap: () {
-                                      _checkRoomConflict(context, () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (_) => CreateRoomDialog(initialGameType: g['type'] as String),
-                                        );
-                                      });
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.18),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Text(
-                                        '🏠 创房',
-                                        style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
 
               // 正在招募中的公共房间
               Row(
@@ -1286,7 +1311,7 @@ class _PartyHallViewState extends State<PartyHallView> {
                   Text('正在招募中的房间 📢', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.adaptiveTextPrimary(context))),
                   Row(
                     children: [
-                      Text('${roomProv.publicRooms.length} 房在线', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                      Text('${roomProv.publicRooms.length} 房在线', style: TextStyle(fontSize: 12, color: AppColors.adaptiveTextMuted(context))),
                       const SizedBox(width: 6),
                       InkWell(
                         onTap: () => roomProv.refreshRooms(),
@@ -1313,7 +1338,7 @@ class _PartyHallViewState extends State<PartyHallView> {
                   ),
                   child: Column(
                     children: [
-                      const Icon(Icons.meeting_room_outlined, size: 36, color: AppColors.textMuted),
+                      Icon(Icons.meeting_room_outlined, size: 36, color: AppColors.adaptiveTextMuted(context)),
                       const SizedBox(height: 8),
                       Text(
                         '当前暂无正在招募的公共房间',
@@ -1324,6 +1349,24 @@ class _PartyHallViewState extends State<PartyHallView> {
                         '点击上方【🏠 创建专属房间】或下方玩法【速配开局】即可快速畅玩！',
                         style: TextStyle(fontSize: 12, color: AppColors.adaptiveTextSecondary(context)),
                         textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                          minimumSize: Size.zero,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () {
+                          _checkRoomConflict(context, () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => const CreateRoomDialog(),
+                            );
+                          });
+                        },
+                        icon: const Icon(Icons.add_circle_outline, size: 16),
+                        label: const Text('立即创建房间', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -1427,11 +1470,12 @@ class _PartyHallViewState extends State<PartyHallView> {
               const SizedBox(height: 20),
             ],
           ),
+            ),
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildCommercialEntry(
     BuildContext context, {
@@ -1544,9 +1588,13 @@ class _PartyHallViewState extends State<PartyHallView> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      '房间 #$roomCode',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    Flexible(
+                      child: Text(
+                        '房间 #$roomCode',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
