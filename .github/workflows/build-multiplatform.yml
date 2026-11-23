@@ -274,10 +274,13 @@ jobs:
   build-windows:
     name: Windows Desktop Client (.zip)
     needs: prepare-metadata
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
 
       - name: Set up Flutter SDK
         uses: subosito/flutter-action@v2
@@ -309,11 +312,20 @@ jobs:
           $out = flutter build windows --release --build-name="$($env:VER)" --build-number="$winBuildNum" 2>&1
           $out | ForEach-Object { Write-Host $_ }
           if ($LASTEXITCODE -ne 0) {
-            ($out | Where-Object { $_ -match 'error|CMake|NuGet|Exception|failed' } | Select-Object -First 6) | ForEach-Object {
-              Write-Host "::error title=Windows Build::$_"
+            $lines = @($out | ForEach-Object { "$_" })
+            $cmakeIdx = -1
+            for ($i = 0; $i -lt $lines.Count; $i++) {
+              if ($lines[$i] -match 'CMake Error|error [A-Z]{1,4}\d+|NuGet') { $cmakeIdx = $i; break }
             }
-            ($out | Select-Object -Last 4) | ForEach-Object {
-              Write-Host "::error title=Windows Build Tail::$_"
+            if ($cmakeIdx -ge 0) {
+              $endIdx = [Math]::Min($lines.Count - 1, $cmakeIdx + 6)
+              for ($j = $cmakeIdx; $j -le $endIdx; $j++) {
+                Write-Host "::error title=Windows Build::$($lines[$j])"
+              }
+            } else {
+              ($lines | Select-Object -Last 6) | ForEach-Object {
+                Write-Host "::error title=Windows Build Tail::$_"
+              }
             }
             exit $LASTEXITCODE
           }

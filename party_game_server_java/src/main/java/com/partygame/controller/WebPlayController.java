@@ -1915,7 +1915,8 @@ public class WebPlayController {
     }
 
     private String buildHtmlScriptAuth() {
-        return "    let currentAuthTab = 'pwd';\n" +
+        StringBuilder sb = new StringBuilder(64000);
+        sb.append("    let currentAuthTab = 'pwd';\n" +
                "    let qrPollTimer = null;\n" +
                "    let currentQrTicket = null;\n" +
                "    window.showIntimacyDetail = function() { alert('亲密无间！继续在房间送礼保持深情厚谊～'); };\n" +
@@ -2407,8 +2408,8 @@ public class WebPlayController {
                "        } catch(e) {\n" +
                "            alert('网络请求失败');\n" +
                "        }\n" +
-               "    };\n" +
-               "    window.openBankruptReliefModal = function() {\n" +
+               "    };\n");
+        sb.append("    window.openBankruptReliefModal = function() {\n" +
                "        const m = document.getElementById('bankruptReliefModal'); if (m) m.style.display = 'flex';\n" +
                "        playBeep(600, 0.08);\n" +
                "    };\n" +
@@ -2921,7 +2922,8 @@ public class WebPlayController {
                "                    '</div>';\n" +
                "            }).join('');\n" +
                "        } catch(e) { container.innerHTML = '<div style=\"color:#ef4444; font-size:12px; text-align:center; padding:12px;\">拉取排行榜失败</div>'; }\n" +
-               "    };\n";
+               "    };\n");
+        return sb.toString();
     }
 
     private String buildHtmlScriptDirectChatAndProps() {
@@ -3759,7 +3761,8 @@ public class WebPlayController {
     }
 
     private String buildHtmlScriptWsAndRoomPart1() {
-        return "    window.loadProfileData = function() {\n" +
+        StringBuilder sb = new StringBuilder(70000);
+        sb.append("    window.loadProfileData = function() {\n" +
                "        if (!currentUser) return;\n" +
                "        const avEl = document.getElementById('profileAvatarBig'); if (avEl) avEl.innerText = currentUser.avatar || '🦊';\n" +
                "        const nickEl = document.getElementById('profileNickname'); if (nickEl) nickEl.innerText = currentUser.nickname || '玩家';\n" +
@@ -4330,8 +4333,8 @@ public class WebPlayController {
                "                updateReadyButtonState();\n" +
                "            }\n" +
                "        }\n" +
-               "    }\n" +
-               "    let summonTimer = null;\n" +
+               "    }\n");
+        sb.append("    let summonTimer = null;\n" +
                "    window.actionSummonPlayers = function() {\n" +
                "        if (!currentRoomId) { alert('当前不在房间内！'); return; }\n" +
                "        if (isGameStarted) { alert('对局正在进行中，无法召集新玩家！'); return; }\n" +
@@ -4907,7 +4910,8 @@ public class WebPlayController {
                "        try {\n" +
                "            await fetch(getApiPrefix() + '/api/rooms/ready', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomCode: currentRoomId, playerId: myUserId, isReady: myIsReady }) });\n" +
                "        } catch(e) {}\n" +
-                "    }\n";
+                "    }\n");
+        return sb.toString();
     }
 
     private String buildHtmlScriptWsAndRoomPart2(boolean isTake6) {
@@ -4964,7 +4968,8 @@ public class WebPlayController {
     }
 
         private String buildHtmlScriptTake6() {
-        return "    let take6Rows = [[], [], [], []];\n" +
+        StringBuilder sb = new StringBuilder(56000);
+        sb.append("    let take6Rows = [[], [], [], []];\n" +
 "    let take6MyHand = [];\n" +
 "    let take6Scores = {};\n" +
 "    let selectedTake6Card = null;\n" +
@@ -5408,8 +5413,8 @@ public class WebPlayController {
 "        html += '</div></div>';\n" +
 "        revEl.innerHTML = html;\n" +
 "        playCardSnap();\n" +
-"    }\n" +
-"    function updateTake6SelectionStatus(turn) {\n" +
+"    }\n");
+        sb.append("    function updateTake6SelectionStatus(turn) {\n" +
 "        const revEl = document.getElementById('take6RevealedCards');\n" +
 "        if (!revEl) return;\n" +
 "        const totalCount = players.length > 0 ? players.length : 2;\n" +
@@ -5869,7 +5874,8 @@ public class WebPlayController {
                "        renderSeats(players);\n" +
                "        updateReadyButtonState();\n" +
                "        appendChat('系统', '🔄 对局已重置，全员已就绪！请房主点击【立即开局】开始新的一局游戏。');\n" +
-               "    }\n";
+               "    }\n");
+        return sb.toString();
     }
 
     private String buildHtmlScriptDice() {
