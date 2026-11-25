@@ -2654,7 +2654,7 @@ public class WebPlayController {
                "            if (btnPwd) { btnPwd.disabled = false; btnPwd.innerText = '🚀 立即登录并进入大厅'; }\n" +
                "            const btnGuest = document.getElementById('btnEnter');\n" +
                "            if (btnGuest) { btnGuest.disabled = false; btnGuest.innerText = '⚡ 验证并立即试玩'; }\n" +
-               "        }\n" +
+               "        }\n"
         );
         sb.append("        const prefix = getApiPrefix();\n" +
                "        if (history.pushState) {\n" +
