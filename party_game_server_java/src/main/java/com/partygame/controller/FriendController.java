@@ -37,7 +37,7 @@ public class FriendController {
     /**
      * 查询真实好友申请列表
      */
-    @GetMapping("/api/friends/requests")
+    @GetMapping({"/api/friends/requests", "/party-game/api/friends/requests"})
     public ResponseEntity<?> getRequests(@RequestParam(required = false) String userId) {
         if (userId == null || userId.trim().isEmpty()) {
             return ResponseEntity.ok(createSuccess(Collections.emptyList()));
@@ -87,7 +87,7 @@ public class FriendController {
     /**
      * 处理好友申请 (同意/拒绝)
      */
-    @PostMapping("/api/friends/respond")
+    @PostMapping({"/api/friends/respond", "/party-game/api/friends/respond"})
     public ResponseEntity<?> respondRequest(@RequestBody Map<String, String> body) {
         String requestId = body.get("requestId");
         String action = body.get("action");
@@ -129,7 +129,7 @@ public class FriendController {
     /**
      * 发送私信消息（支持数据库持久化 + 在线 WebSocket 毫秒级直推双重保障）
      */
-    @PostMapping("/api/friends/messages/send")
+    @PostMapping({"/api/friends/messages/send", "/party-game/api/friends/messages/send"})
     public ResponseEntity<?> sendMessage(@RequestBody Map<String, String> body) {
         String fromUserId = body.get("fromUserId");
         String toUserId = body.get("toUserId");
@@ -183,7 +183,7 @@ public class FriendController {
     /**
      * 标记与指定好友的私信为已读
      */
-    @PostMapping("/api/friends/messages/read")
+    @PostMapping({"/api/friends/messages/read", "/party-game/api/friends/messages/read"})
     public ResponseEntity<?> markMessagesAsRead(@RequestBody Map<String, String> body) {
         String userId = body.get("userId");
         String friendId = body.get("friendId");
@@ -197,7 +197,7 @@ public class FriendController {
     /**
      * 查询离线/未读私信（用户登录后主动同步兜底，基于 isRead 状态可靠拉取，杜绝漏信）
      */
-    @GetMapping("/api/friends/messages/unread")
+    @GetMapping({"/api/friends/messages/unread", "/party-game/api/friends/messages/unread"})
     public ResponseEntity<?> getUnreadMessages(@RequestParam String userId) {
         if (userId == null || userId.trim().isEmpty()) {
             return ResponseEntity.ok(createSuccess(Collections.emptyList()));
@@ -215,7 +215,7 @@ public class FriendController {
     /**
      * 查询与指定好友的聊天历史
      */
-    @GetMapping("/api/friends/messages/history")
+    @GetMapping({"/api/friends/messages/history", "/party-game/api/friends/messages/history"})
     public ResponseEntity<?> getChatHistory(@RequestParam String userId, @RequestParam String friendId) {
         if (userId == null || friendId == null) {
             return ResponseEntity.ok(createSuccess(Collections.emptyList()));

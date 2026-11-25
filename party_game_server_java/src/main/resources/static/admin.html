@@ -23,7 +23,7 @@
                             bgLight: '#F5F5F7',
                             cardLight: '#FFFFFF',
                             textPrimary: '#1D1D1F',
-                            textSecondary: '#86868B',
+                            textSecondary: '#52525B',
                             borderLight: 'rgba(0, 0, 0, 0.08)',
                             bgDark: '#161618',
                             cardDark: '#1F1F24',
@@ -60,11 +60,57 @@
             color: #FFFFFF;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
-        /* 自定义微细滚动条 */
+        /* 自定义微细滚动条与等宽数字 */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 9999px; }
         .dark ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); }
+        .dark .text-apple-textSecondary { color: #A1A1AA !important; }
+        .tabular-nums, [id^="kpi-"], [id^="orders-"], #liveClock, table td {
+            font-variant-numeric: tabular-nums;
+        }
+        .admin-nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            text-align: left;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            color: #52525B;
+            transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .dark .admin-nav-btn {
+            color: #A1A1AA;
+        }
+        .admin-nav-btn:hover {
+            background-color: rgba(0, 0, 0, 0.04);
+            color: #1D1D1F;
+        }
+        .dark .admin-nav-btn:hover {
+            background-color: rgba(255, 255, 255, 0.06);
+            color: #F5F5F7;
+        }
+        .admin-nav-btn.apple-tab-active {
+            background-color: #FFFFFF;
+            color: #0071E3;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+            font-weight: 700;
+        }
+        .dark .admin-nav-btn.apple-tab-active {
+            background-color: #2C2C2E;
+            color: #5AC8FA;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen bg-apple-bgLight dark:bg-apple-bgDark text-apple-textPrimary dark:text-[#F5F5F7]">
@@ -79,27 +125,27 @@
     <div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/60 apple-frosted transition-opacity duration-300">
         <div class="bg-white dark:bg-apple-cardDark p-8 rounded-3xl w-full max-w-md border border-black/5 dark:border-white/10 apple-card-shadow transform transition-all">
             <div class="flex items-center gap-3.5 mb-6">
-                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-indigo-500 flex items-center justify-center text-2xl shadow-lg shadow-indigo-500/20">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-700 text-white flex items-center justify-center text-2xl shadow-md">
                     🎲
                 </div>
                 <div>
                     <h2 class="text-xl font-bold tracking-tight">系统开发商运维中心</h2>
-                    <p class="text-xs text-apple-textSecondary">Party Game · Developer Management</p>
+                    <p class="text-xs text-apple-textSecondary dark:text-zinc-400">Party Game · Developer Management</p>
                 </div>
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-apple-textSecondary mb-1.5 ml-0.5">管理员账号</label>
+                    <label class="block text-xs font-semibold text-apple-textSecondary dark:text-zinc-400 mb-1.5 ml-0.5">管理员账号</label>
                     <input id="adminUser" type="text" value="" onkeydown="if(event.key==='Enter') doLogin()" placeholder="输入管理员账号" class="w-full px-3.5 py-2.5 bg-[#EBEBEF] dark:bg-[#2C2C2E] border border-transparent focus:border-apple-blue rounded-xl text-sm outline-none transition">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-apple-textSecondary mb-1.5 ml-0.5">管理凭据密码</label>
+                    <label class="block text-xs font-semibold text-apple-textSecondary dark:text-zinc-400 mb-1.5 ml-0.5">管理凭据密码</label>
                     <input id="adminPwd" type="password" value="" onkeydown="if(event.key==='Enter') doLogin()" placeholder="输入管理凭据密码" class="w-full px-3.5 py-2.5 bg-[#EBEBEF] dark:bg-[#2C2C2E] border border-transparent focus:border-apple-blue rounded-xl text-sm outline-none transition">
                 </div>
-                <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300">
+                <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
                     🔒 服务端已启用会话令牌认证，登录后所有管理请求均通过 Bearer Token 鉴权。
                 </div>
-                <button onclick="doLogin()" class="w-full py-3 bg-apple-blue hover:bg-apple-blueHover text-white font-semibold rounded-xl text-sm shadow-md shadow-apple-blue/20 transition-all active:scale-[0.98]">
+                <button onclick="doLogin()" class="w-full py-3 bg-apple-blue hover:bg-apple-blueHover text-white font-semibold rounded-xl text-sm shadow-md transition-all active:scale-[0.98]">
                     验证并进入主控制台
                 </button>
             </div>
@@ -109,18 +155,24 @@
     <!-- 顶部半透明磨砂导航栏 (Apple Vibrancy Bar) -->
     <header class="sticky top-0 z-40 apple-frosted bg-[#F5F5F7]/85 dark:bg-[#161618]/85 border-b border-black/5 dark:border-white/10 px-6 py-3.5 flex flex-wrap justify-between items-center gap-4">
         <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 to-indigo-500 flex items-center justify-center text-lg shadow-sm">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-700 text-white flex items-center justify-center text-lg shadow-sm">
                 🎲
             </div>
             <div>
-                <h1 class="text-base font-bold tracking-tight flex items-center gap-2">
+                <h1 class="text-lg sm:text-xl font-extrabold tracking-tight flex items-center gap-2">
                     聚会桌游 · 系统开发商数据大盘与运营中心
-                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium">● 9001 在线</span>
+                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 font-semibold">● 9001 在线</span>
                 </h1>
-                <p class="text-[11px] text-apple-textSecondary">Apple HIG 护眼美学设计 · 实时高峰研判 · 玩家分页检索 · 短信与营销下发</p>
+                <p class="text-xs text-apple-textSecondary dark:text-zinc-400">实时高峰研判 · 玩家分页检索 · 充值流水台账 · 短信与营销下发</p>
             </div>
         </div>
-        <div class="flex items-center gap-2.5">
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="/play" onclick="this.href=(location.pathname.startsWith('/party-game')?'/party-game':'')+'/play'" target="_blank" class="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-700 dark:text-emerald-400 text-xs font-semibold transition flex items-center gap-1">
+                <span>🎮 网页大厅</span>
+            </a>
+            <a href="/landing" onclick="this.href=(location.pathname.startsWith('/party-game')?'/party-game':'')+'/landing'" target="_blank" class="px-3 py-1.5 rounded-xl bg-white dark:bg-[#2C2C2E] border border-black/5 dark:border-white/10 text-xs font-semibold shadow-sm hover:scale-[1.02] transition hidden sm:flex items-center gap-1">
+                <span>🌐 下载门户</span>
+            </a>
             <!-- 护眼模式切换按钮 -->
             <button onclick="toggleEyeCareMode()" id="eyeCareBtn" class="px-3 py-1.5 rounded-xl bg-white dark:bg-[#2C2C2E] border border-black/5 dark:border-white/10 text-xs font-semibold shadow-sm hover:scale-[1.02] active:scale-95 transition flex items-center gap-1.5">
                 <span id="eyeCareIcon">🌙</span>
@@ -129,40 +181,44 @@
             <button onclick="refreshActiveData()" class="px-3 py-1.5 rounded-xl bg-white dark:bg-[#2C2C2E] border border-black/5 dark:border-white/10 text-xs font-semibold shadow-sm hover:scale-[1.02] active:scale-95 transition flex items-center gap-1">
                 <span>🔄 刷新</span>
             </button>
-            <div id="liveClock" class="text-xs text-apple-textSecondary font-mono px-2 hidden sm:block"></div>
+            <div id="liveClock" class="text-xs text-apple-textSecondary font-mono px-2 hidden md:block"></div>
             <button onclick="logout()" class="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold transition active:scale-95">
                 登出
             </button>
         </div>
     </header>
 
-    <!-- 主控台容器 -->
-    <main class="max-w-7xl mx-auto p-6 space-y-6">
+    <!-- 商业级响应式主控台容器：桌面端左侧固定导航 + 右侧宽屏工作区，移动端横向胶囊栏 -->
+    <main class="max-w-[1380px] mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-[236px_minmax(0,1fr)] gap-6 items-start">
 
-        <!-- 苹果分段胶囊导航条 (Segmented Control) -->
-        <div class="bg-[#E5E5EA] dark:bg-[#242428] p-1.5 rounded-2xl inline-flex flex-wrap gap-1 shadow-inner border border-black/5 dark:border-white/5 max-w-full">
-            <button onclick="switchTab('analytics')" id="tabBtn-analytics" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold apple-tab-active transition-all">
-                📊 实时大盘与高峰分析
-            </button>
-            <button onclick="switchTab('users')" id="tabBtn-users" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
-                👥 玩家档案与分页检索
-            </button>
-            <button onclick="switchTab('orders')" id="tabBtn-orders" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
-                🧾 充值订单台账
-            </button>
-            <button onclick="switchTab('rooms')" id="tabBtn-rooms" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
-                🏠 实时在线房间
-            </button>
-            <button onclick="switchTab('sms')" id="tabBtn-sms" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
-                📱 阿里云/腾讯云短信网关
-            </button>
-            <button onclick="switchTab('marketing')" id="tabBtn-marketing" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
-                🎨 营销活动与横幅管理
-            </button>
-            <button onclick="switchTab('rules')" id="tabBtn-rules" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all">
-                ⚖️ 会员体系与充值汇率规则
-            </button>
-        </div>
+        <aside class="lg:sticky lg:top-20 bg-[#E5E5EA]/90 dark:bg-[#1F1F24] p-2 rounded-2xl border border-black/5 dark:border-white/10 apple-card-shadow">
+            <div class="hidden lg:block px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-apple-textSecondary">运营与监控导航</div>
+            <nav class="flex lg:flex-col gap-1 overflow-x-auto pb-0.5 lg:pb-0" aria-label="后台功能导航">
+                <button onclick="switchTab('analytics')" id="tabBtn-analytics" class="admin-nav-btn apple-tab-active">
+                    <span>📊</span><span>实时大盘与高峰</span>
+                </button>
+                <button onclick="switchTab('users')" id="tabBtn-users" class="admin-nav-btn">
+                    <span>👥</span><span>玩家档案检索</span>
+                </button>
+                <button onclick="switchTab('orders')" id="tabBtn-orders" class="admin-nav-btn">
+                    <span>🧾</span><span>充值订单台账</span>
+                </button>
+                <button onclick="switchTab('rooms')" id="tabBtn-rooms" class="admin-nav-btn">
+                    <span>🏠</span><span>实时在线房间</span>
+                </button>
+                <button onclick="switchTab('sms')" id="tabBtn-sms" class="admin-nav-btn">
+                    <span>📱</span><span>短信网关配置</span>
+                </button>
+                <button onclick="switchTab('marketing')" id="tabBtn-marketing" class="admin-nav-btn">
+                    <span>🎨</span><span>营销活动横幅</span>
+                </button>
+                <button onclick="switchTab('rules')" id="tabBtn-rules" class="admin-nav-btn">
+                    <span>⚖️</span><span>会员与汇率规则</span>
+                </button>
+            </nav>
+        </aside>
+
+        <div class="min-w-0 space-y-6">
 
         <!-- ========================================== -->
         <!-- 1. 数据大盘与高峰研判 PANEL -->
@@ -200,42 +256,42 @@
                     </div>
                     <div id="kpi-totalRecharge" class="text-3xl font-extrabold tracking-tight text-amber-500 mt-1.5">¥0</div>
                     <div class="text-[11px] text-apple-textSecondary mt-2 flex flex-wrap gap-x-3 gap-y-0.5">
-                        <span>钻石池: <b id="kpi-totalDiamonds" class="text-cyan-500 font-bold">0</b></span>
-                        <span>今日营收: <b id="kpi-todayRevenue" class="text-emerald-500 font-bold">¥0</b></span>
+                        <span>钻石池: <b id="kpi-totalDiamonds" class="text-sky-600 dark:text-sky-400 font-bold">0</b></span>
+                        <span>今日营收: <b id="kpi-todayRevenue" class="text-emerald-600 dark:text-emerald-400 font-bold">¥0</b></span>
                         <span>总订单: <b id="kpi-totalOrders" class="text-apple-blue font-bold">0</b></span>
                     </div>
                 </div>
 
                 <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-2xl border border-black/5 dark:border-white/10 apple-card-shadow">
-                    <div class="flex items-center justify-between text-xs text-apple-textSecondary">
+                    <div class="flex items-center justify-between text-xs text-apple-textSecondary dark:text-zinc-400">
                         <span>累计对局与实时负载</span>
                         <span class="text-base">🎲</span>
                     </div>
-                    <div id="kpi-totalBattles" class="text-3xl font-extrabold tracking-tight text-purple-500 mt-1.5">--</div>
-                    <div class="text-[11px] text-apple-textSecondary mt-2 flex flex-wrap gap-x-3 gap-y-0.5">
-                        <span>今日对局: <b id="kpi-todayBattles" class="text-purple-600 dark:text-purple-400 font-bold">--</b> 场</span>
-                        <span>活跃房: <b id="kpi-activeRooms" class="text-emerald-500 font-bold">0</b></span>
+                    <div id="kpi-totalBattles" class="text-3xl font-extrabold tracking-tight text-teal-600 dark:text-teal-400 mt-1.5">--</div>
+                    <div class="text-[11px] text-apple-textSecondary dark:text-zinc-400 mt-2 flex flex-wrap gap-x-3 gap-y-0.5">
+                        <span>今日对局: <b id="kpi-todayBattles" class="text-teal-700 dark:text-teal-400 font-bold">--</b> 场</span>
+                        <span>活跃房: <b id="kpi-activeRooms" class="text-emerald-600 dark:text-emerald-400 font-bold">0</b></span>
                         <span>WS在线: <b id="kpi-onlineSockets" class="text-apple-blue font-bold">0</b></span>
                     </div>
                 </div>
             </div>
 
-            <!-- 24小时高峰期与时段分析图表 (Apple Style) -->
+            <!-- 24小时高峰期与时段分析图表 -->
             <div class="bg-apple-cardLight dark:bg-apple-cardDark p-6 rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow">
                 <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
                     <div>
-                        <h3 class="text-base font-bold tracking-tight flex items-center gap-2">
+                        <h2 class="text-lg font-bold tracking-tight flex items-center gap-2">
                             <span>🕒 24小时玩家活跃时段分布与高峰期智能研判</span>
                             <span class="text-xs px-2.5 py-0.5 rounded-full bg-apple-blue/10 text-apple-blue font-semibold">运营决策大盘</span>
-                        </h3>
-                        <p class="text-xs text-apple-textSecondary mt-1">
-                            推荐在 <b class="text-red-500">20:00~23:00 黄金晚间高峰</b> 安排双倍活动与全服跑马灯，在 <b class="text-blue-500">01:00~06:00</b> 安排热更新维护。
+                        </h2>
+                        <p class="text-xs text-apple-textSecondary dark:text-zinc-400 mt-1">
+                            推荐在 <b class="text-red-600 dark:text-red-400">20:00~23:00 黄金晚间高峰</b> 安排双倍活动与全服跑马灯，在 <b class="text-blue-600 dark:text-blue-400">01:00~06:00</b> 安排热更新维护。
                         </p>
                     </div>
                     <div class="flex flex-wrap gap-2 text-xs">
-                        <span class="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 font-medium">🔥 晚间黄金档 (20:00-23:00)</span>
-                        <span class="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-medium">☀️ 午休闲暇 (12:00-14:00)</span>
-                        <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-medium">🌙 低谷维护期 (01:00-06:00)</span>
+                        <span class="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20 font-medium">🔥 晚间黄金档 (20:00-23:00)</span>
+                        <span class="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-400 border border-amber-500/20 font-medium">☀️ 午休闲暇 (12:00-14:00)</span>
+                        <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 font-medium">🌙 低谷维护期 (01:00-06:00)</span>
                     </div>
                 </div>
                 <div class="h-64 w-full">
@@ -246,13 +302,13 @@
             <!-- 趋势与热度两列图表 -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow">
-                    <h3 class="text-sm font-bold tracking-tight mb-3">📈 近 7 日新增注册与活跃 (DAU) 走势</h3>
+                    <h2 class="text-base font-bold tracking-tight mb-3">📈 近 7 日新增注册与活跃 (DAU) 走势</h2>
                     <div class="h-56">
                         <canvas id="weeklyChart"></canvas>
                     </div>
                 </div>
                 <div class="bg-apple-cardLight dark:bg-apple-cardDark p-5 rounded-3xl border border-black/5 dark:border-white/10 apple-card-shadow">
-                    <h3 class="text-sm font-bold tracking-tight mb-3">🎲 各玩法对战热度分布</h3>
+                    <h2 class="text-base font-bold tracking-tight mb-3">🎲 各玩法对战热度分布</h2>
                     <div class="h-56">
                         <canvas id="gameTypeChart"></canvas>
                     </div>
@@ -520,8 +576,8 @@
                     </div>
 
                     <div class="p-4 rounded-2xl bg-[#FAFAFC] dark:bg-[#26262B] border border-black/5 dark:border-white/5 space-y-1.5">
-                        <div class="text-xs text-apple-textSecondary">👑 VIP 荣耀等级</div>
-                        <div class="text-2xl font-extrabold text-purple-500 tracking-tight">VIP 0 ~ VIP 10</div>
+                        <div class="text-xs text-apple-textSecondary dark:text-zinc-400">👑 VIP 荣耀等级</div>
+                        <div class="text-2xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">VIP 0 ~ VIP 10</div>
                         <p class="text-[11px] text-apple-textSecondary">充值金额累计100%转化为VIP经验，永久尊享专属骰盅、入场横幅与头像框</p>
                     </div>
                 </div>
@@ -547,6 +603,8 @@
                     </div>
                 </div>
             </div>
+        </div>
+
         <!-- ========================================== -->
         <!-- 6. 商业充值订单台账 PANEL -->
         <!-- ========================================== -->
@@ -629,6 +687,7 @@
                     正在获取实时房间状态...
                 </div>
             </div>
+        </div>
         </div>
     </main>
 
@@ -892,10 +951,10 @@
                 if (!el || !btn) return;
                 if (id === tabId) {
                     el.classList.remove('hidden');
-                    btn.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold apple-tab-active transition-all';
+                    btn.className = 'admin-nav-btn apple-tab-active';
                 } else {
                     el.classList.add('hidden');
-                    btn.className = 'px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-apple-textSecondary hover:text-apple-textPrimary dark:hover:text-white transition-all';
+                    btn.className = 'admin-nav-btn';
                 }
             });
             refreshActiveData();
@@ -1025,6 +1084,11 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: isDark ? '#F5F5F7' : '#1D1D1F', boxWidth: 12, font: { size: 11 } }
+                        }
+                    },
                     scales: {
                         x: {
                             grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },

@@ -211,12 +211,16 @@ public class WebPlayController {
     public ResponseEntity<String> playPage(
             HttpServletRequest request,
             @RequestParam(value = "roomId", required = false, defaultValue = "") String roomId,
+            @RequestParam(value = "room", required = false, defaultValue = "") String roomAlias,
             @RequestParam(value = "gameType", required = false, defaultValue = "") String gameType,
+            @RequestParam(value = "type", required = false, defaultValue = "") String typeAlias,
             @RequestParam(value = "tab", required = false, defaultValue = "games") String tab,
             @RequestParam(value = "view", required = false, defaultValue = "") String view
     ) {
-        String cleanRoom = roomId != null ? roomId.trim() : "";
-        String cleanGameType = gameType != null ? gameType.trim() : "";
+        String rawRoom = (roomId != null && !roomId.trim().isEmpty()) ? roomId : roomAlias;
+        String rawType = (gameType != null && !gameType.trim().isEmpty()) ? gameType : typeAlias;
+        String cleanRoom = rawRoom != null ? rawRoom.trim() : "";
+        String cleanGameType = rawType != null ? rawType.trim() : "";
         if (cleanGameType.isEmpty() && !cleanRoom.isEmpty()) {
             Map<String, Object> roomData = RoomAndMomentController.ROOMS.get(cleanRoom);
             if (roomData != null && roomData.get("gameType") != null) {
@@ -303,8 +307,7 @@ public class WebPlayController {
         sb.append("        /* 视图 1: 独立登录页面样式 (明亮晨曦护眼风) */\n");
         sb.append("        .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: linear-gradient(135deg, #eef2f6 0%, #e0e7ff 50%, #f0fdf4 100%); }\n");
         sb.append("        .login-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 22px; width: 100%; max-width: 420px; padding: 30px 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.06); text-align: center; }\n");
-        sb.append("        .login-logo { font-size: 46px; margin-bottom: 10px; animation: bounceLogo 2s infinite ease-in-out; }\n");
-        sb.append("        @keyframes bounceLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }\n");
+        sb.append("        .login-logo { font-size: 42px; margin-bottom: 10px; }\n");
         sb.append("        .login-card h2 { font-size: 22px; color: #0f172a; margin-bottom: 6px; font-weight: 800; letter-spacing: 0.5px; }\n");
         sb.append("        .login-card p { font-size: 13px; color: #64748b; margin-bottom: 18px; }\n");
         sb.append("        .auth-tabs { display: flex; background: #f1f5f9; border-radius: 12px; padding: 3px; margin-bottom: 16px; border: 1px solid #e2e8f0; }\n");
@@ -346,7 +349,7 @@ public class WebPlayController {
         sb.append("        .badge-vip.svip { background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%); border-color: #fbcfe8; box-shadow: 0 2px 12px rgba(236, 72, 153, 0.55); animation: svipBadgeGlow 2.5s infinite ease-in-out; }\n");
         sb.append("        @keyframes svipBadgeGlow { 0%, 100% { opacity: 0.95; transform: scale(1); } 50% { opacity: 1; transform: scale(1.03); filter: brightness(1.15); } }\n");
         sb.append("        .vip-nickname { color: #d97706 !important; font-weight: 800 !important; }\n");
-        sb.append("        .vip-nickname.svip { background: linear-gradient(135deg, #ec4899, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900 !important; text-shadow: 0 0 10px rgba(236,72,153,0.3); }\n");
+        sb.append("        .vip-nickname.svip { color: #db2777 !important; font-weight: 900 !important; }\n");
         sb.append("        .lobby-user-sub { font-size: 11px; color: #64748b; display: flex; align-items: center; gap: 6px; margin-top: 2px; }\n");
         sb.append("        .lobby-assets { display: flex; align-items: center; gap: 8px; }\n");
         sb.append("        .asset-chip { border-radius: 20px; padding: 5px 12px 5px 8px; font-size: 12.5px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 2px 6px rgba(0,0,0,0.04); }\n");
@@ -367,10 +370,10 @@ public class WebPlayController {
         sb.append("        .lobby-content { flex: 1; max-width: 980px; margin: 0 auto; width: 100%; padding: 16px 18px 80px 18px; }\n");
         sb.append("        /* 游戏模式卡片 (纯白高质感微阴影) */\n");
         sb.append("        .game-mode-card { background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 18px; padding: 16px; margin-bottom: 14px; position: relative; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.04); }\n");
-        sb.append("        .game-mode-card.take6 { border-left: 5px solid #f59e0b; }\n");
-        sb.append("        .game-mode-card.dice { border-left: 5px solid #3b82f6; }\n");
-        sb.append("        .game-mode-card.wheel { border-left: 5px solid #ec4899; }\n");
-        sb.append("        .game-mode-card.undercover { border-left: 5px solid #10b981; }\n");
+        sb.append("        .game-mode-card.take6 { border-color: rgba(245, 158, 11, 0.36); }\n");
+        sb.append("        .game-mode-card.dice { border-color: rgba(59, 130, 246, 0.36); }\n");
+        sb.append("        .game-mode-card.wheel { border-color: rgba(236, 72, 153, 0.36); }\n");
+        sb.append("        .game-mode-card.undercover { border-color: rgba(16, 185, 129, 0.36); }\n");
         sb.append("        .game-mode-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }\n");
         sb.append("        .game-mode-title { font-size: 17px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px; }\n");
         sb.append("        .game-mode-badge { font-size: 10.5px; padding: 2px 7px; border-radius: 6px; font-weight: bold; }\n");
@@ -694,7 +697,7 @@ public class WebPlayController {
         sb.append("        .spinner-inline { display: inline-block; width: 14px; height: 14px; border: 2px solid #ffffff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -2px; margin-right: 6px; }\n");
         sb.append("        @keyframes spin { to { transform: rotate(360deg); } }\n");
         sb.append("    </style>\n");
-        sb.append("    <link rel='stylesheet' href='" + assetPrefix + "/css/webplay-pro.css?v=2.1'>\n");
+        sb.append("    <link rel='stylesheet' href='" + assetPrefix + "/css/webplay-pro.css?v=2.2'>\n");
         sb.append("</head>\n");
         sb.append("<body>\n");
         return sb.toString();
@@ -744,7 +747,7 @@ public class WebPlayController {
         sb.append("                    <span style='font-size:12px; font-weight:800; color:#10b981;'>🎮 PARTY GAME · 网页即玩端</span>\n");
         sb.append("                    <button type='button' class='btn-theme-toggle' onclick='toggleWebTheme()'>🌓 切换护眼/暗黑</button>\n");
         sb.append("                </div>\n");
-        sb.append("                <div class='login-logo'>🎲</div>\n");
+        sb.append("                <div class='login-brand-mark'>🎲</div>\n");
         sb.append("                <h2>欢迎回到聚会牌桌</h2>\n");
         sb.append("                <p>支持账号密码、手机短信及 APP 扫码安全登录</p>\n");
         sb.append("                <div class='auth-tabs'>\n");
@@ -755,11 +758,14 @@ public class WebPlayController {
         sb.append("                <div id='tabContentPwd'>\n");
         sb.append("                    <div class='form-group'>\n");
         sb.append("                        <label class='form-label'>账号 / 手机号</label>\n");
-        sb.append("                        <input type='text' id='inputPwdAccount' class='form-input' placeholder='请输入账号或11位手机号'>\n");
+        sb.append("                        <input type='text' id='inputPwdAccount' class='form-input' placeholder='请输入账号或11位手机号' onkeydown='if(event.key===\"Enter\")submitPasswordLogin(false)'>\n");
         sb.append("                    </div>\n");
         sb.append("                    <div class='form-group'>\n");
         sb.append("                        <label class='form-label'>登录密码</label>\n");
-        sb.append("                        <input type='password' id='inputPwdPass' class='form-input' placeholder='请输入登录密码'>\n");
+        sb.append("                        <div class='pwd-input-wrap'>\n");
+        sb.append("                            <input type='password' id='inputPwdPass' class='form-input' placeholder='请输入登录密码' onkeydown='if(event.key===\"Enter\")submitPasswordLogin(false)'>\n");
+        sb.append("                            <button type='button' class='btn-pwd-eye' id='btnTogglePwdVis' onclick='togglePwdVisibility()' title='显示或隐藏密码'>👁️</button>\n");
+        sb.append("                        </div>\n");
         sb.append("                    </div>\n");
         sb.append("                    <div class='remember-row'>\n");
         sb.append("                        <label class='remember-label'>\n");
@@ -770,7 +776,7 @@ public class WebPlayController {
         sb.append("                    </div>\n");
         sb.append("                    <div id='registerExtraBox' style='display: none; margin-bottom: 14px; background: rgba(59,130,246,0.1); border: 1px dashed #3b82f6; border-radius: 10px; padding: 12px; text-align: left;'>\n");
         sb.append("                        <label class='form-label' style='color: #2563eb;'>设置您的新游戏昵称</label>\n");
-        sb.append("                        <input type='text' id='inputRegNickname' class='form-input' placeholder='请输入昵称 (如: 派对达人)' style='margin-bottom: 10px;'>\n");
+        sb.append("                        <input type='text' id='inputRegNickname' class='form-input' placeholder='请输入昵称 (如: 派对达人)' style='margin-bottom: 10px;' onkeydown='if(event.key===\"Enter\")submitRegister()'>\n");
         sb.append("                        <button style='width: 100%; background: #2563eb; color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;' onclick='submitRegister()'>✨ 完成注册并登录</button>\n");
         sb.append("                    </div>\n");
         sb.append("                    <button class='btn-enter' id='btnPwdEnter' onclick='submitPasswordLogin(false)'>🚀 立即登录并进入大厅</button>\n");
@@ -804,12 +810,20 @@ public class WebPlayController {
         sb.append("                    <div class='form-group'>\n");
         sb.append("                        <label class='form-label'>短信验证码</label>\n");
         sb.append("                        <div style='display:flex; gap:8px;'>\n");
-        sb.append("                            <input type='text' id='inputSmsCode' class='form-input' placeholder='请输入6位短信验证码' maxlength='6' style='flex:1;'>\n");
+        sb.append("                            <input type='text' id='inputSmsCode' inputmode='numeric' class='form-input' placeholder='请输入6位短信验证码' maxlength='6' style='flex:1;' onkeydown='if(event.key===\"Enter\")submitTrialSmsAuth()'>\n");
         sb.append("                            <button id='btnSendSms' type='button' onclick='sendTrialSms()' style='background:#3b82f6; color:#fff; border:none; border-radius:10px; padding:0 12px; font-size:12px; font-weight:bold; cursor:pointer; white-space:nowrap;'>获取验证码</button>\n");
         sb.append("                        </div>\n");
         sb.append("                    </div>\n");
         sb.append("                    <button class='btn-enter' id='btnEnter' onclick='submitTrialSmsAuth()'>⚡ 验证并立即进入游戏</button>\n");
         sb.append("                    <div class='auth-tip'>💡 输入手机号接收短信验证码，首次验证自动开通游戏账号！</div>\n");
+        sb.append("                </div>\n");
+        sb.append("                <div class='login-compliance-footer'>\n");
+        sb.append("                    <div class='login-compliance-badges'>\n");
+        sb.append("                        <span class='compliance-pill'>🔞 适龄提示：16+</span>\n");
+        sb.append("                        <span class='compliance-pill'>🛡️ 权威防作弊裁决</span>\n");
+        sb.append("                        <span class='compliance-pill'>🔒 绿色娱乐反赌博</span>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div>健康游戏忠告：抵制不良游戏，拒绝盗版游戏。注意自我保护，谨防受骗上当。适度游戏益脑，沉迷游戏伤身。合理安排时间，享受健康生活。</div>\n");
         sb.append("                </div>\n");
         sb.append("            </div>\n");
         sb.append("        </div>\n");
@@ -844,6 +858,14 @@ public class WebPlayController {
         sb.append("                <button class='btn-logout' onclick='logoutUser()' title='安全退出登录'>🚪 退出</button>\n");
         sb.append("            </div>\n");
         sb.append("        </div>\n");
+        sb.append("        <nav class='desktop-lobby-nav' aria-label='大厅主导航'>\n");
+        sb.append("            <button type='button' class='desktop-nav-btn active' data-lobby-tab='games' onclick='switchLobbyTab(\"games\")'>🎮 游戏大厅</button>\n");
+        sb.append("            <button type='button' class='desktop-nav-btn' data-lobby-tab='square' onclick='switchLobbyTab(\"square\")'>💬 社交广场</button>\n");
+        sb.append("            <button type='button' class='desktop-nav-btn' data-lobby-tab='rank' onclick='switchLobbyTab(\"rank\")'>🏆 荣耀排行榜</button>\n");
+        sb.append("            <button type='button' class='desktop-nav-btn' data-lobby-tab='friends' onclick='switchLobbyTab(\"friends\")'>👥 亲密好友</button>\n");
+        sb.append("            <button type='button' class='desktop-nav-btn' data-lobby-tab='shop' onclick='switchLobbyTab(\"shop\")'>🛍️ 装扮商城</button>\n");
+        sb.append("            <button type='button' class='desktop-nav-btn' data-lobby-tab='profile' onclick='switchLobbyTab(\"profile\")'>👤 个人中心</button>\n");
+        sb.append("        </nav>\n");
         sb.append("    </div>\n");
         sb.append("    <div class='active-room-banner' id='activeRoomBanner' style='display:none;' onclick='rejoinActiveRoom()'>\n");
         sb.append("        <div class='banner-content'>\n");
@@ -857,14 +879,36 @@ public class WebPlayController {
         /* 首屏核心：快速开局与游戏列表 */
         sb.append("            <div class='lobby-hero-card'>\n" +
                   "                <div>\n" +
-                  "                    <div style='font-size:17px; font-weight:900;'>快速开局 · 实时联机对战</div>\n" +
-                  "                    <div style='font-size:12px; color:#cbd5e1; margin-top:4px;'>选择下方任意桌游模式，支持一键匹配、创建房间或输入 6 位房间号加入</div>\n" +
+                  "                    <div style='font-size:18px; font-weight:900;'>快速开局 · 跨端实时联机对战</div>\n" +
+                  "                    <div style='font-size:12.5px; color:#cbd5e1; margin-top:4px;'>选择下方任意桌游模式，支持一键秒匹、创建专属房间或输入 6 位房间号精准加入</div>\n" +
                   "                </div>\n" +
-                  "                <div style='display:flex; gap:8px; flex-shrink:0;'>\n" +
-                  "                    <button style='background:rgba(255,255,255,0.15); color:#ffffff; border:1px solid rgba(255,255,255,0.25); padding:10px 14px; border-radius:10px; font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap;' onclick='openGameRulesModal(\"take6\")'>📖 玩法宝典</button>\n" +
-                  "                    <button style='background:#10b981; color:#ffffff; border:none; padding:10px 18px; border-radius:10px; font-size:13px; font-weight:800; cursor:pointer; white-space:nowrap;' onclick='quickPlayGame(\"take6\")'>⚡ 快速开局</button>\n" +
+                  "                <div style='display:flex; gap:8px; flex-shrink:0; flex-wrap:wrap;'>\n" +
+                  "                    <button type='button' class='btn-hero-ghost' onclick='openGameRulesModal(\"take6\")'>📖 玩法宝典</button>\n" +
+                  "                    <button type='button' class='btn-hero-primary' onclick='quickPlayGame(\"take6\")'>⚡ 快速开局</button>\n" +
                   "                </div>\n" +
                   "            </div>\n");
+        sb.append("            <div class='commercial-quick-bar'>\n" +
+                  "                <button type='button' class='btn-commercial-tag first-recharge' onclick='openFirstRechargeModal()'>\n" +
+                  "                    <span class='comm-badge'>1100%返利</span>\n" +
+                  "                    <span class='comm-icon'>🎁</span>\n" +
+                  "                    <div><div class='comm-title'>6元首充豪礼</div><div class='comm-sub'>送绝版骰盅+VIP1</div></div>\n" +
+                  "                </button>\n" +
+                  "                <button type='button' class='btn-commercial-tag daily-signin' onclick='openSignInModal()'>\n" +
+                  "                    <span class='comm-icon'>📅</span>\n" +
+                  "                    <div><div class='comm-title'>每日连续签到</div><div class='comm-sub'>满7天领66钻石</div></div>\n" +
+                  "                </button>\n" +
+                  "                <button type='button' class='btn-commercial-tag lucky-gacha' onclick='openLuckyGachaModal()'>\n" +
+                  "                    <span class='comm-badge'>保底必出</span>\n" +
+                  "                    <span class='comm-icon'>🎯</span>\n" +
+                  "                    <div><div class='comm-title'>幸运夺宝盲盒</div><div class='comm-sub'>抽888钻与火箭</div></div>\n" +
+                  "                </button>\n" +
+                  "                <button type='button' class='btn-commercial-tag relief' onclick='openBankruptReliefModal()'>\n" +
+                  "                    <span class='comm-icon'>🆘</span>\n" +
+                  "                    <div><div class='comm-title'>免费领救济金</div><div class='comm-sub'>每日补给秒回血</div></div>\n" +
+                  "                </button>\n" +
+                  "            </div>\n");
+        sb.append("            <div class='lobby-games-workspace'>\n" +
+                  "                <div class='lobby-games-main'>\n");
         sb.append("            <div class='category-filter-bar'>\n" +
                   "                <button class='cat-pill active' data-cat='all' onclick='filterLobbyGameCategory(\"all\", this)'>🔥 全部玩法 (4)</button>\n" +
                   "                <button class='cat-pill' data-cat='strategy' onclick='filterLobbyGameCategory(\"strategy\", this)'>🎲 策略博弈</button>\n" +
@@ -920,19 +964,23 @@ public class WebPlayController {
                   "                        <button class='btn-mode-rules' onclick='openGameRulesModal(\"undercover\")'>📖 规则</button>\n" +
                   "                    </div>\n" +
                   "                </div>\n" +
-                  "            </div>\n");
+                  "            </div>\n" +
+                  "                </div>\n" +
+                  "                <aside class='lobby-rooms-sidebar'>\n");
         sb.append("            <div class='search-room-bar'>\n");
-        sb.append("                <input type='text' id='inputSearchRoomCode' class='search-room-input' placeholder='输入 6 位房间号精确加入...' maxlength='12'>\n");
+        sb.append("                <input type='text' id='inputSearchRoomCode' inputmode='numeric' class='search-room-input' placeholder='输入 6 位房间号精确加入...' maxlength='12' onkeydown='if(event.key===\"Enter\")joinSearchedRoom()'>\n");
         sb.append("                <button class='btn-search-go' onclick='joinSearchedRoom()'>🔍 进入房间</button>\n");
         sb.append("            </div>\n");
         sb.append("            <div class='room-list-box'>\n");
         sb.append("                <div class='room-list-header'>\n");
-        sb.append("                    <span>🔥 当前活跃开黑房间</span>\n");
-        sb.append("                    <button style='background:none; border:none; color:#38bdf8; font-size:12px; cursor:pointer;' onclick='refreshLobbyRooms()'>🔄 刷新列表</button>\n");
+        sb.append("                    <span style='display:inline-flex; align-items:center; gap:6px;'>🔥 当前活跃开黑房间 <span id='lobbyRoomCountBadge' class='pg-count-pill'>0</span></span>\n");
+        sb.append("                    <button style='background:none; border:none; color:#38bdf8; font-size:12px; font-weight:700; cursor:pointer;' onclick='refreshLobbyRooms()'>🔄 刷新列表</button>\n");
         sb.append("                </div>\n");
         sb.append("                <div id='lobbyRoomList' style='display:flex; flex-direction:column; gap:8px;'>\n");
         sb.append("                    <div style='color:#64748b; font-size:12px; text-align:center; padding:16px;'>正在拉取在线房间列表...</div>\n");
         sb.append("                </div>\n");
+        sb.append("            </div>\n");
+        sb.append("                </aside>\n");
         sb.append("            </div>\n");
         sb.append("        </div>\n");
         sb.append("        <div id='lobbyTabSquare' class='lobby-tab-content' style='display:none;'>\n");
@@ -976,15 +1024,21 @@ public class WebPlayController {
         sb.append("            </div>\n");
         sb.append("        </div>\n");
         sb.append("        <div id='lobbyTabFriends' class='lobby-tab-content' style='display:none;'>\n");
+        sb.append("            <div class='square-tabs'>\n");
+        sb.append("                <button class='square-tab-btn' onclick='switchLobbyTab(\"square\"); switchSquareChannel(\"WORLD\")'>全服世界频道</button>\n");
+        sb.append("                <button class='square-tab-btn' onclick='switchLobbyTab(\"square\"); switchSquareChannel(\"CITY\")'>同城交友频道</button>\n");
+        sb.append("                <button class='square-tab-btn active'>❤️ 亲密好友</button>\n");
+        sb.append("            </div>\n");
+        sb.append("            <div class='lobby-friends-workspace'><div>\n");
         sb.append("            <div class='intimacy-wall'>\n");
         sb.append("                <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>\n");
-        sb.append("                    <span style='font-size:14px; font-weight:bold; color:#0f172a;'>❤️ 我的亲密关系墙</span>\n");
+        sb.append("                    <span class='pg-title' style='font-size:14px; font-weight:bold;'>❤️ 我的亲密关系墙</span>\n");
         sb.append("                    <span style='font-size:11px; color:#f43f5e;'>结交知己 · 缔结良缘</span>\n");
         sb.append("                </div>\n");
         sb.append("                <div id='intimacyWallList'>\n");
-        sb.append("                    <div style='color:#64748b; font-size:12px; text-align:center; padding:12px;'>暂无已缔结的亲密关系，互送礼物达到亲密度即可绑定～</div>\n");
+        sb.append("                    <div class='pg-sub' style='font-size:12px; text-align:center; padding:12px;'>暂无已缔结的亲密关系，互送礼物达到亲密度即可绑定～</div>\n");
         sb.append("                </div>\n");
-        sb.append("                <div style='background:rgba(244,63,94,0.08); border:1px dashed #f43f5e; border-radius:10px; padding:10px; font-size:11px; color:#e11d48; line-height:1.5; margin-top:10px; text-align:left;'>\n");
+        sb.append("                <div class='pg-rose-panel' style='padding:10px; font-size:11px; line-height:1.5; margin-top:10px; text-align:left;'>\n");
         sb.append("                    💡 <b>亲密度规则</b>：送鲜花/啤酒/互动道具可增加亲密度；满50点可设为<b>【朋友】</b>，100点<b>【发小/死党】</b>，200点<b>【知己/闺蜜/基友】</b>，520点<b>【情侣/老婆/老公】</b>！\n");
         sb.append("                </div>\n");
         sb.append("            </div>\n");
@@ -992,13 +1046,14 @@ public class WebPlayController {
         sb.append("                <input type='text' id='inputAddFriendUid' class='search-room-input' placeholder='输入玩家 UID 或昵称添加好友...'>\n");
         sb.append("                <button class='btn-search-go' onclick='actionApplyFriend()'>➕ 申请好友</button>\n");
         sb.append("            </div>\n");
+        sb.append("            </div><div>\n");
         sb.append("            <div class='room-list-box' id='pendingRequestsBox' style='margin-bottom:12px;'>\n");
-        sb.append("                <div class='room-list-header' style='background:linear-gradient(90deg,#eff6ff,#dbeafe); border-radius:10px 10px 0 0; padding:10px 14px;'>\n");
-        sb.append("                    <span style='color:#1d4ed8; font-weight:800; display:flex; align-items:center; gap:6px;'>📩 好友申请与陌生人留言 <span id='pendingRequestsCountBadge' class='badge-vip' style='display:none; background:#ef4444; font-size:10px; padding:1px 6px;'>0</span></span>\n");
-        sb.append("                    <button style='background:none; border:none; color:#2563eb; font-size:12px; cursor:pointer; font-weight:bold;' onclick='loadFriendRequestsData()'>🔄 刷新申请</button>\n");
+        sb.append("                <div class='room-list-header pg-blue-header'>\n");
+        sb.append("                    <span style='font-weight:800; display:flex; align-items:center; gap:6px;'>📩 好友申请与陌生人留言 <span id='pendingRequestsCountBadge' class='badge-vip' style='display:none; background:#ef4444; font-size:10px; padding:1px 6px;'>0</span></span>\n");
+        sb.append("                    <button style='background:none; border:none; color:inherit; font-size:12px; cursor:pointer; font-weight:bold;' onclick='loadFriendRequestsData()'>🔄 刷新申请</button>\n");
         sb.append("                </div>\n");
         sb.append("                <div id='pendingRequestsContainer' style='display:flex; flex-direction:column; gap:8px; padding:8px 0;'>\n");
-        sb.append("                    <div style='color:#94a3b8; font-size:12px; text-align:center; padding:12px;'>暂无待处理的好友申请与陌生人留言</div>\n");
+        sb.append("                    <div class='pg-sub' style='font-size:12px; text-align:center; padding:12px;'>暂无待处理的好友申请与陌生人留言</div>\n");
         sb.append("                </div>\n");
         sb.append("            </div>\n");
         sb.append("            <div class='room-list-box'>\n");
@@ -1007,22 +1062,23 @@ public class WebPlayController {
         sb.append("                    <button style='background:none; border:none; color:#38bdf8; font-size:12px; cursor:pointer;' onclick='loadFriendsData()'>🔄 刷新好友</button>\n");
         sb.append("                </div>\n");
         sb.append("                <div id='friendsListContainer' style='display:flex; flex-direction:column; gap:8px;'>\n");
-        sb.append("                    <div style='color:#64748b; font-size:12px; text-align:center; padding:16px;'>正在拉取好友列表...</div>\n");
+        sb.append("                    <div class='pg-sub' style='font-size:12px; text-align:center; padding:16px;'>正在拉取好友列表...</div>\n");
         sb.append("                </div>\n");
         sb.append("            </div>\n");
+        sb.append("            </div></div>\n");
         sb.append("        </div>\n");
         sb.append("        <div id='lobbyTabShop' class='lobby-tab-content' style='display:none;'>\n");
-        sb.append("            <div style='background:linear-gradient(135deg,#fffbeb,#fef3c7); border:1.5px solid #f59e0b; border-radius:16px; padding:12px 16px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 2px 10px rgba(245,158,11,0.12);'>\n");
+        sb.append("            <div class='pg-shop-vip-banner'>\n");
         sb.append("                <div>\n");
-        sb.append("                    <div style='font-size:14px; font-weight:800; color:#b45309; display:flex; align-items:center; gap:6px;'>\n");
+        sb.append("                    <div style='font-size:14px; font-weight:800; color:#d97706; display:flex; align-items:center; gap:6px;'>\n");
         sb.append("                        <span>👑 VIP 特权装扮商城</span>\n");
         sb.append("                        <span class='badge-vip' id='shopUserVipBadge'>V1</span>\n");
         sb.append("                    </div>\n");
-        sb.append("                    <div style='font-size:11.5px; color:#78350f; margin-top:2px;'>\n");
+        sb.append("                    <div class='pg-sub' style='font-size:11.5px; margin-top:2px;'>\n");
         sb.append("                        金币 " + COIN_SVG + " <span id='shopUserCoins' style='font-weight:bold;'>2,000</span> · 钻石 💎 <span id='shopUserDiamonds' style='font-weight:bold;'>50</span>\n");
         sb.append("                    </div>\n");
         sb.append("                </div>\n");
-        sb.append("                <button style='background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:none; padding:7px 14px; border-radius:8px; font-size:11px; font-weight:bold; cursor:pointer; box-shadow:0 2px 6px rgba(245,158,11,0.3);' onclick='switchShopCategory(\"recharge\")'>⚡ 立即充值</button>\n");
+        sb.append("                <button style='background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:none; padding:8px 16px; border-radius:10px; font-size:12px; font-weight:bold; cursor:pointer; box-shadow:0 2px 6px rgba(245,158,11,0.3);' onclick='switchShopCategory(\"recharge\")'>⚡ 立即充值</button>\n");
         sb.append("            </div>\n");
         sb.append("            <div class='shop-sub-nav'>\n");
         sb.append("                <button class='shop-sub-btn active' id='shopNavDiceCup' onclick='switchShopCategory(\"dice_cup\")'>🎲 骰盅皮肤</button>\n");
@@ -1034,14 +1090,15 @@ public class WebPlayController {
         sb.append("                <button class='shop-sub-btn' id='shopNavVipCenter' onclick='switchShopCategory(\"vip_center\")'>👑 VIP特权</button>\n");
         sb.append("            </div>\n");
         sb.append("            <div id='shopCatalogContainer' style='min-height:220px;'>\n");
-        sb.append("                <div style='color:#64748b; font-size:12px; text-align:center; padding:30px;'>正在加载商城装扮与道具...</div>\n");
+        sb.append("                <div class='pg-sub' style='font-size:12px; text-align:center; padding:30px;'>正在加载商城装扮与道具...</div>\n");
         sb.append("            </div>\n");
         sb.append("        </div>\n");
         sb.append("        <div id='lobbyTabProfile' class='lobby-tab-content' style='display:none;'>\n");
-        sb.append("            <div class='profile-card'>\n");
+        sb.append("            <div class='lobby-profile-workspace'>\n");
+        sb.append("            <div class='profile-card' style='margin-bottom:0;'>\n");
         sb.append("                <div class='lobby-avatar' id='profileAvatarBig' style='width:58px; height:58px; font-size:28px; margin:0 auto 10px; border-width:3px;'>🦊</div>\n");
-        sb.append("                <div style='font-size:18px; font-weight:bold; color:#0f172a;' id='profileNickname'>玩家昵称</div>\n");
-        sb.append("                <div style='font-size:12px; color:#94a3b8; margin-top:2px;' id='profileUidText'>OneID 通行证已就绪</div>\n");
+        sb.append("                <div class='pg-title' style='font-size:18px; font-weight:bold;' id='profileNickname'>玩家昵称</div>\n");
+        sb.append("                <div class='pg-sub' style='font-size:12px; margin-top:2px;' id='profileUidText'>OneID 通行证已就绪</div>\n");
         sb.append("                <div class='profile-stat-grid'>\n");
         sb.append("                    <div class='profile-stat-box'>\n");
         sb.append("                        <div class='stat-val' id='statTotalGames'>0</div>\n");
@@ -1052,30 +1109,32 @@ public class WebPlayController {
         sb.append("                        <div class='stat-lbl'>胜场数</div>\n");
         sb.append("                    </div>\n");
         sb.append("                    <div class='profile-stat-box'>\n");
-        sb.append("                        <div class='stat-val' style='color:#34d399;' id='statWinRate'>0%</div>\n");
+        sb.append("                        <div class='stat-val' style='color:#10b981;' id='statWinRate'>0%</div>\n");
         sb.append("                        <div class='stat-lbl'>综合胜率</div>\n");
         sb.append("                    </div>\n");
         sb.append("                    <div class='profile-stat-box'>\n");
-        sb.append("                        <div class='stat-val' style='color:#fbbf24;' id='statRankScore'>1200</div>\n");
+        sb.append("                        <div class='stat-val' style='color:#f59e0b;' id='statRankScore'>1200</div>\n");
         sb.append("                        <div class='stat-lbl'>天梯积分</div>\n");
         sb.append("                    </div>\n");
         sb.append("                </div>\n");
-        sb.append("                <div style='display:flex; justify-content:space-around; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:12px; padding:10px; font-size:12px; color:#334155;'>\n");
+        sb.append("                <div class='pg-soft-panel' style='display:flex; justify-content:space-around; padding:10px; font-size:12px;'>\n");
         sb.append("                    <div>" + COIN_SVG + " 金币：<b id='profileCoins' style='color:#d97706;'>2,000</b></div>\n");
         sb.append("                    <div>💎 钻石：<b id='profileDiamonds' style='color:#0284c7;'>50</b></div>\n");
         sb.append("                    <div>👑 VIP：<b id='profileVip' style='color:#d97706;'>VIP 1</b></div>\n");
         sb.append("                </div>\n");
         sb.append("            </div>\n");
-        sb.append("            <div style='display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;'>\n");
-        sb.append("                <button type='button' onclick='openSignInModal()' style='background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:12px 8px; cursor:pointer; font-size:12px; font-weight:700; color:#0f172a;'>每日签到领奖</button>\n");
-        sb.append("                <button type='button' onclick='openBankruptReliefModal()' style='background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:12px 8px; cursor:pointer; font-size:12px; font-weight:700; color:#0f172a;'>免费领救济金</button>\n");
-        sb.append("                <button type='button' onclick='openLuckyGachaModal()' style='background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:12px 8px; cursor:pointer; font-size:12px; font-weight:700; color:#0f172a;'>金币幸运盲盒</button>\n");
+        sb.append("            <div style='display:flex; flex-direction:column; gap:12px;'>\n");
+        sb.append("            <div style='display:grid; grid-template-columns:repeat(3,1fr); gap:10px;'>\n");
+        sb.append("                <button type='button' class='pg-welfare-btn' onclick='openSignInModal()'><span style='font-size:20px;'>📅</span><span>每日签到领奖</span></button>\n");
+        sb.append("                <button type='button' class='pg-welfare-btn' onclick='openBankruptReliefModal()'><span style='font-size:20px;'>🆘</span><span>免费领救济金</span></button>\n");
+        sb.append("                <button type='button' class='pg-welfare-btn' onclick='openLuckyGachaModal()'><span style='font-size:20px;'>🎯</span><span>金币幸运盲盒</span></button>\n");
         sb.append("            </div>\n");
-        sb.append("            <div style='background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:14px; margin-bottom:14px; font-size:12px; color:#475569; line-height:1.6; box-shadow:0 2px 8px rgba(0,0,0,0.02);'>\n");
-        sb.append("                <div style='font-weight:bold; color:#0f172a; margin-bottom:6px;'>公平竞技与战绩说明</div>\n");
-        sb.append("                <div>1. 聚会桌游吧坚持公平竞技原则，所有联机对局记录真实计入天梯积分与胜率统计，不支持付费重置或修改战绩；<br>2. 对局中途若网络断开，系统将自动开启智能托管并保留重连通道。</div>\n");
+        sb.append("            <div class='pg-surface-panel' style='padding:14px; font-size:12px; line-height:1.6; text-align:left;'>\n");
+        sb.append("                <div class='pg-title' style='font-weight:bold; margin-bottom:6px;'>🛡️ 公平竞技与战绩说明</div>\n");
+        sb.append("                <div class='pg-sub'>1. 聚会桌游吧坚持公平竞技原则，所有联机对局记录真实计入天梯积分与胜率统计，不支持付费重置或修改战绩；<br>2. 对局中途若网络断开，系统将自动开启智能托管并保留重连通道。</div>\n");
         sb.append("            </div>\n");
-        sb.append("            <button style='width:100%; padding:13px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; border-radius:12px; font-weight:bold; font-size:14px; cursor:pointer;' onclick='logoutUser()'>🚪 退出登录当前账号</button>\n");
+        sb.append("            <button style='width:100%; padding:13px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.38); color:#ef4444; border-radius:12px; font-weight:bold; font-size:14px; cursor:pointer;' onclick='logoutUser()'>🚪 退出登录当前账号</button>\n");
+        sb.append("            </div></div>\n");
         sb.append("        </div>\n");
         sb.append("    </div>\n");
         sb.append("    <div class='bottom-nav'>\n");
@@ -1085,11 +1144,15 @@ public class WebPlayController {
         sb.append("        </button>\n");
         sb.append("        <button class='nav-tab-btn' id='navItemSquare' onclick='switchLobbyTab(\"square\")'>\n");
         sb.append("            <span class='nav-tab-icon'>💬</span>\n");
-        sb.append("            <span>社交广场</span>\n");
+        sb.append("            <span>广场</span>\n");
+        sb.append("        </button>\n");
+        sb.append("        <button class='nav-tab-btn' id='navItemFriends' onclick='switchLobbyTab(\"friends\")'>\n");
+        sb.append("            <span class='nav-tab-icon'>👥</span>\n");
+        sb.append("            <span>好友</span>\n");
         sb.append("        </button>\n");
         sb.append("        <button class='nav-tab-btn' id='navItemRank' onclick='switchLobbyTab(\"rank\")'>\n");
         sb.append("            <span class='nav-tab-icon'>🏆</span>\n");
-        sb.append("            <span>排行榜</span>\n");
+        sb.append("            <span>排行</span>\n");
         sb.append("        </button>\n");
         sb.append("        <button class='nav-tab-btn' id='navItemShop' onclick='switchLobbyTab(\"shop\")'>\n");
         sb.append("            <span class='nav-tab-icon'>🛍️</span>\n");
@@ -1326,7 +1389,7 @@ public class WebPlayController {
                   "        </div>\n" +
                   "        <div class='ad-countdown-bar'><div class='ad-countdown-fill' id='adCountdownFill'></div></div>\n" +
                   "        <div style='font-size:13px; color:#475569; margin-bottom:14px;'>正在加载聚会赞助商精选活动内容... 倒计时结束后金币将秒级自动入账！</div>\n" +
-                  "        <div style='font-size:36px; animation:bounceLogo 1.5s infinite;'>🎁</div>\n" +
+                  "        <div style='font-size:36px;'>🎁</div>\n" +
                   "    </div>\n" +
                   "</div>\n");
 
@@ -1442,18 +1505,18 @@ public class WebPlayController {
                   "        <!-- 支付方式切换 -->\n" +
                   "        <div style='font-size:12px; font-weight:bold; color:#475569; margin-bottom:8px;'>请选择支付方式：</div>\n" +
                   "        <div style='display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;'>\n" +
-                  "            <div class='cashier-channel-item active' id='channelWx' onclick='switchCashierChannel(\"WXPAY\")' style='border:2px solid #07c160; background:#f0fdf4; border-radius:10px; padding:10px; display:flex; align-items:center; gap:8px;'>\n" +
+                  "            <div class='cashier-channel-item active wx' id='channelWx' onclick='switchCashierChannel(\"WXPAY\")'>\n" +
                   "                <span style='font-size:22px;'>🟢</span>\n" +
                   "                <div>\n" +
-                  "                    <div style='font-size:13px; font-weight:bold; color:#166534;'>微信支付</div>\n" +
-                  "                    <div style='font-size:10px; color:#15803d;'>推荐使用 · 扫码秒付</div>\n" +
+                  "                    <div style='font-size:13px; font-weight:bold; color:#10b981;'>微信支付</div>\n" +
+                  "                    <div class='pg-sub' style='font-size:10px;'>推荐使用 · 扫码秒付</div>\n" +
                   "                </div>\n" +
                   "            </div>\n" +
-                  "            <div class='cashier-channel-item' id='channelAli' onclick='switchCashierChannel(\"ALIPAY\")' style='border:1px solid #cbd5e1; background:#ffffff; border-radius:10px; padding:10px; display:flex; align-items:center; gap:8px;'>\n" +
+                  "            <div class='cashier-channel-item ali' id='channelAli' onclick='switchCashierChannel(\"ALIPAY\")'>\n" +
                   "                <span style='font-size:22px;'>🔵</span>\n" +
                   "                <div>\n" +
-                  "                    <div style='font-size:13px; font-weight:bold; color:#1e40af;'>支付宝</div>\n" +
-                  "                    <div style='font-size:10px; color:#64748b;'>支持花呗 / 余额宝</div>\n" +
+                  "                    <div style='font-size:13px; font-weight:bold; color:#3b82f6;'>支付宝</div>\n" +
+                  "                    <div class='pg-sub' style='font-size:10px;'>支持花呗 / 余额宝</div>\n" +
                   "                </div>\n" +
                   "            </div>\n" +
                   "        </div>\n" +
@@ -1560,21 +1623,75 @@ public class WebPlayController {
                   "    </div>\n" +
                   "</div>\n");
 
+        /* 8. 玩家名片与牌桌互动弹窗 (支持查战绩、改备注、设亲密关系、快捷送礼、加好友、房主踢人) */
+        sb.append("<div class='modal-overlay' id='playerProfileModal' style='display:none; z-index:1002;' onclick='if(event.target===this)closePlayerProfileModal()'>\n" +
+                  "    <div class='commercial-modal-card' style='max-width:440px; text-align:left;'>\n" +
+                  "        <button onclick='closePlayerProfileModal()' style='position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; color:#94a3b8; cursor:pointer;'>✕</button>\n" +
+                  "        <div style='display:flex; align-items:center; gap:12px; margin-bottom:12px;'>\n" +
+                  "            <div class='lobby-avatar' id='modalPlayerAvatar' style='width:54px; height:54px; font-size:26px; flex-shrink:0;'>🦊</div>\n" +
+                  "            <div style='min-width:0; flex:1;'>\n" +
+                  "                <div style='display:flex; align-items:center; gap:6px; flex-wrap:wrap;'>\n" +
+                  "                    <span id='modalPlayerName' class='pg-title' style='font-size:16px; font-weight:900;'>玩家昵称</span>\n" +
+                  "                    <span id='modalPlayerVipBadge' class='badge-vip' style='display:none;'>VIP 1</span>\n" +
+                  "                </div>\n" +
+                  "                <div class='pg-sub' style='font-size:11.5px; margin-top:3px; display:flex; align-items:center; gap:6px;'>\n" +
+                  "                    <span>UID: <b id='modalPlayerUid' class='tabular-nums'>--</b></span>\n" +
+                  "                    <button type='button' class='btn-copy-id' onclick='copyModalPlayerUid()'>📋 复制</button>\n" +
+                  "                </div>\n" +
+                  "            </div>\n" +
+                  "        </div>\n" +
+                  "        <div style='display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; text-align:center;'>\n" +
+                  "            <div class='pg-soft-panel' style='padding:8px 4px;'><div id='modalPlayerRankTier' class='pg-title' style='font-size:12.5px; font-weight:800;'>🥉 倔强青铜</div><div class='pg-sub' style='font-size:10.5px;'>当前段位</div></div>\n" +
+                  "            <div class='pg-soft-panel' style='padding:8px 4px;'><div id='modalPlayerTotalGames' class='pg-title tabular-nums' style='font-size:13px; font-weight:800;'>0场</div><div class='pg-sub' style='font-size:10.5px;'>累计对局</div></div>\n" +
+                  "            <div class='pg-soft-panel' style='padding:8px 4px;'><div id='modalPlayerWinRate' class='tabular-nums' style='font-size:13px; font-weight:800; color:#10b981;'>0%</div><div class='pg-sub' style='font-size:10.5px;'>综合胜率</div></div>\n" +
+                  "        </div>\n" +
+                  "        <div id='modalPlayerRemarkBox' class='pg-soft-panel' style='display:none; justify-content:space-between; align-items:center; padding:8px 12px; margin-bottom:10px; font-size:12px;'>\n" +
+                  "            <span>📝 好友备注：<b id='modalPlayerRemarkVal' class='pg-title'>未设置</b></span>\n" +
+                  "            <button type='button' class='btn-copy-id' onclick='promptEditFriendRemark()'>✏️ 修改</button>\n" +
+                  "        </div>\n" +
+                  "        <div id='modalPlayerIntimacySection' class='pg-rose-panel' style='display:flex; justify-content:space-between; align-items:center; padding:10px 12px; margin-bottom:10px; font-size:12px;'>\n" +
+                  "            <div><b id='modalPlayerRelBadge'>暂未缔结</b> · <span id='modalPlayerIntimacyText' class='tabular-nums'>双方亲密度: 0</span></div>\n" +
+                  "            <button type='button' id='btnToggleInlineRel' onclick='toggleInlineRelationshipPanel()' style='background:#f43f5e; color:#fff; border:none; border-radius:6px; padding:4px 9px; font-size:11px; font-weight:800; cursor:pointer;'>设置关系 ▾</button>\n" +
+                  "        </div>\n" +
+                  "        <div id='modalInlineRelationshipPanel' style='display:none; margin-bottom:12px;'>\n" +
+                  "            <div id='inlineRelNotice' style='font-size:11px; border-radius:8px; padding:8px 10px; margin-bottom:8px; line-height:1.45;'></div>\n" +
+                  "            <div id='inlineRelBadgesGrid' style='display:grid; grid-template-columns:repeat(3,1fr); gap:6px;'></div>\n" +
+                  "            <div id='inlineRelRemoveRow' style='display:none; margin-top:8px; text-align:right;'>\n" +
+                  "                <button type='button' onclick='actionRemoveRelationshipDirect()' style='background:none; border:1px solid #fca5a5; color:#ef4444; border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer;'>解除当前关系</button>\n" +
+                  "            </div>\n" +
+                  "        </div>\n" +
+                  "        <div id='modalPlayerGiftTitle' class='pg-sub' style='font-size:11.5px; font-weight:700; margin-bottom:6px;'>🎁 快捷投掷互动道具 (秒级特效 + 提升亲密度)：</div>\n" +
+                  "        <div id='modalPlayerGiftGrid' style='display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:12px;'>\n" +
+                  "            <button type='button' class='throw-item-card' onclick=\"actionSendGift('ROSE', '🌹 浪漫鲜花', 15, '浪漫鲜花', 20, false)\"><div style='font-size:22px;'>🌹</div><div class='throw-item-name'>送鲜花</div><div class='throw-item-price coin'>+15亲密</div></button>\n" +
+                  "            <button type='button' class='throw-item-card' onclick=\"actionSendGift('BEER', '🍺 干杯啤酒', 10, '干杯啤酒', 15, false)\"><div style='font-size:22px;'>🍺</div><div class='throw-item-name'>碰啤酒</div><div class='throw-item-price coin'>+10亲密</div></button>\n" +
+                  "            <button type='button' class='throw-item-card' onclick=\"actionSendGift('EGG', '🥚 搞笑臭蛋', 5, '搞笑臭蛋', 10, false)\"><div style='font-size:22px;'>🥚</div><div class='throw-item-name'>砸臭蛋</div><div class='throw-item-price coin'>+5亲密</div></button>\n" +
+                  "            <button type='button' class='throw-item-card' onclick='closePlayerProfileModal(); openItemThrowModal(currentModalTargetUid, currentModalTargetName, currentModalTargetAvatar)'><div style='font-size:22px;'>🎁</div><div class='throw-item-name'>全部礼物</div><div class='throw-item-price diamond'>15款连击</div></button>\n" +
+                  "        </div>\n" +
+                  "        <div id='modalPlayerActionsRow' style='display:flex; gap:8px; flex-wrap:wrap;'>\n" +
+                  "            <button type='button' id='modalBtnAddFriend' onclick='quickApplyFriendFromModal()' style='flex:1; background:#10b981; color:#fff; border:none; padding:10px; border-radius:10px; font-size:12.5px; font-weight:800; cursor:pointer;'>➕ 加为好友</button>\n" +
+                  "            <button type='button' onclick='closePlayerProfileModal(); openFriendChatModal(currentModalTargetUid, currentModalTargetName, currentModalTargetAvatar)' style='flex:1; background:#3b82f6; color:#fff; border:none; padding:10px; border-radius:10px; font-size:12.5px; font-weight:800; cursor:pointer;'>💬 发起私聊</button>\n" +
+                  "            <button type='button' id='modalBtnKickRoom' onclick='actionKickPlayer(currentModalTargetUid, currentModalTargetName); closePlayerProfileModal();' style='display:none; background:#ef4444; color:#fff; border:none; padding:10px 12px; border-radius:10px; font-size:12px; font-weight:800; cursor:pointer;'>👢 踢出房间</button>\n" +
+                  "        </div>\n" +
+                  "    </div>\n" +
+                  "</div>\n");
+
         return sb.toString();
     }
 
     private String buildHtmlStage(boolean isTake6) {
         StringBuilder sb = new StringBuilder(8000);
         sb.append("    <div class='main-stage'>\n" +
-"        <div class='seats-grid' id='seatsGrid'></div>\n" +
-"        <div class='ready-bar'>\n" +
-"            <button class='btn-ready-toggle ready' id='btnReadyToggle' onclick='toggleMyReady()'>⚡ 点击准备</button>\n" +
-"            <button class='btn-summon-players' id='btnSummonPlayers' onclick='actionSummonPlayers()'>📢 召集玩家</button>\n" +
-"            <button class='btn-spectator-toggle is-on' id='btnSpectatorToggle' onclick='actionToggleSpectator()' style='display:none;'>👁️ 允许旁观 (开)</button>\n" +
-"        </div>\n" +
-"        <div id='summonCountdownBanner' style='display:none; margin:8px 0; background:rgba(245,158,11,0.15); border:1px solid #f59e0b; color:#fbbf24; border-radius:8px; padding:8px 12px; font-size:12px; font-weight:bold; text-align:center;'>\n" +
-"            📢 已向全服世界与同城频道发布召集广播！正在呼叫桌友进房 (<span id='summonTimerSeconds'>10</span>s)...\n" +
-"        </div>\n");
+"        <div class='room-workspace-grid'>\n" +
+"            <div class='room-table-col'>\n" +
+"                <div class='seats-grid' id='seatsGrid'></div>\n" +
+"                <div class='ready-bar'>\n" +
+"                    <button class='btn-ready-toggle ready' id='btnReadyToggle' onclick='toggleMyReady()'>⚡ 点击准备</button>\n" +
+"                    <button class='btn-summon-players' id='btnSummonPlayers' onclick='actionSummonPlayers()'>📢 召集玩家</button>\n" +
+"                    <button class='btn-spectator-toggle is-on' id='btnSpectatorToggle' onclick='actionToggleSpectator()' style='display:none;'>👁️ 允许旁观 (开)</button>\n" +
+"                </div>\n" +
+"                <div id='summonCountdownBanner' style='display:none; margin:4px 0; background:rgba(245,158,11,0.15); border:1px solid #f59e0b; color:#d97706; border-radius:10px; padding:8px 12px; font-size:12px; font-weight:bold; text-align:center;'>\n" +
+"                    📢 已向全服世界与同城频道发布召集广播！正在呼叫桌友进房 (<span id='summonTimerSeconds'>10</span>s)...\n" +
+"                </div>\n");
 
         // 1. 牛头王对战板
         sb.append("        <div class='game-board' id='take6Board' style='display:none;'>\n" +
@@ -1620,7 +1737,7 @@ public class WebPlayController {
 "            <div class='bid-status-board' id='bidStatusBoard' style='display: none;'></div>\n" +
 "            <div class='dice-bid-history-bar' id='diceBidHistoryBar'></div>\n" +
 "            <div class='cup-box' id='diceCup' onclick='actionRollDice()' title='点击摇骰'>🎲</div>\n" +
-"            <div style='font-size: 12px; color: #475569; font-weight: 600; margin-bottom: 8px;' id='turnTip'>对局开始后由服务端权威派发 5 颗手骰，支持叫【斋】与【刚好(2x)】</div>\n" +
+"            <div class='dice-turn-tip' id='turnTip'>对局开始后由服务端权威派发 5 颗手骰，支持叫【斋】与【刚好(2x)】</div>\n" +
 "            <div class='dice-badge-bar' id='diceHandBadgeBar'></div>\n" +
 "            <div class='dice-container'>\n" +
 "                <div class='dice-row' id='myDiceRow'></div>\n" +
@@ -1696,9 +1813,9 @@ public class WebPlayController {
 "                </div>\n" +
 "                <div style='margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; justify-content:center;'>\n" +
 "                    <button id='btnSpinWheel' onclick='actionSpinWheel()' style='background:linear-gradient(135deg,#ec4899,#be185d); color:#fff; border:none; padding:10px 24px; border-radius:20px; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 6px 18px rgba(236,72,153,0.35);'>🎯 开始旋转</button>\n" +
-"                    <button id='btnAutoWheel' onclick='toggleAutoWheel()' style='background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:10px 16px; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer;'>🤖 自动连转</button>\n" +
+"                    <button id='btnAutoWheel' class='btn-wheel-auto' onclick='toggleAutoWheel()'>🤖 自动连转</button>\n" +
 "                </div>\n" +
-"                <div id='wheelResultCard' style='display:none; margin-top:14px; width:100%; max-width:440px; background:rgba(236,72,153,0.14); border:1.5px solid #ec4899; border-radius:14px; padding:12px 16px; color:#be185d; font-weight:bold; font-size:13px; text-align:left;'>\n" +
+"                <div id='wheelResultCard' class='wheel-result-card'>\n" +
 "                </div>\n" +
 "                <div id='wheelHistoryBox' class='wheel-history-box'>\n" +
 "                    <div style='font-weight:800; margin-bottom:4px;'>📜 本房转盘记录</div>\n" +
@@ -1714,26 +1831,26 @@ public class WebPlayController {
 "                <div class='waiting-status-desc'>谁是卧底 · 词语推理 · 平票 PK 与投票抓凶！</div>\n" +
 "            </div>\n" +
 "            <div style='margin:14px 0; display:flex; flex-direction:column; gap:10px;'>\n" +
-"                <div id='undercoverSpeakerBanner' style='background:linear-gradient(135deg,#eff6ff,#dbeafe); border:1.5px solid #93c5fd; border-radius:12px; padding:12px; display:flex; justify-content:space-between; align-items:center; gap:8px;'>\n" +
+"                <div id='undercoverSpeakerBanner' class='uc-speaker-banner'>\n" +
 "                    <div style='text-align:left;'>\n" +
-"                        <div style='font-size:11px; color:#1e40af; font-weight:bold;'>📢 当前发言麦序 (请依次描述)</div>\n" +
-"                        <div id='undercoverCurrentSpeakerText' style='font-size:14px; font-weight:900; color:#1e3a8a; margin-top:2px;'>等待房主开局...</div>\n" +
+"                        <div class='uc-speaker-label'>📢 当前发言麦序 (请依次描述)</div>\n" +
+"                        <div id='undercoverCurrentSpeakerText' class='uc-speaker-name'>等待房主开局...</div>\n" +
 "                    </div>\n" +
 "                    <button id='btnUndercoverFinishSpeech' onclick='actionUndercoverFinishSpeech()' style='display:none; background:#2563eb; color:#fff; border:none; padding:8px 14px; border-radius:8px; font-weight:bold; font-size:12px; cursor:pointer; flex-shrink:0;'>🎤 我发言完毕</button>\n" +
 "                </div>\n" +
 "                <div id='undercoverPkBanner' class='uc-pk-banner'></div>\n" +
 "                <div id='undercoverResultBanner' class='uc-result-banner'></div>\n" +
-"                <div class='uc-word-card' style='background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.02);'>\n" +
-"                    <div style='font-size:12px; color:#64748b; margin-bottom:6px; font-weight:600;'>我的秘密词底 (仅自己可见 · 防偷窥)</div>\n" +
-"                    <div id='undercoverWordBox' onclick='toggleUndercoverWord()' style='background:#f8fafc; border:1.5px dashed #3b82f6; border-radius:10px; padding:14px; font-size:18px; font-weight:bold; color:#2563eb; cursor:pointer;'>\n" +
+"                <div class='uc-word-card'>\n" +
+"                    <div class='pg-sub' style='font-size:12px; margin-bottom:6px; font-weight:600;'>我的秘密词底 (仅自己可见 · 防偷窥)</div>\n" +
+"                    <div id='undercoverWordBox' class='uc-word-box' onclick='toggleUndercoverWord()'>\n" +
 "                        🙈 点击揭开词底\n" +
 "                    </div>\n" +
 "                </div>\n" +
-"                <div id='undercoverVoteSection' style='background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.02);'>\n" +
+"                <div id='undercoverVoteSection' class='uc-vote-card'>\n" +
 "                    <div style='font-size:12px; color:#d97706; font-weight:bold; margin-bottom:8px; text-align:left;'>🗳️ 投票指认卧底：</div>\n" +
 "                    <div id='undercoverVoteButtons' style='display:flex; flex-wrap:wrap; gap:8px;'></div>\n" +
 "                </div>\n" +
-"                <div id='undercoverClueLog' style='background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px; font-size:11.5px; color:#475569; max-height:130px; overflow-y:auto; text-align:left;'>\n" +
+"                <div id='undercoverClueLog' class='uc-clue-log'>\n" +
 "                    💡 游戏提示：平民拿到相同词，卧底拿到相似词（或白板无词）。轮流描述底词，切勿直接说出原词！\n" +
 "                </div>\n" +
 "            </div>\n" +
@@ -1751,39 +1868,47 @@ public class WebPlayController {
 "                    <button class='btn-settle-lobby' onclick='actionCloseSettlementModal()'>🚪 返回房间</button>\n" +
 "                </div>\n" +
 "            </div>\n" +
-"        </div>\n");
+"        </div>\n" +
+"            </div>\n");
         return sb.toString();
     }
 
     private String buildHtmlChatAndFooter(boolean isTake6) {
-        StringBuilder sb = new StringBuilder(2000);
-        sb.append("        <div class='quick-phrases'>\n");
+        StringBuilder sb = new StringBuilder(2400);
+        sb.append("            <aside class='room-chat-col'>\n" +
+"                <div class='chat-panel-card'>\n" +
+"                    <div class='chat-header-bar'>\n" +
+"                        <span>💬 房间实时互动</span>\n" +
+"                        <button class='btn-toggle-chat' id='btnToggleChat' onclick='toggleChatCollapse()'>🗕 折叠聊天</button>\n" +
+"                    </div>\n" +
+"                    <div class='chat-collapsible-body' id='chatCollapsibleBody'>\n" +
+"                        <div class='quick-phrases' id='roomQuickPhrases'>\n");
         if (isTake6) {
-            sb.append("            <div class='phrase-chip' onclick=\"sendQuickPhrase('快点吧，我等到花儿都谢了！')\">🌸 花儿都谢了</div>\n" +
-"            <div class='phrase-chip' onclick=\"sendQuickPhrase('🐮 这波牛头你吃定了，稳住！')\">🐮 这波吃定了</div>\n" +
-"            <div class='phrase-chip' onclick=\"sendQuickPhrase('🎯 算无遗策，完美避坑！')\">🎯 完美避坑</div>\n" +
-"            <div class='phrase-chip' onclick=\"sendQuickPhrase('😭 谁放的第6张牌！扎心了！')\">😭 谁放的第6张</div>\n" +
-"            <div class='phrase-chip' onclick=\"sendQuickPhrase('不要走，决战到天亮！')\">⚔️ 决战到天亮</div>\n" +
-"            <div class='phrase-chip' onclick=\"sendQuickPhrase('你太有才了，佩服佩服！')\">👏 佩服佩服</div>\n");
+            sb.append("                            <div class='phrase-chip' onclick=\"sendQuickPhrase('快点吧，我等到花儿都谢了！')\">🌸 花儿都谢了</div>\n" +
+"                            <div class='phrase-chip' onclick=\"sendQuickPhrase('🐮 这波牛头你吃定了，稳住！')\">🐮 这波吃定了</div>\n" +
+"                            <div class='phrase-chip' onclick=\"sendQuickPhrase('🎯 算无遗策，完美避坑！')\">🎯 完美避坑</div>\n" +
+"                            <div class='phrase-chip' onclick=\"sendQuickPhrase('😭 谁放的第6张牌！扎心了！')\">😭 谁放的第6张</div>\n" +
+"                            <div class='phrase-chip' onclick=\"sendQuickPhrase('不要走，决战到天亮！')\">⚔️ 决战到天亮</div>\n" +
+"                            <div class='phrase-chip' onclick=\"sendQuickPhrase('你太有才了，佩服佩服！')\">👏 佩服佩服</div>\n");
         } else {
-            sb.append("            <div class='phrase-chip' onclick=\"sendQuickPhrase('快点吧，我等到花儿都谢了！')\">🌸 花儿都谢了</div>\n" +
-"            <div class='phrase-chip' onclick=\"sendQuickPhrase('手气这么好，你家里人知道吗？')\">🔥 手气这么好</div>\n" +
-"            <div class='phrase-chip' onclick=\"sendQuickPhrase('不要走，决战到天亮！')\">⚔️ 决战到天亮</div>\n" +
-"            <div class='phrase-chip' onclick=\"sendQuickPhrase('你太有才了，佩服佩服！')\">👏 佩服佩服</div>\n" +
-"            <div class='phrase-chip' onclick=\"sendQuickPhrase('今晚全场的消费由赵公子买单！')\">💰 全场买单</div>\n");
+            sb.append("                            <div class='phrase-chip' onclick=\"sendQuickPhrase('快点吧，我等到花儿都谢了！')\">🌸 花儿都谢了</div>\n" +
+"                            <div class='phrase-chip' onclick=\"sendQuickPhrase('手气这么好，你家里人知道吗？')\">🔥 手气这么好</div>\n" +
+"                            <div class='phrase-chip' onclick=\"sendQuickPhrase('不要走，决战到天亮！')\">⚔️ 决战到天亮</div>\n" +
+"                            <div class='phrase-chip' onclick=\"sendQuickPhrase('你太有才了，佩服佩服！')\">👏 佩服佩服</div>\n" +
+"                            <div class='phrase-chip' onclick=\"sendQuickPhrase('今晚全场的消费由赵公子买单！')\">💰 全场买单</div>\n");
         }
-        sb.append("        </div>\n" +
-"        <div class='chat-header-bar'>\n" +
-"            <span>💬 房间开黑互动</span>\n" +
-"            <button class='btn-toggle-chat' id='btnToggleChat' onclick='toggleChatCollapse()'>🗕 折叠聊天</button>\n" +
+        sb.append("                        </div>\n" +
+"                        <div class='chat-stream' id='chatStream'>\n" +
+"                            <div class='chat-line'><span class='system'>[系统通知]</span> 欢迎来到聚会桌游吧开黑房！</div>\n" +
+"                        </div>\n" +
+"                    </div>\n" +
+"                    <div class='input-bar'>\n" +
+"                        <input type='text' id='chatInput' placeholder='打字与全房玩家互动...' maxlength='40' onkeydown='if(event.key===\"Enter\")sendChatMessage()'>\n" +
+"                        <button onclick='sendChatMessage()'>发送</button>\n" +
+"                    </div>\n" +
+"                </div>\n" +
+"            </aside>\n" +
 "        </div>\n" +
-"        <div class='chat-stream' id='chatStream'>\n" +
-"            <div class='chat-line'><span class='system'>[系统通知]</span> 欢迎来到聚会桌游吧开黑房！</div>\n" +
-"        </div>\n" +
-"    </div>\n" +
-"    <div class='input-bar'>\n" +
-"        <input type='text' id='chatInput' placeholder='打字与全房玩家互动...' maxlength='40' onkeydown='if(event.key===\"Enter\")sendChatMessage()'>\n" +
-"        <button onclick='sendChatMessage()'>发送</button>\n" +
 "    </div>\n");
         return sb.toString();
     }
@@ -1897,7 +2022,7 @@ public class WebPlayController {
                "        const prefix = getApiPrefix();\n" +
                "        const rId = currentRoomId || '';\n" +
                "        const gType = currentGameType || 'take6';\n" +
-               "        const link = origin + prefix + '/play?room=' + encodeURIComponent(rId) + '&type=' + encodeURIComponent(gType);\n" +
+               "        const link = origin + prefix + '/play?roomId=' + encodeURIComponent(rId) + '&gameType=' + encodeURIComponent(gType);\n" +
                "        if (navigator.clipboard && navigator.clipboard.writeText) {\n" +
                "            navigator.clipboard.writeText(link).then(() => {\n" +
                "                playBeep(880, 0.15);\n" +
@@ -1985,15 +2110,15 @@ public class WebPlayController {
                 "        const laser = document.getElementById('cashierScanLaser');\n" +
                 "        const qrImg = document.getElementById('cashierQrImg');\n" +
                 "        if (channel === 'WXPAY') {\n" +
-                "            if (btnWx) { btnWx.className = 'cashier-channel-item active'; btnWx.style.borderColor = '#07c160'; btnWx.style.background = '#f0fdf4'; }\n" +
-                "            if (btnAli) { btnAli.className = 'cashier-channel-item'; btnAli.style.borderColor = '#cbd5e1'; btnAli.style.background = '#ffffff'; }\n" +
+                "            if (btnWx) { btnWx.className = 'cashier-channel-item active wx'; }\n" +
+                "            if (btnAli) { btnAli.className = 'cashier-channel-item ali'; }\n" +
                 "            if (tip) tip.innerHTML = '📱 请使用手机微信【扫一扫】完成支付';\n" +
                 "            if (laser) laser.style.background = 'linear-gradient(90deg,transparent,#07c160,transparent)';\n" +
                 "            const qrUrl = 'weixin://wxpay/bizpayurl?pr=PARTY_' + currentCashierOrder.orderNo;\n" +
                 "            if (qrImg) qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=' + encodeURIComponent(qrUrl);\n" +
                 "        } else {\n" +
-                "            if (btnAli) { btnAli.className = 'cashier-channel-item active'; btnAli.style.borderColor = '#1677ff'; btnAli.style.background = '#eff6ff'; }\n" +
-                "            if (btnWx) { btnWx.className = 'cashier-channel-item'; btnWx.style.borderColor = '#cbd5e1'; btnWx.style.background = '#ffffff'; }\n" +
+                "            if (btnAli) { btnAli.className = 'cashier-channel-item active ali'; }\n" +
+                "            if (btnWx) { btnWx.className = 'cashier-channel-item wx'; }\n" +
                 "            if (tip) tip.innerHTML = '📱 请使用手机支付宝【扫一扫】完成支付';\n" +
                 "            if (laser) laser.style.background = 'linear-gradient(90deg,transparent,#1677ff,transparent)';\n" +
                 "            const qrUrl = 'alipays://platformapi/startapp?appId=20000067&url=PARTY_' + currentCashierOrder.orderNo;\n" +
@@ -2159,10 +2284,10 @@ public class WebPlayController {
                "                        const isPast = item.day < curDay;\n" +
                "                        const isCurrent = item.day === curDay;\n" +
                "                        const statusTag = isPast ? '✓ 已领' : (isCurrent ? (signed ? '✓ 今日已领' : '👉 今日可领') : '第' + item.day + '天');\n" +
-               "                        const border = isCurrent ? '2px solid #6366f1; background:#e0e7ff;' : (isPast ? '1px solid #cbd5e1; background:#f8fafc; opacity:0.8;' : '1px solid #e2e8f0; background:#fff;');\n" +
-               "                        return `<div style='border:${border}; border-radius:10px; padding:8px 4px; text-align:center;'>` +\n" +
-               "                               `<div style='font-size:10px; font-weight:bold; color:${isCurrent ? '#4338ca' : '#64748b'}; margin-bottom:2px;'>${statusTag}</div>` +\n" +
-               "                               `<div style='font-size:11px; font-weight:900; color:#0f172a;'>${item.desc}</div>` +\n" +
+               "                        const cardCls = 'signin-day-card' + (isCurrent ? ' current' : (isPast ? ' past' : ''));\n" +
+               "                        return `<div class='${cardCls}'>` +\n" +
+               "                               `<div class='signin-day-tag'>${statusTag}</div>` +\n" +
+               "                               `<div class='pg-title' style='font-size:11px; font-weight:900;'>${item.desc}</div>` +\n" +
                "                               `</div>`;\n" +
                "                    }).join('');\n" +
                "                }\n" +
@@ -2231,13 +2356,13 @@ public class WebPlayController {
                "                const pInfo = (players && players.find(p => p.id === pid)) || { name: '玩家' };\n" +
                "                const diceHtml = (Array.isArray(dice) ? dice : []).map(d => {\n" +
                "                    const isHit = (data.isPure || data.targetFace === 1) ? (d === data.targetFace) : (d === data.targetFace || d === 1);\n" +
-               "                    const hitStyle = isHit ? 'border:2px solid #f59e0b; background:#fffbeb; box-shadow:0 0 6px rgba(245,158,11,0.6);' : 'border:1px solid #cbd5e1; background:#f8fafc;';\n" +
-               "                    return `<div style='width:28px; height:28px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; margin:0 2px; ${hitStyle}'>` +\n" +
+               "                    const dieCls = isHit ? 'settle-die-box hit' : 'settle-die-box';\n" +
+               "                    return `<div class='${dieCls}'>` +\n" +
                "                           `<svg viewBox=\"0 0 100 100\" width=\"22\" height=\"22\">${renderDotsSvgOnly(d)}</svg>` +\n" +
                "                           `</div>`;\n" +
                "                }).join('');\n" +
-               "                return `<div style='display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px 12px;'>` +\n" +
-               "                       `<div style='display:flex; align-items:center; gap:6px;'><span style='font-size:13px; font-weight:bold;'>${pInfo.name || '玩家'}</span>${isWinner ? ' 👑' : ''}</div>` +\n" +
+               "                return `<div class='pg-soft-panel' style='display:flex; justify-content:space-between; align-items:center; padding:8px 12px;'>` +\n" +
+               "                       `<div style='display:flex; align-items:center; gap:6px;'><span class='pg-title' style='font-size:13px; font-weight:bold;'>${pInfo.name || '玩家'}</span>${isWinner ? ' 👑' : ''}</div>` +\n" +
                "                       `<div>${diceHtml}</div>` +\n" +
                "                       `</div>`;\n" +
                "            }).join('');\n" +
@@ -2339,15 +2464,19 @@ public class WebPlayController {
                "            html = `<div style='font-weight:900; margin-bottom:4px;'>🗳️ 公投结果：【${outName}】出局 · 身份为 <b>${roleStr}</b></div>`;\n" +
                "        }\n" +
                "        if (payload.gameOver) {\n" +
+               "            isGameStarted = false;\n" +
+               "            window.isGameOverPhase = true;\n" +
+               "            if (typeof updateReadyButtonState === 'function') updateReadyButtonState();\n" +
                "            const winTeam = payload.winnerTeam === 'CIVILIAN' ? '🎉 平民阵营大获全胜！成功抓出所有卧底！' : (payload.winnerTeam === 'BLANK' ? '🃏 白板极限逆袭获胜！' : '🎭 卧底阵营获胜！成功潜伏至最后！');\n" +
-               "            html += `<div style='font-weight:900; color:#7c3aed; margin-top:4px;'>${winTeam}</div>`;\n" +
+               "            html += `<div style='font-weight:900; color:#8b5cf6; margin-top:4px;'>${winTeam}</div>`;\n" +
                "            if (payload.words) {\n" +
-               "                html += `<div style='font-size:12px; margin-top:6px; padding:6px 8px; border-radius:8px; background:rgba(139,92,246,0.10);'>📖 本局谜底揭晓：平民词【<b>${payload.words.civilian || '-'}</b>】 · 卧底词【<b>${payload.words.undercover || '-'}</b>】</div>`;\n" +
+               "                html += `<div style='font-size:12px; margin-top:6px; padding:6px 8px; border-radius:8px; background:rgba(139,92,246,0.12);'>📖 本局谜底揭晓：平民词【<b>${payload.words.civilian || '-'}</b>】 · 卧底词【<b>${payload.words.undercover || '-'}</b>】</div>`;\n" +
                "            }\n" +
                "            if (payload.revealedRoles) {\n" +
                "                const rolesSummary = Object.values(payload.revealedRoles).map(r => `${r.name || '玩家'}(${r.isBlank ? '白板' : (r.isUndercover ? '卧底' : '平民')})`).join(' · ');\n" +
-               "                html += `<div style='font-size:11.5px; color:#64748b; margin-top:6px;'>👥 全员身份揭晓：${rolesSummary}</div>`;\n" +
+               "                html += `<div class='pg-sub' style='font-size:11.5px; margin-top:6px;'>👥 全员身份揭晓：${rolesSummary}</div>`;\n" +
                "            }\n" +
+               "            html += `<div style='margin-top:10px; display:flex; gap:8px;'><button type='button' style='flex:1; background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:none; padding:9px 14px; border-radius:10px; font-weight:800; font-size:12.5px; cursor:pointer;' onclick='actionUndercoverRestartGame()'>🔄 再来一局</button></div>`;\n" +
                "            playVictoryFanfare();\n" +
                "        } else {\n" +
                "            html += '<div style=\"font-size:12px; color:#64748b; margin-top:4px;\">游戏继续，进入下一轮麦序发言！</div>';\n" +
@@ -2526,11 +2655,13 @@ public class WebPlayController {
                "            const btnGuest = document.getElementById('btnEnter');\n" +
                "            if (btnGuest) { btnGuest.disabled = false; btnGuest.innerText = '⚡ 验证并立即试玩'; }\n" +
                "        }\n" +
-               "        const prefix = getApiPrefix();\n" +
+        );
+        sb.append("        const prefix = getApiPrefix();\n" +
                "        if (history.pushState) {\n" +
+               "            const curSearch = window.location.search || '';\n" +
                "            if (viewName === 'login') {\n" +
                "                if (!window.location.pathname.endsWith('/login')) {\n" +
-               "                    history.pushState(null, '', prefix + '/login');\n" +
+               "                    history.pushState(null, '', prefix + '/login' + curSearch);\n" +
                "                }\n" +
                "            } else if (viewName === 'lobby') {\n" +
                "                if (!window.location.pathname.endsWith('/lobby')) {\n" +
@@ -2547,6 +2678,7 @@ public class WebPlayController {
                "        currentLobbyTab = tabName;\n" +
                "        document.querySelectorAll('.lobby-tab-content').forEach(c => c.style.display = 'none');\n" +
                "        document.querySelectorAll('.nav-tab-btn').forEach(b => b.classList.remove('active'));\n" +
+               "        document.querySelectorAll('.desktop-nav-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-lobby-tab') === tabName));\n" +
                "        const content = document.getElementById('lobbyTab' + tabName.charAt(0).toUpperCase() + tabName.slice(1));\n" +
                "        const navBtn = document.getElementById('navItem' + tabName.charAt(0).toUpperCase() + tabName.slice(1));\n" +
                "        if (content) content.style.display = 'block';\n" +
@@ -2615,24 +2747,26 @@ public class WebPlayController {
                "    window.updateUserStateUi = updateHeaderUserUi;\n" +
                "    window.refreshLobbyRooms = async function() {\n" +
                "        const container = document.getElementById('lobbyRoomList');\n" +
+               "        const countBadge = document.getElementById('lobbyRoomCountBadge');\n" +
                "        if (!container) return;\n" +
-               "        container.innerHTML = '<div style=\"color:#64748b; font-size:12px; text-align:center; padding:12px;\">正在刷新房间...</div>';\n" +
+               "        container.innerHTML = '<div class=\"pg-sub\" style=\"font-size:12px; text-align:center; padding:14px;\">正在同步实时房间...</div>';\n" +
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/rooms');\n" +
                "            const data = await res.json();\n" +
                "            const list = data.data || [];\n" +
+               "            if (countBadge) countBadge.innerText = String(list.length);\n" +
                "            if (list.length === 0) {\n" +
-               "                container.innerHTML = '<div style=\"color:#64748b; font-size:12px; text-align:center; padding:16px;\">暂无活跃房间，快点击上方创建新房间成为房主吧～</div>';\n" +
+               "                container.innerHTML = '<div class=\"pg-sub\" style=\"font-size:12px; text-align:center; padding:18px 10px;\"><div style=\"font-size:24px; margin-bottom:6px;\">🎲</div><div>当前暂无公开房间，立即新建一桌邀请好友开黑</div><button type=\"button\" style=\"margin-top:10px; padding:7px 14px; background:#10b981; color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:800; cursor:pointer;\" onclick=\"createRoomQuick(\\'take6\\')\">➕ 立即创建房间</button></div>';\n" +
                "                return;\n" +
                "            }\n" +
                "            container.innerHTML = list.map(r => {\n" +
                "                const gName = r.gameType === 'take6' ? '🐂 牛头王' : (r.gameType === 'liars_dice' ? '🎲 大话骰' : (r.gameType === 'party_wheel' ? '🎡 大转盘' : '🕵️ 谁是卧底'));\n" +
                "                const isPlaying = r.status === 'PLAYING';\n" +
-               "                const statusBadge = isPlaying ? '<span style=\"color:#f59e0b; font-size:11px;\">对战中</span>' : '<span style=\"color:#10b981; font-size:11px;\">组队中</span>';\n" +
+               "                const statusBadge = isPlaying ? '<span style=\"color:#f59e0b; font-size:11px; font-weight:700; margin-left:6px;\">对战中</span>' : '<span style=\"color:#10b981; font-size:11px; font-weight:700; margin-left:6px;\">组队中</span>';\n" +
                "                const pCount = (r.players && r.players.length) ? r.players.length : 1;\n" +
                "                return '<div class=\"room-item-row\">' +\n" +
-               "                    '<div><span class=\"room-code-title\" style=\"font-weight:bold; color:#0f172a; font-size:13px;\">#' + r.roomCode + '</span> <span style=\"font-size:11px; color:#475569; font-weight:600; margin-left:6px;\">' + gName + '</span> ' + statusBadge + ' <span style=\"font-size:11px; color:#64748b; margin-left:6px;\">(' + pCount + '/6人)</span></div>' +\n" +
-               "                    '<button style=\"padding:5px 12px; background:#10b981; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\" data-room=\"' + r.roomCode + '\" data-game=\"' + (r.gameType || 'take6') + '\" onclick=\"joinSpecificRoom(this.dataset.room, this.dataset.game)\">立即加入</button>' +\n" +
+               "                    '<div style=\"min-width:0;\"><span class=\"room-code-title pg-title\" style=\"font-weight:800; font-size:13px;\">#' + r.roomCode + '</span><span class=\"room-item-meta\">' + gName + '</span>' + statusBadge + '<span class=\"room-item-count tabular-nums\">(' + pCount + '/6人)</span></div>' +\n" +
+               "                    '<button style=\"padding:6px 12px; background:#10b981; color:#fff; border:none; border-radius:8px; font-size:11.5px; font-weight:800; cursor:pointer; flex-shrink:0;\" data-room=\"' + r.roomCode + '\" data-game=\"' + (r.gameType || 'take6') + '\" onclick=\"joinSpecificRoom(this.dataset.room, this.dataset.game)\">加入</button>' +\n" +
                "                    '</div>';\n" +
                "            }).join('');\n" +
                "        } catch(e) {\n" +
@@ -2669,15 +2803,25 @@ public class WebPlayController {
                "        } catch(e) {}\n" +
                "        joinSpecificRoom(newCode, currentGameType);\n" +
                "    };\n" +
-               "    window.joinSearchedRoom = function() {\n" +
+               "    window.joinSearchedRoom = async function() {\n" +
                "        const input = document.getElementById('inputSearchRoomCode');\n" +
-               "        const code = input ? input.value.trim() : '';\n" +
+               "        const raw = input ? input.value.trim() : '';\n" +
+               "        const code = raw.replace(/\\D/g, '') || raw;\n" +
                "        if (!code) { alert('请输入6位房间号！'); return; }\n" +
-               "        joinSpecificRoom(code, currentGameType);\n" +
+               "        let targetType = currentGameType || 'take6';\n" +
+               "        try {\n" +
+               "            const res = await fetch(getApiPrefix() + '/api/rooms/detail?roomCode=' + encodeURIComponent(code));\n" +
+               "            const d = await res.json();\n" +
+               "            if (d && d.code === 0 && d.data && d.data.gameType) {\n" +
+               "                targetType = d.data.gameType;\n" +
+               "            }\n" +
+               "        } catch(e) {}\n" +
+               "        joinSpecificRoom(code, targetType);\n" +
                "    };\n" +
                "    window.joinSpecificRoom = function(roomCode, gType) {\n" +
                "        currentRoomId = roomCode;\n" +
                "        if (gType) currentGameType = gType;\n" +
+               "        if (typeof updateRoomQuickPhrases === 'function') updateRoomQuickPhrases(currentGameType);\n" +
                "        const tag = document.getElementById('headerRoomTag');\n" +
                "        if (tag) tag.innerText = '房间 #' + roomCode;\n" +
                "        const bBadge = document.getElementById('gameHeaderBadge');\n" +
@@ -2847,7 +2991,7 @@ public class WebPlayController {
                "                try { localStorage.removeItem('party_active_room_' + myUserId); } catch(e) {}\n" +
                "                const banner = document.getElementById('activeRoomBanner');\n" +
                "                if (banner) banner.style.display = 'none';\n" +
-               "                refreshRoomList();\n" +
+               "                if (typeof refreshLobbyRooms === 'function') refreshLobbyRooms();\n" +
                "                return;\n" +
                "            }\n" +
                "        } catch(e) {}\n" +
@@ -2889,9 +3033,9 @@ public class WebPlayController {
                "            const rCode = match[1];\n" +
                "            formattedText = text.replace(/#(\\d{6})/, '<span style=\"color:#fbbf24;font-weight:bold;\">#' + rCode + '</span> <button class=\"quick-join-btn\" data-room=\"' + rCode + '\" onclick=\"joinSpecificRoom(this.dataset.room)\" style=\"padding:2px 8px;background:#f59e0b;color:#000;border:none;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;margin-left:4px;\">⚡ 立即加入</button>');\n" +
                "        }\n" +
-               "        let colorHex = (typeof CHAT_COLOR_MAP !== 'undefined' && CHAT_COLOR_MAP[textColor]) ? CHAT_COLOR_MAP[textColor] : '#1e293b';\n" +
-               "        if (!colorHex || colorHex === '#ffffff' || colorHex.toLowerCase() === '#fff' || colorHex.toLowerCase() === '#f8fafc' || colorHex.toLowerCase() === '#e2e8f0') { colorHex = '#1e293b'; }\n" +
-               "        div.innerHTML = vipBadgeHtml + '<span class=\"sender\" style=\"color:' + sColor + ';font-weight:bold;\">[' + sender + ']</span>: <span style=\"color:' + colorHex + ';font-weight:' + (textColor && textColor !== 'COLOR_DEFAULT' ? 'bold' : '500') + ';\">' + formattedText + '</span>';\n" +
+               "        const isCustomColor = Boolean(textColor && textColor !== 'COLOR_DEFAULT' && typeof CHAT_COLOR_MAP !== 'undefined' && CHAT_COLOR_MAP[textColor]);\n" +
+               "        const msgSpan = isCustomColor ? ('<span style=\"color:' + CHAT_COLOR_MAP[textColor] + ';font-weight:bold;\">' + formattedText + '</span>') : ('<span class=\"chat-msg-default\">' + formattedText + '</span>');\n" +
+               "        div.innerHTML = vipBadgeHtml + '<span class=\"sender\" style=\"color:' + sColor + ';font-weight:bold;\">[' + sender + ']</span>: ' + msgSpan;\n" +
                "        stream.appendChild(div); stream.scrollTop = stream.scrollHeight;\n" +
                "    }\n" +
                "    window.switchRankType = function(type) {\n" +
@@ -2917,7 +3061,7 @@ public class WebPlayController {
                "                const medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : ('#' + (i+1))));\n" +
                "                const scoreText = currentRankType === 'tier' ? ((u.rankScore || 1200) + ' 分 · ' + (u.winCount || 0) + '胜') : ('🪙 ' + Number(u.coins||0).toLocaleString());\n" +
                "                return '<div class=\"rank-item ' + topClass + '\">' +\n" +
-               "                    '<div style=\"display:flex; align-items:center; gap:8px;\"><span style=\"font-size:16px; font-weight:800; width:26px; text-align:center;\">' + medal + '</span><span style=\"font-size:18px;\">' + (u.avatar||'🦊') + '</span><div><div class=\"rank-nick\" style=\"font-weight:bold; font-size:13px; color:#0f172a;\">' + (u.nickname||'玩家') + '</div><div style=\"font-size:10px; color:#64748b;\">' + (u.rankTier||'倔强青铜') + '</div></div></div>' +\n" +
+               "                    '<div style=\"display:flex; align-items:center; gap:8px;\"><span style=\"font-size:16px; font-weight:800; width:26px; text-align:center;\">' + medal + '</span><span style=\"font-size:18px;\">' + (u.avatar||'🦊') + '</span><div><div class=\"rank-nick pg-title\" style=\"font-weight:bold; font-size:13px;\">' + (u.nickname||'玩家') + '</div><div class=\"pg-sub\" style=\"font-size:10px;\">' + (u.rankTier||'倔强青铜') + '</div></div></div>' +\n" +
                "                    '<div style=\"font-weight:bold; font-size:12px; color:#d97706;\">' + scoreText + '</div>' +\n" +
                "                    '</div>';\n" +
                "            }).join('');\n" +
@@ -2978,7 +3122,7 @@ public class WebPlayController {
                "        if (!stream) return;\n" +
                "        const isMe = String(msg.fromUserId) === String(myUserId);\n" +
                "        const row = document.createElement('div');\n" +
-               "        row.className = 'chat-bubble-row' + (isMe ? ' me' : '');\n" +
+               "        row.className = 'chat-bubble-row ' + (isMe ? 'me' : 'other');\n" +
                "        const av = isMe ? myAvatar : (msg.fromAvatar || activeDmUserAvatar || '🦊');\n" +
                "        const avDiv = '<div class=\"chat-bubble-avatar\">' + av + '</div>';\n" +
                "        let bubbleContent = '';\n" +
@@ -3361,11 +3505,12 @@ public class WebPlayController {
                "            { id: 'rocket_pack', name: '超级火箭礼包', emoji: '🚀', slot: 'prop', coins: 0, diamonds: 18, minVip: 0, desc: '全服震撼巨幕火箭升空，+60 亲密度', isAction: 'rocket' }\n" +
                "        ],\n" +
                "        recharge: [\n" +
-               "            { id: 'tier_6', name: '6元聚会新手包', price: '￥6', diamonds: 60, coins: 600, badge: '首充双倍', bonus: '首次赠送120钻石！' },\n" +
-               "            { id: 'tier_30', name: '30元微醺畅玩包', price: '￥30', diamonds: 300, coins: 3500, badge: '超值特惠', bonus: '加赠 3,500 金币' },\n" +
-               "            { id: 'tier_68', name: '68元骰王进阶包', price: '￥68', diamonds: 680, coins: 8888, badge: '热门首选', bonus: '极速升级 VIP 2' },\n" +
-               "            { id: 'tier_128', name: '128元雀圣霸主包', price: '￥128', diamonds: 1280, coins: 18888, badge: '尊享特权', bonus: '直接晋升 VIP 4 帝王框' },\n" +
-               "            { id: 'tier_648', name: '648元至尊神豪包', price: '￥648', diamonds: 6480, coins: 100000, badge: '至尊加冕', bonus: '海量 10 万金币 + 顶级特权' }\n" +
+               "            { id: 'tier_6', name: '6元聚会新手包', price: '￥6', amount: '6.00', diamonds: 60, coins: 1000, badge: '常规特惠', bonus: '赠送 1,000 金币 + 60 VIP成长' },\n" +
+               "            { id: 'tier_30', name: '30元微醺畅玩包', price: '￥30', amount: '30.00', diamonds: 300, coins: 5000, badge: '超值特惠', bonus: '加赠 5,000 金币' },\n" +
+               "            { id: 'tier_68', name: '68元骰王进阶包', price: '￥68', amount: '68.00', diamonds: 680, coins: 12000, badge: '热门首选', bonus: '送 12,000 金币 · 升 VIP 2' },\n" +
+               "            { id: 'tier_128', name: '128元雀圣霸主包', price: '￥128', amount: '128.00', diamonds: 1280, coins: 25000, badge: '尊享特权', bonus: '送 25,000 金币 · 帝王特权' },\n" +
+               "            { id: 'tier_328', name: '328元神豪尊享包', price: '￥328', amount: '328.00', diamonds: 3280, coins: 70000, badge: '神豪首选', bonus: '送 70,000 金币 · 尊爵光环' },\n" +
+               "            { id: 'tier_648', name: '648元至尊加冕包', price: '￥648', amount: '648.00', diamonds: 6480, coins: 150000, badge: '至尊加冕', bonus: '海量 15 万金币 + 顶级特权' }\n" +
                "        ],\n" +
                "        vip_center: [\n" +
                "            { level: 1, name: 'VIP 1 新星特权', exp: 60, emoji: '⭐', perks: '星空霸主专属头像框 · 全服大喇叭高亮V1标示 · 每日签到额外加赠 10%' },\n" +
@@ -3410,7 +3555,7 @@ public class WebPlayController {
                "                    return '<div class=\"shop-card-pro\">' +\n" +
                "                        '<div style=\"font-size:10.5px; color:#d97706; font-weight:800; background:#fef3c7; border:1px solid #fde68a; border-radius:4px; padding:1px 6px; display:inline-block; margin-bottom:4px;\">' + t.badge + '</div>' +\n" +
                "                        '<div style=\"font-size:20px; font-weight:900; color:#0284c7; margin:4px 0;\">💎 ' + t.diamonds + ' 钻</div>' +\n" +
-               "                        '<div style=\"font-size:11.5px; color:#475569;\">赠 ' + (window.COIN_ICON_SVG || '💰 ') + t.coins.toLocaleString() + ' 金币</div>' +\n" +
+               "                        '<div class=\"pg-sub\" style=\"font-size:11.5px;\">赠 ' + (window.COIN_ICON_SVG || '💰 ') + t.coins.toLocaleString() + ' 金币</div>' +\n" +
                "                        '<div style=\"font-size:10px; color:#10b981; margin:4px 0;\">' + t.bonus + '</div>' +\n" +
                "                        '<button class=\"shop-card-btn recharge\" data-id=\"' + t.id + '\" data-price=\"' + t.price + '\" data-diamonds=\"' + t.diamonds + '\" data-coins=\"' + t.coins + '\" onclick=\"actionShopRecharge(this.dataset.id, this.dataset.price, Number(this.dataset.diamonds), Number(this.dataset.coins))\">' + t.price + ' 立即充值</button>' +\n" +
                "                        '</div>';\n" +
@@ -3420,26 +3565,26 @@ public class WebPlayController {
                "        if (cat === 'vip_center') {\n" +
                "            const vips = SHOP_CATALOG.vip_center;\n" +
                "            const curExp = (currentUser && currentUser.vipExp) ? currentUser.vipExp : 120;\n" +
-               "            container.innerHTML = '<div style=\"background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:14px; margin-bottom:12px;\">' +\n" +
+               "            container.innerHTML = '<div class=\"pg-surface-panel\" style=\"padding:14px; margin-bottom:12px;\">' +\n" +
                "                '<div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;\">' +\n" +
-               "                '<span style=\"font-size:13px; font-weight:bold; color:#0f172a;\">👑 当前 VIP 等级: <span style=\"color:#d97706;\">VIP ' + myVip + '</span></span>' +\n" +
-               "                '<span style=\"font-size:11px; color:#64748b;\">成长值: ' + curExp + ' EXP</span>' +\n" +
+               "                '<span class=\"pg-title\" style=\"font-size:13px; font-weight:bold;\">👑 当前 VIP 等级: <span style=\"color:#d97706;\">VIP ' + myVip + '</span></span>' +\n" +
+               "                '<span class=\"pg-sub\" style=\"font-size:11px;\">成长值: ' + curExp + ' EXP</span>' +\n" +
                "                '</div>' +\n" +
-               "                '<div style=\"width:100%; height:8px; background:#f1f5f9; border-radius:4px; overflow:hidden;\">' +\n" +
+               "                '<div class=\"pg-soft-panel\" style=\"width:100%; height:8px; border-radius:4px; overflow:hidden; padding:0;\">' +\n" +
                "                '<div style=\"width:' + Math.min(100, Math.round((curExp / 680) * 100)) + '%; height:100%; background:linear-gradient(90deg,#f59e0b,#d97706); border-radius:4px;\"></div>' +\n" +
                "                '</div>' +\n" +
                "                '</div>' +\n" +
                "                '<div style=\"display:flex; flex-direction:column; gap:8px;\">' +\n" +
                "                vips.map(v => {\n" +
                "                    const isUnlocked = myVip >= v.level;\n" +
-               "                    return '<div style=\"background:#ffffff; border:1px solid ' + (isUnlocked ? '#fde68a' : '#e2e8f0') + '; border-radius:12px; padding:12px; display:flex; gap:10px; align-items:center;\">' +\n" +
-               "                        '<div style=\"font-size:28px; width:44px; height:44px; background:' + (isUnlocked ? '#fef3c7' : '#f8fafc') + '; border-radius:10px; display:flex; align-items:center; justify-content:center;\">' + v.emoji + '</div>' +\n" +
-               "                        '<div style=\"flex:1;\">' +\n" +
-               "                        '<div style=\"display:flex; align-items:center; gap:6px;\">' +\n" +
-               "                        '<span style=\"font-size:13px; font-weight:bold; color:' + (isUnlocked ? '#b45309' : '#334155') + ';\">' + v.name + '</span>' +\n" +
-               "                        (isUnlocked ? '<span style=\"font-size:9.5px; background:#dcfce7; color:#15803d; border-radius:4px; padding:1px 5px; font-weight:bold;\">已尊享</span>' : '<span style=\"font-size:9.5px; background:#f1f5f9; color:#64748b; border-radius:4px; padding:1px 5px;\">需 ' + v.exp + ' EXP</span>') +\n" +
+               "                    return '<div class=\"pg-surface-panel\" style=\"border-color:' + (isUnlocked ? '#f59e0b' : '') + '; padding:12px; display:flex; gap:10px; align-items:center;\">' +\n" +
+               "                        '<div class=\"pg-soft-panel\" style=\"font-size:26px; width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;\">' + v.emoji + '</div>' +\n" +
+               "                        '<div style=\"flex:1; text-align:left;\">' +\n" +
+               "                        '<div style=\"display:flex; align-items:center; gap:6px; flex-wrap:wrap;\">' +\n" +
+               "                        '<span class=\"pg-title\" style=\"font-size:13px; font-weight:bold;\">' + v.name + '</span>' +\n" +
+               "                        (isUnlocked ? '<span style=\"font-size:9.5px; background:rgba(16,185,129,0.18); color:#10b981; border-radius:4px; padding:1px 6px; font-weight:bold;\">已尊享</span>' : '<span class=\"pg-soft-panel\" style=\"font-size:9.5px; border-radius:4px; padding:1px 6px;\">需 ' + v.exp + ' EXP</span>') +\n" +
                "                        '</div>' +\n" +
-               "                        '<div style=\"font-size:11px; color:#64748b; margin-top:3px; line-height:1.4;\">' + v.perks + '</div>' +\n" +
+               "                        '<div class=\"pg-sub\" style=\"font-size:11px; margin-top:3px; line-height:1.4;\">' + v.perks + '</div>' +\n" +
                "                        '</div>' +\n" +
                "                        '</div>';\n" +
                "                }).join('') + '</div>';\n" +
@@ -3467,7 +3612,7 @@ public class WebPlayController {
                "                const colorPreview = item.hex ? ('<div style=\"font-size:11px; font-weight:bold; color:' + item.hex + '; background:rgba(0,0,0,0.7); border-radius:6px; padding:3px 6px; margin:4px 0;\">效果预览：你好呀！</div>') : '';\n" +
                "                return '<div class=\"shop-card-pro\">' +\n" +
                "                    '<div style=\"font-size:32px; margin-bottom:4px;\">' + item.emoji + '</div>' +\n" +
-               "                    '<div style=\"font-size:13px; font-weight:bold; color:#0f172a;\">' + item.name + vipTag + '</div>' +\n" +
+               "                    '<div class=\"shop-card-name pg-title\" style=\"font-size:13px; font-weight:bold;\">' + item.name + vipTag + '</div>' +\n" +
                "                    '<div style=\"font-size:10.5px; color:#64748b; margin:3px 0; min-height:28px;\">' + item.desc + '</div>' +\n" +
                "                    colorPreview +\n" +
                "                    '<div style=\"font-size:12px; font-weight:800; color:#d97706; margin-bottom:6px;\">' + priceStr + '</div>' +\n" +
@@ -3569,44 +3714,10 @@ public class WebPlayController {
                "            showToast('🎉 成功获取道具【' + name + '】！可直接在好友私聊或对局中使用！');\n" +
                "        }\n" +
                "    };\n" +
-               "    window.actionShopRecharge = async function(tierId, price, diamonds, coins) {\n" +
-               "        try {\n" +
-               "            const res = await fetch(getApiPrefix() + '/api/shop/recharge', {\n" +
-               "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
-               "                body: JSON.stringify({ userId: myUserId, tierId: tierId })\n" +
-               "            });\n" +
-               "            const d = await res.json();\n" +
-               "            if (d.code === 0 && d.data && d.data.user) {\n" +
-               "                currentUser = d.data.user;\n" +
-               "                updateHeaderUserUi(currentUser);\n" +
-               "                loadProfileData();\n" +
-               "                renderShopGoods();\n" +
-               "                showToast('🎉 充值成功！金币与钻石已全额到账！');\n" +
-               "                return;\n" +
-               "            }\n" +
-               "        } catch(e) {}\n" +
-               "        if (currentUser) {\n" +
-               "            currentUser.diamonds = (currentUser.diamonds || 0) + diamonds;\n" +
-               "            currentUser.coins = (currentUser.coins || 0) + coins;\n" +
-               "            currentUser.vipExp = (currentUser.vipExp || 0) + diamonds;\n" +
-               "            const exp = currentUser.vipExp || 0;\n" +
-               "            if (exp >= 188888) currentUser.vipLevel = 10;\n" +
-               "            else if (exp >= 100000) currentUser.vipLevel = 9;\n" +
-               "            else if (exp >= 50000) currentUser.vipLevel = 8;\n" +
-               "            else if (exp >= 20000) currentUser.vipLevel = 7;\n" +
-               "            else if (exp >= 10000) currentUser.vipLevel = 6;\n" +
-               "            else if (exp >= 5000) currentUser.vipLevel = 5;\n" +
-               "            else if (exp >= 2000) currentUser.vipLevel = 4;\n" +
-               "            else if (exp >= 500) currentUser.vipLevel = 3;\n" +
-               "            else if (exp >= 100) currentUser.vipLevel = 2;\n" +
-               "            else if (exp >= 10) currentUser.vipLevel = 1;\n" +
-               "            else currentUser.vipLevel = 0;\n" +
-               "            updateHeaderUserUi(currentUser);\n" +
-               "            loadProfileData();\n" +
-               "            renderShopGoods();\n" +
-               "        }\n" +
-               "        alert('🎉 恭喜成功充值！已为您充入 ' + diamonds + ' 钻石与 ' + coins + ' 金币！');\n" +
+               "    window.actionShopRecharge = function(tierId, price, diamonds, coins) {\n" +
+               "        const cleanAmt = String(price || '6').replace(/[^0-9.]/g, '') || '6.00';\n" +
+               "        const fmtAmt = cleanAmt.includes('.') ? cleanAmt : (cleanAmt + '.00');\n" +
+               "        openGameCashier('recharge', tierId, fmtAmt, '💎 ' + diamonds + ' 钻石 + 赠 ' + Number(coins || 0).toLocaleString() + ' 金币', '充值即刻到账并累积同等 VIP 成长值');\n" +
                "    };\n" +
                "    window.loadShopData = function() {\n" +
                "        renderShopGoods();\n" +
@@ -3625,9 +3736,9 @@ public class WebPlayController {
                "                } else {\n" +
                "                    wall.innerHTML = relations.map(r => {\n" +
                "                        return '<div class=\"relation-card\">' +\n" +
-               "                            '<div style=\"display:flex; align-items:center; gap:8px;\"><span style=\"font-size:22px;\">' + (r.partnerAvatar||'🦊') + '</span><div><div style=\"font-weight:bold; font-size:13px; color:#0f172a;\">' + r.partnerName + '</div><div style=\"font-size:11px; color:#f43f5e;\">❤️ ' + (r.relationship || '好朋友') + ' (亲密度 ' + r.intimacyScore + ')</div></div></div>' +\n" +
+               "                            '<div style=\"display:flex; align-items:center; gap:8px;\"><span style=\"font-size:22px;\">' + (r.partnerAvatar||'🦊') + '</span><div><div class=\"pg-title\" style=\"font-weight:bold; font-size:13px;\">' + r.partnerName + '</div><div style=\"font-size:11px; color:#f43f5e;\">❤️ ' + (r.relationship || '好朋友') + ' (亲密度 ' + r.intimacyScore + ')</div></div></div>' +\n" +
                "                            '<div style=\"display:flex; gap:6px;\">' +\n" +
-               "                            '<button style=\"padding:4px 8px; background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; border-radius:6px; font-size:11px; cursor:pointer;\" data-uid=\"' + (r.partnerId||'') + '\" data-name=\"' + r.partnerName + '\" data-avatar=\"' + (r.partnerAvatar||'🦊') + '\" data-score=\"' + (r.intimacyScore||10) + '\" data-rel=\"' + (r.relationship||'好朋友') + '\" onclick=\"openFriendChatModal(this.dataset.uid, this.dataset.name, this.dataset.avatar, Number(this.dataset.score), this.dataset.rel)\">💬 私聊</button>' +\n" +
+               "                            '<button class=\"pg-btn-secondary\" style=\"padding:4px 8px; border-radius:6px; font-size:11px;\" data-uid=\"' + (r.partnerId||'') + '\" data-name=\"' + r.partnerName + '\" data-avatar=\"' + (r.partnerAvatar||'🦊') + '\" data-score=\"' + (r.intimacyScore||10) + '\" data-rel=\"' + (r.relationship||'好朋友') + '\" onclick=\"openFriendChatModal(this.dataset.uid, this.dataset.name, this.dataset.avatar, Number(this.dataset.score), this.dataset.rel)\">💬 私聊</button>' +\n" +
                "                            '<button style=\"padding:4px 8px; background:#fff1f2; border:1px solid #fecdd3; color:#e11d48; border-radius:6px; font-size:11px; cursor:pointer;\" data-uid=\"' + (r.partnerId||'') + '\" data-name=\"' + r.partnerName + '\" data-avatar=\"' + (r.partnerAvatar||'🦊') + '\" onclick=\"openItemThrowModal(this.dataset.uid, this.dataset.name, this.dataset.avatar)\">🎁 互动</button>' +\n" +
                "                            '</div>' +\n" +
                "                            '</div>';\n" +
@@ -3652,7 +3763,7 @@ public class WebPlayController {
                "                        const fVip = f.vipLevel || 0;\n" +
                "                        const vipBadge = (fVip > 0) ? ('<span class=\"badge-vip' + (fVip >= 4 ? ' svip' : '') + '\" style=\"margin-left:4px; font-size:10px; padding:1px 5px;\">' + (fVip >= 4 ? '👑 SVIP' : 'VIP') + fVip + '</span>') : '';\n" +
                "                        return '<div class=\"room-item-row\" style=\"cursor:pointer;\" onclick=\"openPlayerProfileModal(\\'' + fId + '\\', \\'' + fRawName.replace(/'/g, \"\\\\'\") + '\\', \\'' + fAvatar + '\\')\">' +\n" +
-               "                            '<div style=\"display:flex; align-items:center; gap:8px;\"><span style=\"font-size:24px;\">' + fAvatar + '</span><div><div style=\"font-weight:bold; font-size:13px; color:#0f172a; display:flex; align-items:center;\">' + fDisplayName + vipBadge + '</div><div style=\"font-size:10.5px; color:#64748b; margin-top:2px;\">UID: ' + fId + ' · ❤️ ' + fRel + ' (亲密 ' + fIntimacy + ')</div></div></div>' +\n" +
+               "                            '<div style=\"display:flex; align-items:center; gap:8px;\"><span style=\"font-size:24px;\">' + fAvatar + '</span><div><div class=\"pg-title\" style=\"font-weight:bold; font-size:13px; display:flex; align-items:center;\">' + fDisplayName + vipBadge + '</div><div class=\"pg-sub\" style=\"font-size:10.5px; margin-top:2px;\">UID: ' + fId + ' · ❤️ ' + fRel + ' (亲密 ' + fIntimacy + ')</div></div></div>' +\n" +
                "                            '<div style=\"display:flex; gap:6px;\" onclick=\"event.stopPropagation();\">' +\n" +
                "                            '<button style=\"padding:4px 8px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\" onclick=\"openPlayerProfileModal(\\'' + fId + '\\', \\'' + fRawName.replace(/'/g, \"\\\\'\") + '\\', \\'' + fAvatar + '\\')\">👤 资料</button>' +\n" +
                "                            '<button style=\"padding:4px 8px; background:#3b82f6; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\" data-uid=\"' + fId + '\" data-name=\"' + fRawName + '\" data-avatar=\"' + fAvatar + '\" data-score=\"' + fIntimacy + '\" data-rel=\"' + fRel + '\" onclick=\"openFriendChatModal(this.dataset.uid, this.dataset.name, this.dataset.avatar, Number(this.dataset.score), this.dataset.rel)\">💬 私聊</button>' +\n" +
@@ -3693,14 +3804,14 @@ public class WebPlayController {
                "                const msg = req.latestMessage || req.message || '请求添加您为好友';\n" +
                "                const vip = req.vipLevel || (req.fromUser && req.fromUser.vipLevel) || 0;\n" +
                "                const vipBadge = (vip > 0) ? ('<span class=\"badge-vip' + (vip >= 4 ? ' svip' : '') + '\" style=\"margin-left:4px; font-size:10px; padding:1px 5px;\">' + (vip >= 4 ? '👑 SVIP' : 'VIP') + vip + '</span>') : '';\n" +
-               "                return '<div class=\"room-item-row\" style=\"background:#ffffff; border:1px solid #bfdbfe; border-radius:12px; padding:10px 12px; margin-bottom:8px;\">' +\n" +
+               "                return '<div class=\"room-item-row\" style=\"border-radius:12px; padding:10px 12px; margin-bottom:8px;\">' +\n" +
                "                    '<div style=\"display:flex; align-items:flex-start; justify-content:space-between; width:100%; gap:8px;\">' +\n" +
                "                        '<div style=\"display:flex; gap:10px; align-items:center;\">' +\n" +
                "                            '<span style=\"font-size:28px;\">' + avatar + '</span>' +\n" +
                "                            '<div>' +\n" +
-               "                                '<div style=\"font-weight:bold; font-size:13.5px; color:#0f172a; display:flex; align-items:center;\">' + rawName + vipBadge + '<span style=\"font-size:10px; background:#eff6ff; color:#2563eb; padding:1px 5px; border-radius:4px; margin-left:6px;\">' + title + '</span></div>' +\n" +
-               "                                '<div style=\"font-size:11px; color:#64748b; margin-top:2px;\">UID: ' + fromId + '</div>' +\n" +
-               "                                '<div style=\"font-size:11.5px; color:#1e293b; background:#f0f9ff; border:1px solid #e0f2fe; border-radius:6px; padding:4px 8px; margin-top:4px; line-height:1.4;\">💬 附言/私信: ' + msg.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>' +\n" +
+               "                                '<div class=\"pg-title\" style=\"font-weight:bold; font-size:13.5px; display:flex; align-items:center;\">' + rawName + vipBadge + '<span style=\"font-size:10px; background:rgba(59,130,246,0.16); color:#3b82f6; padding:1px 5px; border-radius:4px; margin-left:6px;\">' + title + '</span></div>' +\n" +
+               "                                '<div class=\"pg-sub\" style=\"font-size:11px; margin-top:2px;\">UID: ' + fromId + '</div>' +\n" +
+               "                                '<div class=\"pg-soft-panel\" style=\"font-size:11.5px; border-radius:6px; padding:4px 8px; margin-top:4px; line-height:1.4;\">💬 附言/私信: ' + msg.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>' +\n" +
                "                            '</div>' +\n" +
                "                        '</div>' +\n" +
                "                        '<div style=\"display:flex; flex-direction:column; gap:4px; min-width:80px;\">' +\n" +
@@ -3990,9 +4101,13 @@ public class WebPlayController {
                "        playBeep(880, 0.2);\n" +
                "        initWebSocket();\n" +
                "        const urlParams = new URLSearchParams(window.location.search);\n" +
-               "        const qRoom = urlParams.get('roomId');\n" +
+               "        const qRoom = urlParams.get('roomId') || urlParams.get('room') || currentRoomId;\n" +
+               "        const qGame = urlParams.get('gameType') || urlParams.get('type');\n" +
                "        if (qRoom) {\n" +
-               "            joinSpecificRoom(qRoom, currentGameType);\n" +
+               "            joinSpecificRoom(qRoom, qGame || currentGameType);\n" +
+               "        } else if (qGame) {\n" +
+               "            switchMainView('lobby');\n" +
+               "            quickPlayGame(qGame);\n" +
                "        } else {\n" +
                "            switchMainView('lobby');\n" +
                "            switchLobbyTab(currentLobbyTab || 'games');\n" +
@@ -4099,7 +4214,7 @@ public class WebPlayController {
                "    function initWebSocket() {\n" +
                "        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';\n" +
                "        const wsHost = window.location.host || 'fwpt.cn';\n" +
-               "        const wsUrl = protocol + '//' + wsHost + '/party-game/ws';\n" +
+               "        const wsUrl = protocol + '//' + wsHost + (getApiPrefix() || '') + '/ws';\n" +
                "        try {\n" +
                "            ws = new WebSocket(wsUrl);\n" +
                "            ws.onopen = () => {\n" +
@@ -4271,9 +4386,20 @@ public class WebPlayController {
                "                appendChat('裁判', '🔄 新一轮已开启！手牌已重新派发，请准备叫点～');\n" +
                "            } else if (msg.action === 'GAME_RESTART') {\n" +
                "                const overlay = document.getElementById('settlementOverlay'); if (overlay) overlay.style.display = 'none';\n" +
+               "                isGameStarted = false;\n" +
                "                window.isGameOverPhase = true;\n" +
-               "                if (typeof resetTake6ToLobbyWaiting === 'function') resetTake6ToLobbyWaiting();\n" +
-               "                appendChat('房主', '🔄 房主发起了再来一局！房间准备状态已重置。');\n" +
+               "                if (currentGameType === 'take6' && typeof resetTake6ToLobbyWaiting === 'function') resetTake6ToLobbyWaiting();\n" +
+               "                if (currentGameType === 'undercover') {\n" +
+               "                    window.hasServerUndercoverRole = false;\n" +
+               "                    window.undercoverRunoffCandidates = null;\n" +
+               "                    window.undercoverAliveIds = null;\n" +
+               "                    const resB = document.getElementById('undercoverResultBanner'); if (resB) resB.style.display = 'none';\n" +
+               "                    const pkB = document.getElementById('undercoverPkBanner'); if (pkB) pkB.style.display = 'none';\n" +
+               "                    const wB = document.getElementById('undercoverWaitingStage'); if (wB) wB.style.display = 'block';\n" +
+               "                    const spk = document.getElementById('undercoverCurrentSpeakerText'); if (spk) spk.innerText = '等待房主开局...';\n" +
+               "                }\n" +
+               "                if (typeof updateReadyButtonState === 'function') updateReadyButtonState();\n" +
+               "                appendChat('房主', '🔄 已发起再来一局！房间准备状态已重置。');\n" +
                "            } else if (msg.action === 'GAME_OVER') {\n" +
                "                if (msg.payload && msg.payload.scores) {\n" +
                "                    take6Scores = Object.assign({}, msg.payload.scores);\n" +
@@ -6263,7 +6389,7 @@ public class WebPlayController {
                "        const who = spinnerName || (serverPayload && serverPayload.spinnerName) || myNickname || '玩家';\n" +
                "        if (resultCard) {\n" +
                "            resultCard.innerHTML = '<div style=\"font-size:14px; font-weight:900; margin-bottom:4px;\">🎉 【' + who + '】抽中：' + title + '</div>' +\n" +
-               "                                   '<div style=\"font-size:12.5px; font-weight:600; color:#334155;\">' + content + '</div>';\n" +
+               "                                   '<div style=\"font-size:12.5px; font-weight:600; opacity:0.92;\">' + content + '</div>';\n" +
                "            resultCard.style.display = 'block';\n" +
                "        }\n" +
                "        wheelHistory.unshift('【' + who + '】 · ' + title + '：' + content);\n" +
@@ -6362,11 +6488,13 @@ public class WebPlayController {
                "        requestAnimationFrame(animate);\n" +
                "    };\n" +
                "    window.actionSpinWheel = function() {\n" +
+               "        if (window.isSpectatorMode) { showToast('👁️ 当前为观战模式，无法转动轮盘'); return; }\n" +
                "        if (isWheelSpinning) return;\n" +
                "        const targetIdx = Math.floor(Math.random() * wheelSegments.length);\n" +
                "        executeWheelSpinTo(targetIdx, myNickname, true, null);\n" +
                "    };\n" +
                "    window.toggleAutoWheel = function() {\n" +
+               "        if (window.isSpectatorMode) { showToast('👁️ 当前为观战模式，无法操作'); return; }\n" +
                "        const btn = document.getElementById('btnAutoWheel');\n" +
                "        if (autoWheelTimer) {\n" +
                "            clearInterval(autoWheelTimer);\n" +
@@ -6414,7 +6542,23 @@ public class WebPlayController {
                "        }\n" +
                "        renderUndercoverVoteButtons();\n" +
                "    };\n" +
+               "    window.actionUndercoverRestartGame = function() {\n" +
+               "        isGameStarted = false;\n" +
+               "        window.isGameOverPhase = true;\n" +
+               "        window.hasServerUndercoverRole = false;\n" +
+               "        window.undercoverRunoffCandidates = null;\n" +
+               "        window.undercoverAliveIds = null;\n" +
+               "        const resB = document.getElementById('undercoverResultBanner'); if (resB) resB.style.display = 'none';\n" +
+               "        const pkB = document.getElementById('undercoverPkBanner'); if (pkB) pkB.style.display = 'none';\n" +
+               "        const wB = document.getElementById('undercoverWaitingStage'); if (wB) wB.style.display = 'block';\n" +
+               "        const spk = document.getElementById('undercoverCurrentSpeakerText'); if (spk) spk.innerText = '等待房主开局...';\n" +
+               "        if (typeof updateReadyButtonState === 'function') updateReadyButtonState();\n" +
+               "        if (ws && ws.readyState === WebSocket.OPEN && currentRoomId) {\n" +
+               "            ws.send(JSON.stringify({ type: 'GAME_ACTION', action: 'GAME_RESTART', roomCode: currentRoomId, senderId: myUserId, senderName: myNickname }));\n" +
+               "        }\n" +
+               "    };\n" +
                "    window.toggleUndercoverWord = function() {\n" +
+               "        if (window.isSpectatorMode) { showToast('👁️ 观战模式下底词已加密隐藏'); return; }\n" +
                "        isUndercoverWordRevealed = !isUndercoverWordRevealed;\n" +
                "        const box = document.getElementById('undercoverWordBox');\n" +
                "        if (!box) return;\n" +
@@ -6446,6 +6590,7 @@ public class WebPlayController {
                "        }).join('');\n" +
                "    }\n" +
                "    window.actionVoteUndercover = function(targetId, targetName, btnEl) {\n" +
+               "        if (window.isSpectatorMode) { showToast('👁️ 当前为观战模式，无法参与投票'); return; }\n" +
                "        if (ws && ws.readyState === WebSocket.OPEN && currentRoomId) {\n" +
                "            ws.send(JSON.stringify({ type: 'GAME_ACTION', action: 'UNDERCOVER_VOTE', roomCode: currentRoomId, senderId: myUserId, senderName: myNickname, payload: { targetId: targetId, targetName: targetName } }));\n" +
                "        }\n" +
@@ -6458,10 +6603,19 @@ public class WebPlayController {
     }
 
     private String buildHtmlScriptTail(boolean isTake6) {
-        return "    function toggleChatCollapse() {\n" +
+        return "    window.togglePwdVisibility = function() {\n" +
+               "        const inp = document.getElementById('inputPwdPass');\n" +
+               "        const btn = document.getElementById('btnTogglePwdVis');\n" +
+               "        if (!inp) return;\n" +
+               "        const isPwd = inp.type === 'password';\n" +
+               "        inp.type = isPwd ? 'text' : 'password';\n" +
+               "        if (btn) btn.innerText = isPwd ? '🙈' : '👁️';\n" +
+               "    };\n" +
+               "    function toggleChatCollapse() {\n" +
                "        isChatCollapsed = !isChatCollapsed;\n" +
-               "        const stream = document.getElementById('chatStream'); const btn = document.getElementById('btnToggleChat');\n" +
-               "        if (stream) stream.style.display = isChatCollapsed ? 'none' : 'block';\n" +
+               "        const bodyWrap = document.getElementById('chatCollapsibleBody') || document.getElementById('chatStream');\n" +
+               "        const btn = document.getElementById('btnToggleChat');\n" +
+               "        if (bodyWrap) bodyWrap.style.display = isChatCollapsed ? 'none' : '';\n" +
                "        if (btn) btn.innerText = isChatCollapsed ? '🗖 展开聊天' : '🗕 折叠聊天';\n" +
                "    }\n" +
                "    const CHAT_COLOR_MAP = {\n" +
@@ -6495,13 +6649,23 @@ public class WebPlayController {
                "        const isSvip = (vipLevel >= 4);\n" +
                "        const vipBadgeHtml = isVip ? ('<span class=\"badge-vip' + (isV10 ? ' v10' : (isSvip ? ' svip' : '')) + '\" style=\"margin-right:4px;\">' + (isV10 ? '✨ V10 无双' : ((isSvip ? '👑 ' : '') + 'V' + vipLevel)) + '</span>') : '';\n" +
                "        const nameColor = isV10 ? '#f59e0b' : (isVip ? (isSvip ? '#ff2e4d' : '#e60012') : '#38bdf8');\n" +
-               "        const isDarkTheme = document.body.classList.contains('dark-mode');\n" +
-               "        const defaultChatColor = isDarkTheme ? '#f1f5f9' : '#1e293b';\n" +
-               "        let colorHex = (typeof CHAT_COLOR_MAP !== 'undefined' && CHAT_COLOR_MAP[textColor]) ? CHAT_COLOR_MAP[textColor] : defaultChatColor;\n" +
-               "        if (!colorHex || colorHex === '#ffffff' || colorHex.toLowerCase() === '#fff' || colorHex.toLowerCase() === '#f8fafc' || colorHex.toLowerCase() === '#e2e8f0') { colorHex = defaultChatColor; }\n" +
-               "        div.innerHTML = vipBadgeHtml + '<span class=\"sender\" style=\"color:' + nameColor + ';\">' + sender + ':</span> <span style=\"color:' + colorHex + ';font-weight:' + (textColor && textColor !== 'COLOR_DEFAULT' ? 'bold' : '500') + ';\">' + text + '</span>';\n" +
+               "        const isCustomColor = Boolean(textColor && textColor !== 'COLOR_DEFAULT' && typeof CHAT_COLOR_MAP !== 'undefined' && CHAT_COLOR_MAP[textColor]);\n" +
+               "        const msgSpan = isCustomColor ? ('<span style=\"color:' + CHAT_COLOR_MAP[textColor] + ';font-weight:bold;\">' + text + '</span>') : ('<span class=\"chat-msg-default\">' + text + '</span>');\n" +
+               "        div.innerHTML = vipBadgeHtml + '<span class=\"sender\" style=\"color:' + nameColor + ';\">' + sender + ':</span> ' + msgSpan;\n" +
                "        stream.appendChild(div); stream.scrollTop = stream.scrollHeight;\n" +
                "    }\n" +
+               "    window.updateRoomQuickPhrases = function(gType) {\n" +
+               "        const box = document.getElementById('roomQuickPhrases');\n" +
+               "        if (!box) return;\n" +
+               "        const map = {\n" +
+               "            'take6': [['🌸 花儿都谢了','快点吧，我等到花儿都谢了！'],['🐮 这波吃定了','🐮 这波牛头你吃定了，稳住！'],['🎯 完美避坑','🎯 算无遗策，完美避坑！'],['😭 谁放的第6张','😭 谁放的第6张牌！扎心了！']],\n" +
+               "            'liars_dice': [['🎲 快开我！','有本事直接开我，绝不吹牛！'],['🧐 我看你在吹','眼神不对劲，这把肯定不够数！'],['🎯 刚好2倍','信我这把点数刚刚好！'],['🍻 决战到天亮','不要走，决战到天亮！']],\n" +
+               "            'party_wheel': [['🎯 转到谁谁认','愿赌服输，转到谁都不能赖账！'],['🍻 选大冒险','别怂，直接选大冒险！'],['🎤 来个才艺','全场鼓掌，来段高能才艺！'],['😂 题目太狠了','这题库也太会玩了吧！']],\n" +
+               "            'undercover': [['🕵️ 发言很可疑','刚才那句描述很像卧底啊！'],['🛡️ 我是铁好人','我是铁平民，别投错自己人！'],['⚖️ 先听一轮','信息还不够，再听一轮描述！'],['🗳️ 集中票他','眼神暴露了，全员跟票抓卧底！']]\n" +
+               "        };\n" +
+               "        const list = map[gType] || map['liars_dice'];\n" +
+               "        box.innerHTML = list.map(p => '<div class=\"phrase-chip\" data-msg=\"' + p[1] + '\" onclick=\"sendQuickPhrase(this.dataset.msg)\">' + p[0] + '</div>').join('');\n" +
+               "    };\n" +
                "    function applyWebTheme(isDark) {\n" +
                "        document.documentElement.classList.toggle('dark-mode', isDark);\n" +
                "        document.body.classList.toggle('dark-mode', isDark);\n" +

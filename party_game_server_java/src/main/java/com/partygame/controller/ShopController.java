@@ -168,7 +168,7 @@ public class ShopController {
     /**
      * 购买道具与装扮
      */
-    @PostMapping("/api/shop/buy")
+    @PostMapping({"/api/shop/buy", "/party-game/api/shop/buy"})
     public ResponseEntity<?> buyItem(@RequestBody Map<String, Object> body) {
         String userId = (String) body.get("userId");
         String itemId = (String) body.get("itemId");
@@ -189,7 +189,7 @@ public class ShopController {
     /**
      * 穿戴装扮
      */
-    @PostMapping("/api/shop/equip")
+    @PostMapping({"/api/shop/equip", "/party-game/api/shop/equip"})
     public ResponseEntity<?> equipItem(@RequestBody Map<String, String> body) {
         String userId = body.get("userId");
         String slot = body.get("slot");

@@ -6,60 +6,106 @@
     <title>聚会桌游吧 · 官方门户与 Android 客户端下载 ({{VERSION}})</title>
     <style>
         :root {
-            --bg-dark: #0b1120;
-            --bg-panel: rgba(30, 41, 59, 0.78);
-            --emerald: #10b981;
-            --emerald-glow: rgba(16, 185, 129, 0.35);
+            --bg-page: #f3f7fc;
+            --bg-gradient:
+                radial-gradient(ellipse 75% 45% at 15% 5%, rgba(16, 185, 129, 0.14), transparent 55%),
+                radial-gradient(ellipse 65% 42% at 88% 12%, rgba(245, 158, 11, 0.11), transparent 50%),
+                linear-gradient(180deg, #f6f9fd 0%, #ebf1f8 100%);
+            --surface: rgba(255, 255, 255, 0.88);
+            --surface-solid: #ffffff;
+            --surface-soft: #f8fafc;
+            --text-main: #0f172a;
+            --text-secondary: #334155;
+            --text-muted: #52637a;
+            --border: rgba(148, 163, 184, 0.28);
+            --emerald: #059669;
+            --emerald-deep: #047857;
+            --emerald-link: #047857;
+            --emerald-ink: #065f46;
+            --emerald-tint: rgba(16, 185, 129, 0.12);
             --amber: #f59e0b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: rgba(148, 163, 184, 0.18);
+            --shadow-card: 0 16px 40px rgba(15, 23, 42, 0.07);
         }
+
+        html.dark-mode, body.dark-mode {
+            --bg-page: #0b1220;
+            --bg-gradient:
+                radial-gradient(ellipse 75% 48% at 15% 8%, rgba(16, 185, 129, 0.18), transparent 55%),
+                radial-gradient(ellipse 65% 42% at 86% 15%, rgba(245, 158, 11, 0.13), transparent 50%),
+                radial-gradient(ellipse 70% 50% at 50% 95%, rgba(37, 99, 235, 0.12), transparent 58%),
+                linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+            --surface: rgba(24, 34, 52, 0.84);
+            --surface-solid: #182234;
+            --surface-soft: #111a2b;
+            --text-main: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border: rgba(148, 163, 184, 0.20);
+            --emerald-link: #34d399;
+            --emerald-ink: #6ee7b7;
+            --emerald-tint: rgba(16, 185, 129, 0.16);
+            --shadow-card: 0 22px 48px rgba(2, 6, 23, 0.42);
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        ::selection { background: rgba(16, 185, 129, 0.25); color: var(--text-main); }
         html, body { max-width: 100%; overflow-x: hidden; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            background:
-                radial-gradient(circle at 15% 15%, rgba(16, 185, 129, 0.20), transparent 40%),
-                radial-gradient(circle at 85% 20%, rgba(245, 158, 11, 0.16), transparent 36%),
-                radial-gradient(circle at 50% 90%, rgba(59, 130, 246, 0.16), transparent 45%),
-                var(--bg-dark);
+            background-color: var(--bg-page);
+            background-image: var(--bg-gradient);
+            background-attachment: fixed;
             color: var(--text-main);
-            min-height: 100vh;
+            min-height: 100dvh;
             line-height: 1.6;
+            transition: background-color 0.22s ease, color 0.22s ease;
         }
         a { text-decoration: none; color: inherit; }
-        .container { width: 100%; max-width: 1080px; margin: 0 auto; padding: 20px 18px 56px; }
+        button:focus-visible, a:focus-visible {
+            outline: 2px solid var(--emerald);
+            outline-offset: 2px;
+        }
+        .tabular { font-variant-numeric: tabular-nums; }
+        .container { width: 100%; max-width: 1140px; margin: 0 auto; padding: 20px 18px 56px; }
 
-        /* Top Nav */
+        /* Top Bar */
         .topbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            padding: 12px 16px;
+            padding: 12px 18px;
             border-radius: 18px;
-            background: rgba(15, 23, 42, 0.72);
+            background: var(--surface);
             border: 1px solid var(--border);
-            backdrop-filter: blur(16px);
-            margin-bottom: 28px;
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            box-shadow: var(--shadow-card);
+            margin-bottom: 26px;
             flex-wrap: wrap;
         }
-        .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 16px; }
+        .brand { display: flex; align-items: center; gap: 11px; font-weight: 900; font-size: 16px; }
         .brand-logo {
-            width: 36px; height: 36px; border-radius: 11px;
-            background: linear-gradient(135deg, #10b981, #059669);
+            width: 38px; height: 38px; border-radius: 12px;
+            background: linear-gradient(135deg, #059669, #047857);
+            color: #ffffff;
             display: flex; align-items: center; justify-content: center;
-            font-size: 20px; box-shadow: 0 4px 14px var(--emerald-glow);
+            font-size: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14);
         }
-        .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
+        .brand-sub { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+        .nav-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .nav-pill {
             padding: 7px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
-            background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border);
-            transition: transform 0.18s ease, background 0.18s ease;
+            background: var(--surface-soft); border: 1px solid var(--border);
+            color: var(--text-secondary); cursor: pointer;
+            transition: transform 0.16s ease, border-color 0.16s ease;
         }
-        .nav-pill:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.15); }
-        .nav-pill.cta { background: var(--emerald); color: #052e16; border-color: transparent; }
+        .nav-pill:hover { transform: translateY(-1px); border-color: var(--emerald); color: var(--text-main); }
+        .nav-pill.cta {
+            background: linear-gradient(135deg, #059669, #047857);
+            color: #ffffff; border-color: transparent;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14);
+        }
 
         /* Hero Grid */
         .hero {
@@ -69,203 +115,354 @@
             align-items: stretch;
             margin-bottom: 34px;
         }
-        @media (min-width: 860px) {
-            .hero { grid-template-columns: 1.15fr 0.85fr; gap: 28px; }
+        @media (min-width: 900px) {
+            .hero { grid-template-columns: 1.18fr 0.82fr; gap: 26px; }
         }
         .hero-copy, .release-card {
-            background: var(--bg-panel);
+            background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 26px;
-            padding: 28px 24px;
+            padding: 28px 26px;
             backdrop-filter: blur(20px);
-            box-shadow: 0 22px 48px rgba(0, 0, 0, 0.35);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: var(--shadow-card);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
         .status-chip {
             display: inline-flex; align-items: center; gap: 6px;
-            padding: 5px 12px; border-radius: 999px;
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid rgba(16, 185, 129, 0.38);
-            color: #6ee7b7; font-size: 12px; font-weight: 800; margin-bottom: 14px;
+            padding: 5px 12px; border-radius: 999px; width: fit-content;
+            background: var(--emerald-tint);
+            border: 1px solid rgba(16, 185, 129, 0.36);
+            color: var(--emerald-ink); font-size: 12px; font-weight: 800; margin-bottom: 14px;
         }
-        .hero-title { font-size: clamp(26px, 4vw, 38px); font-weight: 900; line-height: 1.2; margin-bottom: 12px; }
-        .hero-title span { color: #34d399; }
-        .hero-desc { color: var(--text-muted); font-size: 14.5px; margin-bottom: 22px; }
-        .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+        .hero-title {
+            font-size: clamp(26px, 3.8vw, 38px);
+            font-weight: 900; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 12px;
+        }
+        .hero-title span { color: var(--emerald-link); }
+        .hero-desc { color: var(--text-muted); font-size: 15px; margin-bottom: 22px; max-width: 58ch; }
+        .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
         .btn-primary {
             display: inline-flex; align-items: center; justify-content: center; gap: 8px;
             padding: 13px 22px; border-radius: 14px; font-weight: 900; font-size: 14.5px;
-            background: linear-gradient(135deg, #10b981, #059669); color: #fff;
-            box-shadow: 0 10px 26px var(--emerald-glow);
-            transition: transform 0.2s ease, filter 0.2s ease;
+            background: linear-gradient(135deg, #059669, #047857); color: #fff;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+            transition: transform 0.18s ease, filter 0.18s ease;
         }
-        .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.06); }
+        .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.05); }
         .btn-secondary {
             display: inline-flex; align-items: center; justify-content: center; gap: 8px;
             padding: 13px 20px; border-radius: 14px; font-weight: 800; font-size: 14px;
-            background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border); color: #f8fafc;
-            transition: background 0.2s ease;
+            background: var(--surface-solid); border: 1.5px solid var(--border); color: var(--text-main);
+            transition: transform 0.18s ease, border-color 0.18s ease;
         }
-        .btn-secondary:hover { background: rgba(255, 255, 255, 0.14); }
+        .btn-secondary:hover { transform: translateY(-1px); border-color: var(--emerald); }
         .trust-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
         .trust-item {
-            background: rgba(15, 23, 42, 0.55); border: 1px solid var(--border);
-            border-radius: 14px; padding: 10px; font-size: 12px;
+            background: var(--surface-soft); border: 1px solid var(--border);
+            border-radius: 14px; padding: 12px; font-size: 12px; color: var(--text-muted);
         }
-        .trust-item b { display: block; color: #fde68a; font-size: 13px; margin-bottom: 2px; }
+        .trust-item b { display: block; color: var(--text-main); font-size: 13px; margin-bottom: 3px; }
 
-        /* Release Meta Card */
-        .release-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+        /* Release Meta + Scan QR Card */
+        .release-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+        .release-head-left { display: flex; align-items: center; gap: 12px; }
         .release-icon {
-            width: 60px; height: 60px; border-radius: 18px;
+            width: 52px; height: 52px; border-radius: 16px;
             background: linear-gradient(135deg, #10b981, #f59e0b);
-            display: flex; align-items: center; justify-content: center; font-size: 32px;
+            color: #ffffff;
+            display: flex; align-items: center; justify-content: center; font-size: 28px;
             flex-shrink: 0;
         }
         .meta-list {
-            background: rgba(15, 23, 42, 0.65); border: 1px solid var(--border);
-            border-radius: 16px; padding: 12px 14px; margin-bottom: 16px; font-size: 12.5px;
+            background: var(--surface-soft); border: 1px solid var(--border);
+            border-radius: 16px; padding: 11px 14px; margin-bottom: 14px; font-size: 12.5px;
         }
         .meta-row {
             display: flex; justify-content: space-between; align-items: center;
-            gap: 10px; padding: 6px 0; border-bottom: 1px dashed rgba(148, 163, 184, 0.16);
+            gap: 10px; padding: 5.5px 0; border-bottom: 1px dashed var(--border);
         }
         .meta-row:last-child { border-bottom: none; }
         .meta-label { color: var(--text-muted); white-space: nowrap; }
-        .meta-val { font-weight: 700; text-align: right; word-break: break-all; }
+        .meta-val { font-weight: 700; text-align: right; word-break: break-all; color: var(--text-main); }
+
+        .qr-download-box {
+            display: flex; align-items: center; gap: 14px;
+            background: var(--surface-soft); border: 1px solid var(--border);
+            border-radius: 16px; padding: 12px; margin-bottom: 12px;
+        }
+        .qr-frame {
+            width: 88px; height: 88px; border-radius: 12px;
+            background: #ffffff; border: 1px solid rgba(148, 163, 184, 0.35);
+            padding: 5px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .qr-frame img { width: 100%; height: 100%; display: block; border-radius: 6px; }
+        .btn-copy-dl {
+            margin-top: 7px; padding: 6px 12px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--surface-solid);
+            color: var(--text-main); font-size: 12px; font-weight: 700; cursor: pointer;
+        }
+        .btn-copy-dl:hover { border-color: var(--emerald); color: var(--emerald-link); }
+
         .install-tip {
-            font-size: 11.5px; color: var(--text-muted);
-            background: rgba(245, 158, 11, 0.08);
-            border: 1px solid rgba(245, 158, 11, 0.22);
+            font-size: 12px; color: var(--text-secondary);
+            background: rgba(245, 158, 11, 0.10);
+            border: 1px solid rgba(245, 158, 11, 0.28);
             border-radius: 12px; padding: 10px 12px;
         }
 
-        /* 4 Games Grid */
-        .section-title { font-size: 20px; font-weight: 900; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+        /* 4 Games Grid (Full subtle borders + deep links) */
+        .section-head {
+            display: flex; justify-content: space-between; align-items: baseline;
+            gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+        }
+        .section-title { font-size: 20px; font-weight: 900; display: flex; align-items: center; gap: 8px; }
+        .section-sub { font-size: 12.5px; color: var(--text-muted); }
         .games-grid {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 14px;
-            margin-bottom: 28px;
+            gap: 16px;
+            margin-bottom: 32px;
         }
         @media (min-width: 720px) {
             .games-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         .game-card {
-            background: var(--bg-panel); border: 1px solid var(--border);
-            border-radius: 20px; padding: 20px;
-            display: flex; flex-direction: column; gap: 8px;
+            background: var(--surface);
+            border: 1.5px solid var(--border);
+            border-radius: 22px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: var(--shadow-card);
+            transition: transform 0.18s ease, border-color 0.18s ease;
         }
+        .game-card:hover { transform: translateY(-2px); border-color: var(--emerald); }
         .game-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-        .game-card-title { font-size: 16.5px; font-weight: 800; }
-        .game-tag { font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; }
-        .game-card p { font-size: 13px; color: var(--text-muted); }
+        .game-card-title { font-size: 17px; font-weight: 800; }
+        .game-tag { font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 999px; }
+        .game-tag.amber { background: rgba(245, 158, 11, 0.16); color: #92400e; }
+        .game-tag.blue { background: rgba(59, 130, 246, 0.16); color: #1d4ed8; }
+        .game-tag.pink { background: rgba(236, 72, 153, 0.16); color: #9d174d; }
+        .game-tag.emerald { background: rgba(16, 185, 129, 0.16); color: #065f46; }
+        body.dark-mode .game-tag.amber { color: #fde68a; }
+        body.dark-mode .game-tag.blue { color: #93c5fd; }
+        body.dark-mode .game-tag.pink { color: #fbcfe8; }
+        body.dark-mode .game-tag.emerald { color: #6ee7b7; }
+        .game-card p { font-size: 14px; color: var(--text-muted); flex: 1; }
+        .game-card-foot {
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 8px; padding-top: 10px; border-top: 1px dashed var(--border);
+            font-size: 12.5px;
+        }
+        .game-meta { color: var(--text-secondary); font-weight: 600; }
+        .game-try-link { color: var(--emerald-link); font-weight: 800; }
+        .game-try-link:hover { text-decoration: underline; }
 
+        /* Compliance Footer */
         .footer {
             text-align: center; font-size: 12px; color: var(--text-muted);
-            padding: 18px 0 calc(18px + env(safe-area-inset-bottom));
+            padding: 20px 0 calc(20px + env(safe-area-inset-bottom));
             border-top: 1px solid var(--border);
+            line-height: 1.7;
         }
-        @media (max-width: 560px) {
+        .toast-msg {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-16px);
+            background: #0f172a; color: #fef08a; border: 1px solid #f59e0b;
+            padding: 8px 18px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; z-index: 999;
+        }
+        .toast-msg.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        @media (max-width: 580px) {
             .container { padding: 14px 14px 36px; }
             .hero-copy, .release-card { padding: 22px 16px; border-radius: 20px; }
             .trust-row { grid-template-columns: 1fr; }
             .hero-actions a { width: 100%; }
-            .topbar { gap: 10px; }
             .nav-links { width: 100%; }
             .nav-pill { flex: 1; text-align: center; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
 <body>
+    <div id="dlToast" class="toast-msg">📋 下载链接已复制到剪贴板</div>
     <div class="container">
         <header class="topbar">
             <div class="brand">
                 <div class="brand-logo">🎲</div>
                 <div>
                     <div>聚会桌游吧 · Party Game</div>
-                    <div style="font-size:11px; color:#94a3b8; font-weight:600;">商业级跨端实时联机派对平台</div>
+                    <div class="brand-sub">商业级跨端实时联机派对平台</div>
                 </div>
             </div>
-            <nav class="nav-links">
+            <nav class="nav-links" aria-label="站点导航">
                 <a class="nav-pill" href="{{WEB_PLAY_URL}}">🌐 网页即玩端</a>
-                <a class="nav-pill cta" href="{{DOWNLOAD_URL}}">📲 下载 APK ({{VERSION}})</a>
+                <button type="button" class="nav-pill" id="btnPortalTheme" onclick="togglePortalTheme()">🌙 暗黑模式</button>
+                <a class="nav-pill cta tabular" href="{{DOWNLOAD_URL}}">📲 下载 APK ({{VERSION}})</a>
             </nav>
         </header>
 
         <section class="hero">
             <div class="hero-copy">
-                <div class="status-chip">✨ {{STATUS_BADGE}}</div>
-                <h1 class="hero-title">把酒吧与桌游屋搬进手机：<span>随时随地 5 秒开局</span></h1>
-                <p class="hero-desc">
-                    支持 Web 浏览器与 Android 客户端实时联机对战、跨端账号资产同步、全服广播礼物特效、AI 智能补位托管及服务端权威反作弊裁决。
-                </p>
-                <div class="hero-actions">
-                    <a id="btnApkDownload" class="btn-primary" href="{{DOWNLOAD_URL}}">🚀 立即下载 Android APK ({{VERSION}})</a>
-                    <a id="btnWebLaunch" class="btn-secondary" href="{{WEB_PLAY_URL}}">⚡ 免下载直接进入网页版</a>
+                <div>
+                    <div class="status-chip">✨ {{STATUS_BADGE}}</div>
+                    <h1 class="hero-title">把酒吧与桌游屋搬进屏幕：<span>随时随地 5 秒开局</span></h1>
+                    <p class="hero-desc">
+                        支持 Web 浏览器与 Android 客户端跨端实时同桌对战、OneID 通行证资产互通、全服广播互动礼物、断线智能托管与服务端权威防作弊裁决。
+                    </p>
+                    <div class="hero-actions">
+                        <a id="btnApkDownload" class="btn-primary tabular" href="{{DOWNLOAD_URL}}">🚀 下载 Android 客户端 ({{VERSION}})</a>
+                        <a id="btnWebLaunch" class="btn-secondary" href="{{WEB_PLAY_URL}}">⚡ 免安装直接进入网页版</a>
+                    </div>
                 </div>
                 <div class="trust-row">
-                    <div class="trust-item"><b>WebSocket 秒级同步</b>断线重连自动托管不坑队友</div>
-                    <div class="trust-item"><b>权威随机校验</b>全服务端发牌摇骰防作弊</div>
-                    <div class="trust-item"><b>双端数据互通</b>手机号验证码 / 扫码一键互登</div>
+                    <div class="trust-item"><b>⚡ WebSocket 毫秒同步</b>断线自动接管不掉局，切回秒级恢复盘面</div>
+                    <div class="trust-item"><b>🛡️ 服务端权威防作弊</b>发牌、摇骰、底词均在云端加密裁决</div>
+                    <div class="trust-item"><b>💎 双端数据无缝互通</b>手机扫码一键授权登录电脑网页端</div>
                 </div>
             </div>
 
             <aside class="release-card">
-                <div class="release-head">
-                    <div class="release-icon">📦</div>
-                    <div>
-                        <div style="font-size:18px; font-weight:900;">Android 官方安装包</div>
-                        <div style="font-size:12px; color:#6ee7b7; font-weight:700;">版本标识：{{VERSION}}</div>
+                <div>
+                    <div class="release-head">
+                        <div class="release-head-left">
+                            <div class="release-icon">📦</div>
+                            <div>
+                                <div style="font-size:17px; font-weight:900;">Android 官方发行包</div>
+                                <div class="tabular" style="font-size:12px; color:var(--emerald-link); font-weight:800;">当前版本：{{VERSION}}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="meta-list tabular">
+                        <div class="meta-row"><span class="meta-label">安装包文件</span><span class="meta-val">{{APK_NAME}}</span></div>
+                        <div class="meta-row"><span class="meta-label">包体体积</span><span class="meta-val">{{SIZE_MB}}</span></div>
+                        <div class="meta-row"><span class="meta-label">构建时间</span><span class="meta-val">{{MOD_TIME}}</span></div>
+                        <div class="meta-row"><span class="meta-label">架构支持</span><span class="meta-val">Android 5.0+ (ARM64 / v7a)</span></div>
+                    </div>
+
+                    <div class="qr-download-box">
+                        <div class="qr-frame">
+                            <img id="apkQrImg" alt="手机扫码下载二维码" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+                        </div>
+                        <div style="text-align:left;">
+                            <div style="font-size:13px; font-weight:800;">📱 手机相机 / 浏览器扫码直装</div>
+                            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">电脑访问时可直接用手机扫码下载安装</div>
+                            <button type="button" class="btn-copy-dl" onclick="copyDownloadLink()">📋 复制下载链接</button>
+                        </div>
                     </div>
                 </div>
-                <div class="meta-list">
-                    <div class="meta-row"><span class="meta-label">安装包名称</span><span class="meta-val" style="color:#38bdf8;">{{APK_NAME}}</span></div>
-                    <div class="meta-row"><span class="meta-label">安装包体积</span><span class="meta-val">{{SIZE_MB}}</span></div>
-                    <div class="meta-row"><span class="meta-label">发布时间</span><span class="meta-val">{{MOD_TIME}}</span></div>
-                    <div class="meta-row"><span class="meta-label">系统兼容</span><span class="meta-val">Android 5.0+ (ARM64 / ARMv7)</span></div>
-                    <div class="meta-row"><span class="meta-label">状态说明</span><span class="meta-val" style="color:#fde68a;">{{STATUS_BADGE}}</span></div>
-                </div>
+
                 <div class="install-tip">
-                    💡 <b>安装指引：</b>Android 下载完成后点击安装，若系统提示“未知来源应用”，请在系统设置中勾选信任当前浏览器即可；也可直接点击上方“进入网页版”免安装畅玩全部 4 款玩法。
+                    💡 <b>安装指引：</b>Android 下载完成后点击安装，若系统提示“未知来源应用”，按指引开启当前浏览器安装权限即可；iOS 与电脑玩家可直接点击“进入网页版”畅玩全部玩法。
                 </div>
             </aside>
         </section>
 
-        <h2 class="section-title">🎮 精选四大核心派对玩法</h2>
+        <div class="section-head">
+            <h2 class="section-title">🎮 精选四大核心派对玩法</h2>
+            <span class="section-sub">点击任一卡片可直接在当前浏览器开启对应玩法房间</span>
+        </div>
         <section class="games-grid">
-            <article class="game-card" style="border-left:4px solid #f59e0b;">
+            <article class="game-card">
                 <div class="game-card-top">
-                    <div class="game-card-title">🐂 谁是牛头王 (Take 6!)</div>
-                    <span class="game-tag" style="background:rgba(245,158,11,0.18); color:#fcd34d;">德式策略 · 避坑预览</span>
+                    <h3 class="game-card-title">🐂 谁是牛头王 (Take 6!)</h3>
+                    <span class="game-tag amber">德式策略 · 避坑预览</span>
                 </div>
-                <p>全员同时暗扣出牌、升序接龙，智能标红第6张爆行风险与最小落点预览，支持断线托管与全服排名结算。</p>
+                <p>全员同时暗扣出牌、升序接龙，智能标示第 6 张爆行风险与最小落点预览，支持断线自动托管与实时牛头榜结算。</p>
+                <div class="game-card-foot">
+                    <span class="game-meta tabular">👥 2-6 人 · ⏱️ 约 5 分钟/局</span>
+                    <a class="game-try-link" href="{{WEB_PLAY_URL}}?gameType=take6">立即网页试玩 ➔</a>
+                </div>
             </article>
-            <article class="game-card" style="border-left:4px solid #3b82f6;">
+            <article class="game-card">
                 <div class="game-card-top">
-                    <div class="game-card-title">🎲 大话骰吹牛 (Liar's Dice)</div>
-                    <span class="game-card-badge game-tag" style="background:rgba(59,130,246,0.18); color:#93c5fd;">酒桌经典 · 精准2x</span>
+                    <h3 class="game-card-title">🎲 大话骰吹牛 (Liar's Dice)</h3>
+                    <span class="game-tag blue">酒吧经典 · 精准 2x</span>
                 </div>
-                <p>支持 1 点飞万能与叫【斋】、纯 1 大于 6、顺子重摇、豹子 +1 奖励及“刚好 (Spot On)”双倍绝杀裁决！</p>
+                <p>完整支持 1 点飞万能与叫【斋】、纯 1 大于 6、顺子重摇、豹子加码及“刚好 (Spot On)”双倍绝杀验盅！</p>
+                <div class="game-card-foot">
+                    <span class="game-meta tabular">👥 2-6 人 · ⏱️ 约 3 分钟/局</span>
+                    <a class="game-try-link" href="{{WEB_PLAY_URL}}?gameType=liars_dice">立即网页试玩 ➔</a>
+                </div>
             </article>
-            <article class="game-card" style="border-left:4px solid #ec4899;">
+            <article class="game-card">
                 <div class="game-card-top">
-                    <div class="game-card-title">🎡 聚会大冒险大转盘</div>
-                    <span class="game-tag" style="background:rgba(236,72,153,0.18); color:#f9a8d4;">四大场景 · 题库下发</span>
+                    <h3 class="game-card-title">🎡 聚会大冒险大转盘</h3>
+                    <span class="game-tag pink">四大场景 · 题库下发</span>
                 </div>
-                <p>内置破冰局、老友狂欢、心动微醺、才艺高能四套权威不重样题库，全桌同步动画停盘并记录历史。</p>
+                <p>内置破冰初识、老友狂欢、心动微醺、才艺高能四套精选不重样题库，全桌同步停盘并记录历史抽题。</p>
+                <div class="game-card-foot">
+                    <span class="game-meta tabular">👥 2-10 人 · ⏱️ 随时开转</span>
+                    <a class="game-try-link" href="{{WEB_PLAY_URL}}?gameType=party_wheel">立即网页试玩 ➔</a>
+                </div>
             </article>
-            <article class="game-card" style="border-left:4px solid #10b981;">
+            <article class="game-card">
                 <div class="game-card-top">
-                    <div class="game-card-title">🕵️ 谁是卧底 (Undercover)</div>
-                    <span class="game-tag" style="background:rgba(16,185,129,0.18); color:#6ee7b7;">逻辑推理 · 平票PK</span>
+                    <h3 class="game-card-title">🕵️ 谁是卧底 (Undercover)</h3>
+                    <span class="game-tag emerald">逻辑推理 · 平票 PK</span>
                 </div>
-                <p>支持白板高阶局、私密防窥底词卡、麦序轮流发言、平票 PK 复投机制与局终全部底词阵营揭晓。</p>
+                <p>支持私密防偷窥词底卡、麦序轮流发言、平票 PK 复投机制与局终全部阵营底词揭晓，聚会推理零门槛。</p>
+                <div class="game-card-foot">
+                    <span class="game-meta tabular">👥 3-6 人 · ⏱️ 约 6 分钟/局</span>
+                    <a class="game-try-link" href="{{WEB_PLAY_URL}}?gameType=undercover">立即网页试玩 ➔</a>
+                </div>
             </article>
         </section>
 
         <footer class="footer">
-            聚会桌游吧 (Party Game) · 官方分发页面 · 仅限健康绿色线上娱乐使用
+            <div>健康游戏忠告：抵制不良游戏，拒绝盗版游戏。注意自我保护，谨防受骗上当。适度游戏益脑，沉迷游戏伤身。合理安排时间，享受健康生活。</div>
+            <div style="margin-top:4px;">适龄提示：适合 16 周岁及以上玩家使用 · 聚会桌游吧 (Party Game {{VERSION}}) 官方分发门户 · 仅限健康绿色娱乐</div>
         </footer>
     </div>
+
+    <script>
+        (function () {
+            function applyPortalTheme(isDark) {
+                document.documentElement.classList.toggle('dark-mode', isDark);
+                document.body.classList.toggle('dark-mode', isDark);
+                var btn = document.getElementById('btnPortalTheme');
+                if (btn) btn.textContent = isDark ? '☀️ 护眼明亮' : '🌙 暗黑模式';
+            }
+            window.togglePortalTheme = function () {
+                var next = !document.body.classList.contains('dark-mode');
+                try { localStorage.setItem('pg_web_theme', next ? 'dark' : 'light'); } catch (e) {}
+                applyPortalTheme(next);
+            };
+            var saved = '';
+            try { saved = localStorage.getItem('pg_web_theme') || ''; } catch (e) {}
+            var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            applyPortalTheme(saved ? saved === 'dark' : Boolean(prefersDark));
+
+            var rawDl = '{{DOWNLOAD_URL}}';
+            var fullUrl = (rawDl.indexOf('http') === 0) ? rawDl : (window.location.origin + (rawDl.charAt(0) === '/' ? rawDl : '/' + rawDl));
+            var qrImg = document.getElementById('apkQrImg');
+            if (qrImg) {
+                qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=4&data=' + encodeURIComponent(fullUrl);
+            }
+            window.copyDownloadLink = function () {
+                var showDone = function () {
+                    var t = document.getElementById('dlToast');
+                    if (!t) return;
+                    t.classList.add('show');
+                    setTimeout(function () { t.classList.remove('show'); }, 2200);
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(fullUrl).then(showDone).catch(function () { prompt('请复制下载链接：', fullUrl); });
+                } else {
+                    prompt('请复制下载链接：', fullUrl);
+                }
+            };
+        })();
+    </script>
 </body>
 </html>

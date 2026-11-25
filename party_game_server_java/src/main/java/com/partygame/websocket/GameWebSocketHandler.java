@@ -1887,6 +1887,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         vRes.put("winnerTeam", winTeam);
         vRes.put("remainingAlive", alive);
         if (gameOver) {
+            room.put("status", "WAITING");
+            room.put("undercoverPhase", "IDLE");
             vRes.put("words", room.get("undercoverWords"));
             vRes.put("revealedRoles", roles);
         }

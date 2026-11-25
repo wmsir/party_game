@@ -23,7 +23,7 @@ public class RoomAndMomentController {
     // 全服大喇叭与全服盛典跑马灯最近缓存 (保留最近20条，确保后进入/重连客户端能无缝拉取展现)
     public static final java.util.concurrent.ConcurrentLinkedDeque<Map<String, Object>> RECENT_GLOBAL_BROADCASTS = new java.util.concurrent.ConcurrentLinkedDeque<>();
 
-    @GetMapping("/api/rooms")
+    @GetMapping({"/api/rooms", "/party-game/api/rooms"})
     public ResponseEntity<?> getRooms() {
         long now = System.currentTimeMillis();
         // 严密时效与活性过滤：只保留10分钟内且包含人类真人玩家的活跃房间，没有人类玩家直接销毁剔除！
