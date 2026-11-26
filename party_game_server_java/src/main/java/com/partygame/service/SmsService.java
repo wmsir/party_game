@@ -7,6 +7,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,10 +28,15 @@ public class SmsService {
     private static final int MAX_DAILY_SENDS_PER_PHONE = 10;
 
     private final SystemConfigRepository configRepository;
+    private final Environment environment;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    @Value("${party.sms.sandbox-mode:true}")
+    @Value("${party.sms.sandbox-mode:false}")
     private boolean sandboxMode;
+
+    private boolean isProdProfile() {
+        return environment != null && environment.acceptsProfiles(Profiles.of("prod"));
+    }
 
     public static class SmsCacheEntry {
         public final String code;
@@ -179,12 +186,13 @@ public class SmsService {
             log.info("【模拟短信网关】向手机号 [{}] 派发验证码: [{}] (用途: {}, 5分钟内有效)", phone, code, purpose);
         }
 
+        boolean effectiveSandbox = sandboxMode && !isProdProfile();
         Map<String, Object> result = new HashMap<>();
         result.put("phone", phone);
         result.put("provider", provider);
-        result.put("sandboxMode", sandboxMode);
+        result.put("sandboxMode", effectiveSandbox);
         result.put("expiresIn", 300);
-        if (sandboxMode && "MOCK".equals(provider)) {
+        if (effectiveSandbox && "MOCK".equals(provider)) {
             result.put("mockCode", code);
         }
         result.put("message", "短信验证码已下发至手机，5分钟内有效");
@@ -192,17 +200,13 @@ public class SmsService {
     }
 
     /**
-     * 校验短信验证码 (仅沙盒模式允许通用测试码)
+     * 校验短信验证码 (强制核验真实下发验证码，禁止万能后门码)
      */
     public boolean verifyCode(String rawPhone, String rawCode) {
         if (rawPhone == null || rawCode == null) return false;
         String phone = rawPhone.trim();
         String code = rawCode.trim();
         if (code.isEmpty()) return false;
-
-        if (sandboxMode && ("888888".equals(code) || "666666".equals(code) || "123456".equals(code))) {
-            return true;
-        }
 
         SmsCacheEntry entry = cache.get(phone);
         if (entry == null) return false;

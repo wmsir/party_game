@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import '../core/storage/local_storage.dart';
 import 'api_service.dart';
 
 /// 真实 WebSocket 长连接即时通信服务
@@ -65,6 +66,7 @@ class SocketService {
         'type': 'INIT_USER',
         'userId': userId,
         'nickname': nickname ?? '玩家',
+        'token': LocalStorage.getAuthToken() ?? '',
       });
     } else {
       connect(userId: userId, nickname: nickname);
@@ -83,6 +85,7 @@ class SocketService {
           'type': 'INIT_USER',
           'userId': userId,
           'nickname': nickname ?? '玩家',
+          'token': LocalStorage.getAuthToken() ?? '',
         });
       }
       _flushPendingMessages();
@@ -110,6 +113,7 @@ class SocketService {
             'type': 'INIT_USER',
             'userId': uid,
             'nickname': nick ?? '玩家',
+            'token': LocalStorage.getAuthToken() ?? '',
           });
         }
 

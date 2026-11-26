@@ -51,8 +51,11 @@ party:
     allowed-origins: ${PARTY_WS_ALLOWED_ORIGINS:https://fwpt.cn,https://*.fwpt.cn,http://localhost:*,http://127.0.0.1:*}
   auth:
     allow-passwordless-phone: ${PARTY_ALLOW_PASSWORDLESS_PHONE:false}
+    token-secret: ${PARTY_AUTH_TOKEN_SECRET:}
+  oneid:
+    base-url: ${PARTY_ONEID_BASE_URL:https://fwpt.cn}
   sms:
-    sandbox-mode: ${PARTY_SMS_SANDBOX:true}
+    sandbox-mode: ${PARTY_SMS_SANDBOX:false}
   payment:
     sandbox-enabled: ${PARTY_PAYMENT_SANDBOX:true}
   admin:

@@ -113,6 +113,15 @@ public class User {
     @Builder.Default
     private Integer signInStreak = 0;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Column(length = 32)
+    private String dailyTasksDate;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Column(length = 512)
+    private String dailyClaimedTasksJson;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(length = 256)
     private String token;
 

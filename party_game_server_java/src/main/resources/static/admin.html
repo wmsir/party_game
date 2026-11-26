@@ -1206,10 +1206,11 @@
             users.forEach(u => {
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition';
+                const safeId = escapeHtml(u.id || '');
                 tr.innerHTML = `
                     <td class="p-3.5 pl-5 font-semibold flex items-center gap-2.5">
                         <div class="w-8 h-8 rounded-xl bg-[#EFEFF2] dark:bg-[#2C2C2E] flex items-center justify-center text-base shadow-inner">
-                            ${u.avatar || '🦊'}
+                            ${escapeHtml(u.avatar || '🦊')}
                         </div>
                         <div>
                             <div class="text-apple-textPrimary dark:text-white font-bold">${escapeHtml(u.nickname)}</div>
@@ -1217,9 +1218,9 @@
                         </div>
                     </td>
                     <td class="p-3.5 font-mono text-[11px] text-apple-textSecondary">
-                        <span class="cursor-pointer hover:text-apple-blue" title="点击复制" onclick="copyText('${u.id}')">${u.id.substring(0, 14)}... 📋</span>
+                        <span class="cursor-pointer hover:text-apple-blue" title="点击复制" data-uid="${safeId}" onclick="copyText(this.dataset.uid)">${escapeHtml(String(u.id || '').substring(0, 14))}... 📋</span>
                     </td>
-                    <td class="p-3.5 font-mono text-[11px]">${u.phone}</td>
+                    <td class="p-3.5 font-mono text-[11px]">${escapeHtml(u.phone)}</td>
                     <td class="p-3.5">
                         <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${u.isGuest ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}">
                             ${u.isGuest ? '试玩客官' : '正式用户'}
@@ -1227,15 +1228,15 @@
                     </td>
                     <td class="p-3.5">
                         <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400">
-                            👑 VIP.${u.vipLevel}
+                            👑 VIP.${Number(u.vipLevel || 0)}
                         </span>
                     </td>
-                    <td class="p-3.5 font-mono font-semibold text-amber-500">🪙 ${u.coins.toLocaleString()}</td>
-                    <td class="p-3.5 font-mono font-semibold text-apple-blue">💎 ${u.diamonds.toLocaleString()}</td>
-                    <td class="p-3.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">¥${u.totalRechargeRmb}</td>
-                    <td class="p-3.5 text-apple-textSecondary font-mono text-[11px]">${u.lastLoginAt}</td>
+                    <td class="p-3.5 font-mono font-semibold text-amber-500">🪙 ${Number(u.coins || 0).toLocaleString()}</td>
+                    <td class="p-3.5 font-mono font-semibold text-apple-blue">💎 ${Number(u.diamonds || 0).toLocaleString()}</td>
+                    <td class="p-3.5 font-mono font-bold text-emerald-600 dark:text-emerald-400">¥${Number(u.totalRechargeRmb || 0)}</td>
+                    <td class="p-3.5 text-apple-textSecondary font-mono text-[11px]">${escapeHtml(u.lastLoginAt)}</td>
                     <td class="p-3.5 pr-5 text-right">
-                        <button onclick="openUserModal('${u.id}')" class="px-3 py-1 rounded-lg bg-apple-blue/10 hover:bg-apple-blue/20 text-apple-blue font-semibold text-xs transition active:scale-95">
+                        <button data-uid="${safeId}" onclick="openUserModal(this.dataset.uid)" class="px-3 py-1 rounded-lg bg-apple-blue/10 hover:bg-apple-blue/20 text-apple-blue font-semibold text-xs transition active:scale-95">
                             ✏️ 调配特权
                         </button>
                     </td>
@@ -1568,10 +1569,12 @@
             currentBanners.forEach((b, idx) => {
                 const card = document.createElement('div');
                 card.className = 'p-4 rounded-2xl bg-[#FAFAFC] dark:bg-[#26262B] border border-black/5 dark:border-white/5 flex flex-wrap justify-between items-center gap-3';
+                const safeStart = /^#[0-9a-fA-F]{3,8}$/.test(b.colorStart || '') ? b.colorStart : '#0071E3';
+                const safeEnd = /^#[0-9a-fA-F]{3,8}$/.test(b.colorEnd || '') ? b.colorEnd : '#AF52DE';
                 card.innerHTML = `
                     <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-xs shadow-sm" style="background: linear-gradient(135deg, ${b.colorStart || '#0071E3'}, ${b.colorEnd || '#AF52DE'})">
-                            ${b.badge || 'HOT'}
+                        <div class="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white text-xs shadow-sm" style="background: linear-gradient(135deg, ${safeStart}, ${safeEnd})">
+                            ${escapeHtml(b.badge || 'HOT')}
                         </div>
                         <div>
                             <div class="font-bold text-apple-textPrimary dark:text-white text-sm flex items-center gap-2">

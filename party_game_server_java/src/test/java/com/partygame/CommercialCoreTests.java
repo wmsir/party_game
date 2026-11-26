@@ -1,15 +1,20 @@
 package com.partygame;
 
+import com.partygame.entity.User;
 import com.partygame.game.PartyWheelPromptBank;
 import com.partygame.game.UndercoverWordBank;
+import com.partygame.repository.UserRepository;
 import com.partygame.security.AdminAuthService;
+import com.partygame.security.UserAuthService;
 import com.partygame.service.GameService;
 import com.partygame.service.ShopService;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -69,5 +74,22 @@ class CommercialCoreTests {
         assertNotNull(authService.validateToken("Bearer " + token));
         authService.revokeToken(token);
         assertNull(authService.validateToken(token));
+    }
+
+    @Test
+    void userAuthSignedTokenBindsAndVerifiesUser() {
+        UserRepository repo = Mockito.mock(UserRepository.class);
+        UserAuthService userAuthService = new UserAuthService(repo);
+        userAuthService.init();
+
+        String tok = userAuthService.issueSignedToken("U1001");
+        assertTrue(tok.startsWith("PGU1."));
+        User dbUser = User.builder().id("U1001").nickname("Tester").token(tok).build();
+        Mockito.when(repo.findById("U1001")).thenReturn(Optional.of(dbUser));
+
+        User authed = userAuthService.requireUser("Bearer " + tok, null, "U1001");
+        assertEquals("U1001", authed.getId());
+        assertThrows(SecurityException.class, () -> userAuthService.requireUser("Bearer " + tok, null, "U9999"));
+        assertThrows(SecurityException.class, () -> userAuthService.requireUser(null, null, "U1001"));
     }
 }

@@ -20,6 +20,8 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByUsername(String username);
     List<User> findAllByUsername(String username);
 
+    Optional<User> findByToken(String token);
+
     @Query("SELECT u FROM User u WHERE " +
            "LOWER(u.id) LIKE LOWER(CONCAT('%', :kw, '%')) OR " +
            "LOWER(u.nickname) LIKE LOWER(CONCAT('%', :kw, '%')) OR " +

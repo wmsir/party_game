@@ -1,6 +1,8 @@
 package com.partygame.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.partygame.entity.User;
+import com.partygame.security.UserAuthService;
 import com.partygame.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,16 +20,23 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class AuthController {
 
     private final UserService userService;
-
-    @Value("${party.auth.allow-passwordless-phone:false}")
-    private boolean allowPasswordlessPhone;
+    private final UserAuthService userAuthService;
+    private final ObjectMapper objectMapper;
 
     @Value("${party.public-base-url:https://fwpt.cn/party-game}")
     private String publicBaseUrl;
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> toAuthUserPayload(User user) {
+        Map<String, Object> map = objectMapper.convertValue(user, Map.class);
+        if (user.getToken() != null) {
+            map.put("token", user.getToken());
+        }
+        return map;
+    }
 
     /**
      * 发送模拟手机短信验证码
@@ -83,7 +92,7 @@ public class AuthController {
         }
         try {
             User user = userService.verifyTrialSmsAndLogin(phone, code, nickname);
-            Map<String, Object> resp = createSuccess(user);
+            Map<String, Object> resp = createSuccess(toAuthUserPayload(user));
             resp.put("message", "🎉 验证成功！已开通试玩权限并赠送初始金币钻石！");
             return ResponseEntity.ok(resp);
         } catch (Exception e) {
@@ -92,7 +101,7 @@ public class AuthController {
     }
 
     /**
-     * 真实手机号验证码登录 (真实查验并存入 MySQL 数据库)
+     * 真实手机号验证码登录 (强制校验短信验证码)
      */
     @PostMapping({"/api/auth/phone-login", "/party-game/api/auth/phone-login"})
     public ResponseEntity<?> phoneLogin(@RequestBody Map<String, String> body) {
@@ -101,16 +110,12 @@ public class AuthController {
         if (phone == null || phone.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(createError("手机号不能为空"));
         }
+        if (code == null || code.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(createError("请输入短信验证码"));
+        }
         try {
-            User user;
-            if (code != null && !code.trim().isEmpty()) {
-                user = userService.phoneCodeLogin(phone, code);
-            } else if (allowPasswordlessPhone) {
-                user = userService.phoneLogin(phone);
-            } else {
-                return ResponseEntity.badRequest().body(createError("请输入短信验证码"));
-            }
-            return ResponseEntity.ok(createSuccess(user));
+            User user = userService.phoneCodeLogin(phone, code);
+            return ResponseEntity.ok(createSuccess(toAuthUserPayload(user)));
         } catch (Exception e) {
             log.error("手机验证码登录异常: {}", e.getMessage());
             return ResponseEntity.badRequest().body(createError(e.getMessage()));
@@ -124,7 +129,7 @@ public class AuthController {
     public ResponseEntity<?> guestLogin() {
         try {
             User guest = userService.guestLogin();
-            return ResponseEntity.ok(createSuccess(guest));
+            return ResponseEntity.ok(createSuccess(toAuthUserPayload(guest)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(createError(e.getMessage()));
         }
@@ -154,9 +159,13 @@ public class AuthController {
             return phoneLogin(map);
         }
 
+        if (password == null || password.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(createError("请输入登录密码"));
+        }
+
         try {
-            User user = userService.passwordLogin(username, password != null ? password : "123");
-            return ResponseEntity.ok(createSuccess(user));
+            User user = userService.passwordLogin(username, password);
+            return ResponseEntity.ok(createSuccess(toAuthUserPayload(user)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(createError(e.getMessage()));
         }
@@ -174,30 +183,24 @@ public class AuthController {
                     body.get("password"),
                     body.get("phone")
             );
-            return ResponseEntity.ok(createSuccess(user));
+            return ResponseEntity.ok(createSuccess(toAuthUserPayload(user)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(createError(e.getMessage()));
         }
     }
 
     /**
-     * 同步基础玩家资料 (仅允许携带匹配登录凭证更新昵称与头像，严禁篡改资产、VIP、战绩与密码)
+     * 同步基础玩家资料 (强制携带匹配登录凭证更新昵称与头像，严禁篡改资产、VIP、战绩与密码)
      */
     @PostMapping({"/api/auth/sync-user", "/party-game/api/auth/sync-user"})
     public ResponseEntity<?> syncUser(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
             @RequestBody User user) {
         if (user == null || user.getId() == null || user.getId().trim().isEmpty()) {
             return ResponseEntity.badRequest().body(createError("无效用户数据"));
         }
-        User existing = userService.getUserById(user.getId().trim()).orElse(null);
-        if (existing == null) {
-            return ResponseEntity.badRequest().body(createError("用户档案不存在"));
-        }
-        String suppliedToken = extractToken(authHeader, user.getToken());
-        if (existing.getToken() != null && !existing.getToken().isBlank() && !existing.getToken().equals(suppliedToken)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createError("登录凭证无效，禁止同步修改档案"));
-        }
+        User existing = userAuthService.requireUser(authHeader, userTokenHeader, user.getToken(), user.getId().trim());
         if (user.getNickname() != null && !user.getNickname().trim().isEmpty()) {
             String cleanNick = user.getNickname().trim();
             existing.setNickname(cleanNick.length() > 32 ? cleanNick.substring(0, 32) : cleanNick);
@@ -211,25 +214,18 @@ public class AuthController {
     }
 
     /**
-     * 账号与安全中心：更新账号、密码、手机号、昵称、头像 (校验登录凭证)
+     * 账号与安全中心：更新账号、密码、手机号、昵称、头像 (强制校验登录凭证并绑定本人账号)
      */
     @PostMapping({"/api/auth/update-account", "/party-game/api/auth/update-account"})
     public ResponseEntity<?> updateAccount(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
             @RequestBody Map<String, String> body) {
+        String userId = body.get("userId");
+        User dbUser = userAuthService.requireUser(authHeader, userTokenHeader, body.get("token"), userId);
         try {
-            String userId = body.get("userId");
-            if (userId != null && !userId.trim().isEmpty()) {
-                User dbUser = userService.getUserById(userId.trim()).orElse(null);
-                if (dbUser != null && dbUser.getToken() != null && !dbUser.getToken().isBlank()) {
-                    String suppliedToken = extractToken(authHeader, body.get("token"));
-                    if (suppliedToken == null || !suppliedToken.equals(dbUser.getToken())) {
-                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(createError("登录凭证校验失败，请重新登录后操作"));
-                    }
-                }
-            }
             User user = userService.updateAccountSecurity(
-                    userId,
+                    dbUser.getId(),
                     body.get("username"),
                     body.get("nickname"),
                     body.get("password"),
@@ -241,17 +237,6 @@ public class AuthController {
             log.error("更新账号信息异常: {}", e.getMessage());
             return ResponseEntity.badRequest().body(createError(e.getMessage()));
         }
-    }
-
-    private String extractToken(String authHeader, String fallbackToken) {
-        if (authHeader != null && !authHeader.isBlank()) {
-            String t = authHeader.trim();
-            if (t.regionMatches(true, 0, "Bearer ", 0, 7)) {
-                t = t.substring(7).trim();
-            }
-            if (!t.isEmpty()) return t;
-        }
-        return (fallbackToken != null && !fallbackToken.isBlank()) ? fallbackToken.trim() : null;
     }
 
     /**
@@ -365,7 +350,7 @@ public class AuthController {
         Map<String, Object> data = new HashMap<>();
         data.put("status", session.status);
         if ("CONFIRMED".equals(session.status) && session.user != null) {
-            data.put("user", session.user);
+            data.put("user", toAuthUserPayload(session.user));
             data.put("userId", session.user.getId());
             data.put("nickname", session.user.getNickname());
             data.put("avatar", session.user.getAvatar());
@@ -379,34 +364,37 @@ public class AuthController {
      * 手机 APP 或手机扫码页提交确认授权登录
      */
     @PostMapping({"/api/auth/qr/confirm", "/party-game/api/auth/qr/confirm"})
-    public ResponseEntity<?> confirmQrSession(@RequestBody Map<String, Object> body) {
-        String ticket = (String) body.get("ticket");
-        String userId = (String) body.get("userId");
-        String username = (String) body.get("username");
-        String password = (String) body.get("password");
+    public ResponseEntity<?> confirmQrSession(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestBody Map<String, Object> body) {
+        String ticket = body.get("ticket") != null ? String.valueOf(body.get("ticket")) : null;
+        String userId = body.get("userId") != null ? String.valueOf(body.get("userId")) : null;
+        String username = body.get("username") != null ? String.valueOf(body.get("username")) : null;
+        String password = body.get("password") != null ? String.valueOf(body.get("password")) : null;
+        String bodyToken = body.get("token") != null ? String.valueOf(body.get("token")) : null;
 
         if (ticket == null || ticket.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(createError("二维码凭证不能为空"));
         }
 
-        QrSession session = QR_STORE.get(ticket);
+        QrSession session = QR_STORE.get(ticket.trim());
         if (session == null) {
             return ResponseEntity.badRequest().body(createError("二维码已失效或过期，请在网页端刷新"));
         }
 
-        User user = null;
-        if (userId != null && !userId.trim().isEmpty()) {
-            user = userService.getUserById(userId.trim()).orElse(null);
-        } else if (username != null && !username.trim().isEmpty()) {
+        User user;
+        if (username != null && !username.trim().isEmpty()) {
+            if (password == null || password.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(createError("请输入登录密码"));
+            }
             try {
-                user = userService.passwordLogin(username.trim(), password != null ? password : "123");
+                user = userService.passwordLogin(username.trim(), password);
             } catch (Exception e) {
                 return ResponseEntity.badRequest().body(createError(e.getMessage()));
             }
-        }
-
-        if (user == null) {
-            return ResponseEntity.badRequest().body(createError("未找到有效用户档案，授权失败"));
+        } else {
+            user = userAuthService.requireUser(authHeader, userTokenHeader, bodyToken, userId);
         }
 
         session.status = "CONFIRMED";

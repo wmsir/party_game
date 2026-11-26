@@ -4,6 +4,7 @@ import com.partygame.entity.User;
 import com.partygame.entity.UserIntimacy;
 import com.partygame.repository.UserIntimacyRepository;
 import com.partygame.repository.UserRepository;
+import com.partygame.security.UserAuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -14,11 +15,11 @@ import java.util.*;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class IntimacyController {
 
     private final UserIntimacyRepository intimacyRepository;
     private final UserRepository userRepository;
+    private final UserAuthService userAuthService;
 
     // 关系与所需亲密度阈值字典
     public static final Map<String, Integer> RELATION_THRESHOLDS = new LinkedHashMap<>();
@@ -89,16 +90,26 @@ public class IntimacyController {
      * 增加亲密度 (送礼物 / 投掷互动道具触发)
      */
     @PostMapping({"/api/intimacy/add", "/party-game/api/intimacy/add"})
-    public ResponseEntity<?> addIntimacy(@RequestBody Map<String, Object> body) {
-        String fromUserId = (String) body.get("fromUserId");
-        String toUserId = (String) body.get("toUserId");
-        String itemType = (String) body.get("itemType");
+    public ResponseEntity<?> addIntimacy(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestBody Map<String, Object> body) {
+        String rawFrom = body.get("fromUserId") != null ? String.valueOf(body.get("fromUserId")) : null;
+        if (rawFrom == null || rawFrom.trim().isEmpty()) {
+            rawFrom = body.get("user1Id") != null ? String.valueOf(body.get("user1Id")) : null;
+        }
+        String toUserId = body.get("toUserId") != null ? String.valueOf(body.get("toUserId")) : null;
+        if (toUserId == null || toUserId.trim().isEmpty()) {
+            toUserId = body.get("user2Id") != null ? String.valueOf(body.get("user2Id")) : null;
+        }
+        String itemType = body.get("itemType") != null ? String.valueOf(body.get("itemType")) : null;
         Integer combo = body.get("combo") instanceof Number ? ((Number) body.get("combo")).intValue() : 1;
 
-        if (fromUserId == null || toUserId == null || fromUserId.trim().isEmpty() || toUserId.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("code", 400, "message", "用户编号不能为空"));
+        if (toUserId == null || toUserId.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("code", 400, "message", "目标用户编号不能为空"));
         }
-        fromUserId = fromUserId.trim();
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, rawFrom);
+        String fromUserId = authed.getId();
         toUserId = toUserId.trim();
         if (fromUserId.equals(toUserId) || toUserId.startsWith("AI-")) {
             return ResponseEntity.ok(Map.of("code", 200, "message", "无需与AI或自己计算亲密度"));
@@ -154,7 +165,10 @@ public class IntimacyController {
      * 设置双方亲密关系 (朋友、发小、老婆、老公等)
      */
     @PostMapping({"/api/intimacy/set-relationship", "/party-game/api/intimacy/set-relationship"})
-    public ResponseEntity<?> setRelationship(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> setRelationship(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestBody Map<String, String> body) {
         String user1Id = body.get("user1Id");
         if (user1Id == null || user1Id.trim().isEmpty()) user1Id = body.get("userA");
         if (user1Id == null || user1Id.trim().isEmpty()) user1Id = body.get("userId");
@@ -165,10 +179,11 @@ public class IntimacyController {
 
         String relationship = body.get("relationship");
 
-        if (user1Id == null || user2Id == null || relationship == null) {
+        if (user2Id == null || relationship == null) {
             return ResponseEntity.badRequest().body(Map.of("code", 400, "message", "缺少必要参数"));
         }
-        user1Id = user1Id.trim();
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, user1Id);
+        user1Id = authed.getId();
         user2Id = user2Id.trim();
         relationship = relationship.trim();
 
@@ -225,13 +240,17 @@ public class IntimacyController {
      * 解除亲密关系
      */
     @PostMapping({"/api/intimacy/remove-relationship", "/party-game/api/intimacy/remove-relationship"})
-    public ResponseEntity<?> removeRelationship(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> removeRelationship(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestBody Map<String, String> body) {
         String user1Id = body.get("user1Id");
         String user2Id = body.get("user2Id");
-        if (user1Id == null || user2Id == null) {
+        if (user2Id == null) {
             return ResponseEntity.badRequest().body(Map.of("code", 400, "message", "缺少用户编号"));
         }
-        String[] pair = normalizePair(user1Id.trim(), user2Id.trim());
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, user1Id);
+        String[] pair = normalizePair(authed.getId(), user2Id.trim());
         intimacyRepository.findByUser1IdAndUser2Id(pair[0], pair[1]).ifPresent(rec -> {
             rec.setRelationship(null);
             intimacyRepository.save(rec);
@@ -243,11 +262,12 @@ public class IntimacyController {
      * 获取我的所有亲密好友关系列表
      */
     @GetMapping({"/api/intimacy/my-relations", "/party-game/api/intimacy/my-relations"})
-    public ResponseEntity<?> getMyRelations(@RequestParam String userId) {
-        if (userId == null || userId.trim().isEmpty()) {
-            return ResponseEntity.ok(Map.of("code", 200, "list", Collections.emptyList()));
-        }
-        String cleanUid = userId.trim();
+    public ResponseEntity<?> getMyRelations(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestParam(required = false) String userId) {
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, userId);
+        String cleanUid = authed.getId();
         List<UserIntimacy> list = intimacyRepository.findByUser1IdOrUser2Id(cleanUid, cleanUid);
         List<Map<String, Object>> result = new ArrayList<>();
 

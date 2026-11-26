@@ -9,6 +9,8 @@ import com.partygame.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,10 +36,17 @@ public class ShopService {
     private final UserRepository userRepository;
     private final PaymentOrderRepository paymentOrderRepository;
     private final BattleRecordRepository battleRecordRepository;
+    private final Environment environment;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${party.payment.sandbox-enabled:true}")
     private boolean paymentSandboxEnabled;
+
+    private boolean isEffectiveSandbox() {
+        return paymentSandboxEnabled && (environment == null || !environment.acceptsProfiles(Profiles.of("prod")));
+    }
+
+    private final Map<String, Object> userTaskLocks = new ConcurrentHashMap<>();
 
     // Daily anti-abuse & task tracking maps
     private static final Map<String, Integer> DAILY_THROW_COUNTS = new ConcurrentHashMap<>();
@@ -64,22 +73,11 @@ public class ShopService {
 
     public User getOrCreateUser(String userId) {
         if (userId == null || userId.trim().isEmpty()) {
-            userId = "WEB" + (System.currentTimeMillis() % 1000000);
+            throw new IllegalArgumentException("用户编号不能为空");
         }
         String finalUid = userId.trim();
-        return userRepository.findById(finalUid).orElseGet(() -> {
-            User u = User.builder()
-                    .id(finalUid)
-                    .username("web_" + finalUid)
-                    .nickname("玩家_" + (finalUid.length() > 4 ? finalUid.substring(finalUid.length() - 4) : finalUid))
-                    .avatar("🦊")
-                    .coins(2000L)
-                    .diamonds(50L)
-                    .vipLevel(1)
-                    .vipExp(10)
-                    .build();
-            return userRepository.save(u);
-        });
+        return userRepository.findById(finalUid)
+                .orElseThrow(() -> new IllegalArgumentException("用户档案不存在，请先登录"));
     }
 
     public static int calculateVipLevel(int vipExp) {
@@ -244,7 +242,7 @@ public class ShopService {
                 .coinsAward(coinsAward)
                 .vipExpAward(vipExpAward)
                 .status("PENDING")
-                .sandboxMode(paymentSandboxEnabled)
+                .sandboxMode(isEffectiveSandbox())
                 .build();
         paymentOrderRepository.save(order);
 
@@ -260,20 +258,32 @@ public class ShopService {
         res.put("coinsAward", coinsAward);
         res.put("vipExpAward", vipExpAward);
         res.put("status", "PENDING");
-        res.put("sandboxEnabled", paymentSandboxEnabled);
+        res.put("sandboxEnabled", isEffectiveSandbox());
         return res;
     }
 
     /**
-     * 幂等确认订单到账 (由沙盒收银台或第三方支付验签回调调用)
+     * 幂等确认订单到账 (由沙盒收银台或已绑定本人的支付核销调用)
      */
     @Transactional
     public Map<String, Object> confirmOrder(String orderId, String tradeNo) {
+        return confirmOrder(orderId, tradeNo, null);
+    }
+
+    @Transactional
+    public Map<String, Object> confirmOrder(String orderId, String tradeNo, String expectedUserId) {
         if (orderId == null || orderId.isBlank()) {
             throw new IllegalArgumentException("订单号不能为空");
         }
         PaymentOrder order = paymentOrderRepository.findByOrderId(orderId.trim())
                 .orElseThrow(() -> new IllegalArgumentException("支付订单不存在: " + orderId));
+        if (expectedUserId != null && !expectedUserId.isBlank()
+                && !expectedUserId.trim().replace("-", "").equalsIgnoreCase(String.valueOf(order.getUserId()).replace("-", ""))) {
+            throw new SecurityException("无权核销他人支付订单");
+        }
+        if (!isEffectiveSandbox()) {
+            throw new IllegalArgumentException("生产模式禁止客户端直接确认订单，请通过官方支付回调核销");
+        }
         User user = getOrCreateUser(order.getUserId());
 
         if ("PAID".equalsIgnoreCase(order.getStatus())) {
@@ -327,12 +337,12 @@ public class ShopService {
      */
     @Transactional
     public Map<String, Object> processPayment(String userId, String tierId, String payChannel) {
-        if (!paymentSandboxEnabled) {
+        if (!isEffectiveSandbox()) {
             throw new IllegalArgumentException("生产模式已关闭模拟直充，请通过官方支付收银台创建订单并完成支付");
         }
         Map<String, Object> created = createOrder(userId, tierId, payChannel);
         String orderId = String.valueOf(created.get("orderId"));
-        return confirmOrder(orderId, "SANDBOX-" + orderId);
+        return confirmOrder(orderId, "SANDBOX-" + orderId, userId);
     }
 
     @Transactional
@@ -499,7 +509,7 @@ public class ShopService {
      */
     @Transactional
     public Map<String, Object> claimFirstRecharge(String userId, String payChannel) {
-        if (!paymentSandboxEnabled) {
+        if (!isEffectiveSandbox()) {
             throw new IllegalArgumentException("生产模式已关闭模拟首充，请通过官方支付收银台完成 6 元首充订单");
         }
         User user = getOrCreateUser(userId);
@@ -511,7 +521,7 @@ public class ShopService {
 
         Map<String, Object> orderCreated = createOrder(user.getId(), "first_recharge_6", payChannel);
         String orderId = String.valueOf(orderCreated.get("orderId"));
-        Map<String, Object> settled = confirmOrder(orderId, "SANDBOX-FR-" + orderId);
+        Map<String, Object> settled = confirmOrder(orderId, "SANDBOX-FR-" + orderId, user.getId());
         settled.put("diceCupSkin", "PURPLE_GALAXY");
         settled.put("entranceBanner", "BANNER_DRAGON");
         return settled;
@@ -748,9 +758,11 @@ public class ShopService {
     public List<Map<String, Object>> getDailyTasks(String userId) {
         String today = LocalDate.now().toString();
         String uid = (userId != null && !userId.isBlank()) ? userId.trim() : "";
-        Set<String> claimedSet = uid.isEmpty()
-                ? Collections.emptySet()
-                : dailyClaimedTasks.getOrDefault(uid + ":" + today, Collections.emptySet());
+        Set<String> claimedSet = new HashSet<>();
+        if (!uid.isEmpty()) {
+            claimedSet.addAll(dailyClaimedTasks.getOrDefault(uid + ":" + today, Collections.emptySet()));
+            userRepository.findById(uid).ifPresent(u -> claimedSet.addAll(readPersistedClaimedTasks(u, today)));
+        }
 
         LocalDateTime todayStart = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
         int todayGames = uid.isEmpty() ? 0 : (int) battleRecordRepository.countByUserIdAndPlayedAtAfter(uid, todayStart);
@@ -767,51 +779,80 @@ public class ShopService {
     }
 
     /**
-     * 领取每日任务奖励 (校验真实进度与防重复领取)
+     * 领取每日任务奖励 (校验真实进度、持久化每日已领记录、防并发重复刷取)
      */
     @Transactional
     public Map<String, Object> claimDailyTask(String userId, String taskId) {
         if (userId == null || userId.isBlank() || taskId == null || taskId.isBlank()) {
             throw new IllegalArgumentException("参数错误");
         }
-        User user = getOrCreateUser(userId);
-        List<Map<String, Object>> tasks = getDailyTasks(user.getId());
-        Map<String, Object> task = tasks.stream()
-                .filter(t -> taskId.trim().equals(t.get("id")))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("未知的每日任务: " + taskId));
+        String cleanTaskId = taskId.trim();
+        Object lock = userTaskLocks.computeIfAbsent(userId.trim(), k -> new Object());
+        synchronized (lock) {
+            User user = getOrCreateUser(userId);
+            String today = LocalDate.now().toString();
+            Set<String> persisted = readPersistedClaimedTasks(user, today);
+            if (persisted.contains(cleanTaskId)) {
+                throw new IllegalArgumentException("该任务今日奖励已领取过啦！");
+            }
 
-        if (Boolean.TRUE.equals(task.get("isClaimed"))) {
-            throw new IllegalArgumentException("该任务今日奖励已领取过啦！");
-        }
-        int current = ((Number) task.get("current")).intValue();
-        int target = ((Number) task.get("target")).intValue();
-        if (current < target) {
-            throw new IllegalArgumentException("任务进度尚未达成 (" + current + "/" + target + ")，请先完成任务！");
-        }
+            List<Map<String, Object>> tasks = getDailyTasks(user.getId());
+            Map<String, Object> task = tasks.stream()
+                    .filter(t -> cleanTaskId.equals(t.get("id")))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("未知的每日任务: " + taskId));
 
-        String today = LocalDate.now().toString();
-        String key = user.getId() + ":" + today;
-        if (dailyClaimedTasks.size() > 10000) {
-            dailyClaimedTasks.entrySet().removeIf(e -> !e.getKey().endsWith(":" + today));
-        }
-        Set<String> claimedSet = dailyClaimedTasks.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet());
-        if (!claimedSet.add(taskId.trim())) {
-            throw new IllegalArgumentException("该任务今日奖励已领取过啦！");
-        }
+            if (Boolean.TRUE.equals(task.get("isClaimed"))) {
+                throw new IllegalArgumentException("该任务今日奖励已领取过啦！");
+            }
+            int current = ((Number) task.get("current")).intValue();
+            int target = ((Number) task.get("target")).intValue();
+            if (current < target) {
+                throw new IllegalArgumentException("任务进度尚未达成 (" + current + "/" + target + ")，请先完成任务！");
+            }
 
-        int rewardCoins = ((Number) task.get("rewardCoins")).intValue();
-        int rewardDiamonds = ((Number) task.get("rewardDiamonds")).intValue();
-        user.setCoins((user.getCoins() != null ? user.getCoins() : 0L) + rewardCoins);
-        user.setDiamonds((user.getDiamonds() != null ? user.getDiamonds() : 0L) + rewardDiamonds);
-        userRepository.save(user);
+            String key = user.getId() + ":" + today;
+            if (dailyClaimedTasks.size() > 10000) {
+                dailyClaimedTasks.entrySet().removeIf(e -> !e.getKey().endsWith(":" + today));
+            }
+            Set<String> claimedSet = dailyClaimedTasks.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet());
+            if (!claimedSet.add(cleanTaskId)) {
+                throw new IllegalArgumentException("该任务今日奖励已领取过啦！");
+            }
 
-        Map<String, Object> res = new HashMap<>();
-        res.put("taskId", taskId.trim());
-        res.put("rewardCoins", rewardCoins);
-        res.put("rewardDiamonds", rewardDiamonds);
-        res.put("user", user);
-        return res;
+            persisted.add(cleanTaskId);
+            user.setDailyTasksDate(today);
+            user.setDailyClaimedTasksJson(JSON.toJSONString(persisted));
+
+            int rewardCoins = ((Number) task.get("rewardCoins")).intValue();
+            int rewardDiamonds = ((Number) task.get("rewardDiamonds")).intValue();
+            user.setCoins((user.getCoins() != null ? user.getCoins() : 0L) + rewardCoins);
+            user.setDiamonds((user.getDiamonds() != null ? user.getDiamonds() : 0L) + rewardDiamonds);
+            userRepository.save(user);
+
+            Map<String, Object> res = new HashMap<>();
+            res.put("taskId", cleanTaskId);
+            res.put("rewardCoins", rewardCoins);
+            res.put("rewardDiamonds", rewardDiamonds);
+            res.put("user", user);
+            return res;
+        }
+    }
+
+    private Set<String> readPersistedClaimedTasks(User user, String today) {
+        Set<String> set = new LinkedHashSet<>();
+        if (user != null && today.equals(user.getDailyTasksDate())) {
+            String raw = user.getDailyClaimedTasksJson();
+            if (raw != null && !raw.isBlank()) {
+                try {
+                    List<String> parsed = JSON.parseArray(raw, String.class);
+                    if (parsed != null) {
+                        set.addAll(parsed);
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+        return set;
     }
 
     private Map<String, Object> buildPaymentSettlementMap(PaymentOrder order, User user, boolean isVipUpgraded) {

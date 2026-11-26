@@ -19,7 +19,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 @RestController
-@CrossOrigin(origins = "*")
 public class AppDownloadController {
 
     private File getApkFile() {

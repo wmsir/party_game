@@ -3,11 +3,13 @@ package com.partygame.websocket;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.partygame.entity.DirectMessageRecord;
+import com.partygame.entity.User;
 import com.partygame.entity.UserIntimacy;
 import com.partygame.game.PartyWheelPromptBank;
 import com.partygame.game.UndercoverWordBank;
 import com.partygame.repository.DirectMessageRepository;
 import com.partygame.repository.UserIntimacyRepository;
+import com.partygame.security.UserAuthService;
 import com.partygame.service.ShopService;
 import com.partygame.controller.IntimacyController;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     private final UserIntimacyRepository intimacyRepository;
     private final com.partygame.service.FriendService friendService;
     private final com.partygame.repository.UserRepository userRepository;
+    private final UserAuthService userAuthService;
 
     private static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(4);
 
@@ -143,9 +146,32 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
             switch (type) {
                 case "INIT_USER":
-                    meta.userId = msg.getString("userId") != null ? msg.getString("userId").trim() : null;
-                    meta.nickname = msg.getString("nickname") != null ? msg.getString("nickname").trim() : "玩家";
-                    log.info("[WS] INIT_USER registered: userId={}, nickname={}", meta.userId, meta.nickname);
+                    String wsToken = msg.getString("token");
+                    if ((wsToken == null || wsToken.isBlank()) && session.getUri() != null && session.getUri().getQuery() != null) {
+                        for (String kv : session.getUri().getQuery().split("&")) {
+                            if (kv.startsWith("token=")) {
+                                wsToken = java.net.URLDecoder.decode(kv.substring(6), java.nio.charset.StandardCharsets.UTF_8);
+                                break;
+                            }
+                        }
+                    }
+                    User authedWsUser = userAuthService.authenticate(wsToken);
+                    if (authedWsUser == null) {
+                        meta.userId = null;
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("type", "ERROR");
+                        err.put("code", 401);
+                        err.put("message", "WebSocket 身份凭证无效或已过期，请重新登录");
+                        try {
+                            session.sendMessage(new TextMessage(JSON.toJSONString(err)));
+                        } catch (IOException ignored) {}
+                        break;
+                    }
+                    meta.userId = authedWsUser.getId();
+                    meta.nickname = (authedWsUser.getNickname() != null && !authedWsUser.getNickname().isBlank())
+                            ? authedWsUser.getNickname().trim()
+                            : "玩家";
+                    log.info("[WS] INIT_USER verified: userId={}, nickname={}", meta.userId, meta.nickname);
                     // 用户上线时自动补发离线期间收到的好友私信（从数据库可靠读取）
                     if (meta.userId != null) {
                         try {
@@ -199,9 +225,13 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     break;
 
                 case "JOIN_ROOM":
+                    if (meta.userId == null || meta.userId.isBlank()) {
+                        sendWsAuthError(session);
+                        break;
+                    }
                     meta.roomCode = msg.getString("roomCode") != null ? msg.getString("roomCode").trim() : null;
-                    String joinUid = msg.getString("userId") != null ? msg.getString("userId").trim() : meta.userId;
-                    String joinNick = msg.getString("nickname") != null ? msg.getString("nickname").trim() : meta.nickname;
+                    String joinUid = meta.userId;
+                    String joinNick = meta.nickname != null ? meta.nickname : "玩家";
                     String joinAvatar = msg.getString("avatar") != null ? msg.getString("avatar").trim() : "🦊";
                     String joinGameType = msg.getString("gameType");
 
@@ -425,6 +455,10 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     break;
 
                 case "ADD_AI_PLAYER":
+                    if (meta.userId == null || meta.userId.isBlank()) {
+                        sendWsAuthError(session);
+                        break;
+                    }
                     String aiRoom = msg.getString("roomCode") != null ? msg.getString("roomCode").trim() : meta.roomCode;
                     if (aiRoom != null) {
                         autoFillRealisticPlayer(aiRoom);
@@ -432,10 +466,14 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     break;
 
                 case "SUMMON_PLAYERS":
+                    if (meta.userId == null || meta.userId.isBlank()) {
+                        sendWsAuthError(session);
+                        break;
+                    }
                     String sRoom = msg.getString("roomCode") != null ? msg.getString("roomCode").trim() : meta.roomCode;
                     String sGameType = msg.getString("gameType") != null ? msg.getString("gameType").trim() : "take6";
                     String sChannel = msg.getString("channel") != null ? msg.getString("channel").trim() : "ALL";
-                    String sNick = msg.getString("senderName") != null ? msg.getString("senderName") : (meta.nickname != null ? meta.nickname : "房主");
+                    String sNick = meta.nickname != null ? meta.nickname : "房主";
                     String sAvatar = msg.getString("senderAvatar") != null ? msg.getString("senderAvatar") : "🦊";
 
                     String gName = "谁是牛头王";
@@ -508,8 +546,12 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     break;
 
                 case "PLAYER_READY":
+                    if (meta.userId == null || meta.userId.isBlank()) {
+                        sendWsAuthError(session);
+                        break;
+                    }
                     String rCode = msg.getString("roomCode") != null ? msg.getString("roomCode").trim() : meta.roomCode;
-                    String rUid = msg.getString("userId") != null ? msg.getString("userId").trim() : meta.userId;
+                    String rUid = meta.userId;
                     Boolean readyVal = msg.getBoolean("isReady");
                     if (rCode != null && rUid != null && readyVal != null) {
                         Map<String, Object> r = RoomAndMomentController.ROOMS.get(rCode);
@@ -537,8 +579,12 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     break;
 
                 case "LEAVE_ROOM":
+                    if (meta.userId == null || meta.userId.isBlank()) {
+                        sendWsAuthError(session);
+                        break;
+                    }
                     String leaveCode = msg.getString("roomCode") != null ? msg.getString("roomCode").trim() : meta.roomCode;
-                    String leaveUid = msg.getString("userId") != null ? msg.getString("userId").trim() : meta.userId;
+                    String leaveUid = meta.userId;
                     if (leaveCode != null) {
                         Map<String, Object> r = RoomAndMomentController.ROOMS.get(leaveCode);
                         boolean isPlaying = r != null && "PLAYING".equalsIgnoreCase(String.valueOf(r.get("status")));
@@ -557,6 +603,10 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     break;
 
                 case "CHAT_MESSAGE":
+                    if (meta.userId == null || meta.userId.isBlank()) {
+                        sendWsAuthError(session);
+                        break;
+                    }
                     String channel = msg.getString("channel");
                     String roomCode = msg.getString("roomCode") != null ? msg.getString("roomCode").trim() : null;
                     if ("ROOM".equalsIgnoreCase(channel) || (roomCode != null && !roomCode.isEmpty())) {
@@ -573,8 +623,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     chat.put("id", msg.getString("id") != null ? msg.getString("id") : ("MSG-" + System.currentTimeMillis()));
                     chat.put("channel", channel);
                     chat.put("roomCode", roomCode);
-                    chat.put("senderId", msg.getString("senderId") != null ? msg.getString("senderId") : meta.userId);
-                    chat.put("senderName", msg.getString("senderName") != null ? msg.getString("senderName") : meta.nickname);
+                    chat.put("senderId", meta.userId);
+                    chat.put("senderName", meta.nickname != null ? meta.nickname : "玩家");
                     chat.put("senderAvatar", msg.getString("senderAvatar") != null ? msg.getString("senderAvatar") : "🦊");
                     chat.put("content", msg.getString("content"));
                     chat.put("textColor", msg.getString("textColor") != null ? msg.getString("textColor") : "COLOR_DEFAULT");
@@ -590,12 +640,16 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     break;
 
                 case "DIRECT_MESSAGE":
+                    if (meta.userId == null || meta.userId.isBlank()) {
+                        sendWsAuthError(session);
+                        break;
+                    }
                     String toUserId = msg.getString("toUserId") != null ? msg.getString("toUserId").trim() : null;
-                    String fromUserId = msg.getString("fromUserId") != null ? msg.getString("fromUserId").trim() : (meta.userId != null ? meta.userId.trim() : null);
+                    String fromUserId = meta.userId;
                     String msgId = msg.getString("id") != null ? msg.getString("id").trim() : ("DM-" + System.currentTimeMillis());
                     String content = msg.getString("content");
                     String inviteRoomCode = msg.getString("inviteRoomCode");
-                    String fromNickname = msg.getString("fromNickname") != null ? msg.getString("fromNickname").trim() : (meta.nickname != null ? meta.nickname.trim() : "玩家");
+                    String fromNickname = meta.nickname != null ? meta.nickname.trim() : "玩家";
                     String fromAvatar = msg.getString("fromAvatar") != null ? msg.getString("fromAvatar") : "🦊";
                     long dmTimestamp = System.currentTimeMillis();
 
@@ -647,6 +701,10 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     break;
 
                 case "KICK_PLAYER":
+                    if (meta.userId == null || meta.userId.isBlank()) {
+                        sendWsAuthError(session);
+                        break;
+                    }
                     String kickRoomCode = msg.getString("roomCode");
                     String kickTargetId = msg.getString("targetPlayerId");
                     String kickTargetName = msg.getString("targetPlayerName");
@@ -693,7 +751,11 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     break;
 
                 case "THROW_ITEM":
-                    String senderId = msg.getString("senderId") != null ? msg.getString("senderId") : meta.userId;
+                    if (meta.userId == null || meta.userId.isBlank()) {
+                        sendWsAuthError(session);
+                        break;
+                    }
+                    String senderId = meta.userId;
                     String targetPlayerId = msg.getString("targetPlayerId");
                     String itemType = msg.getString("itemType");
                     int combo = msg.getInteger("combo") != null ? msg.getInteger("combo") : 1;
@@ -789,12 +851,16 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
                 case "GLOBAL_BROADCAST":
                 case "GLOBAL_BROADCAST_EVENT":
+                    if (meta.userId == null || meta.userId.isBlank()) {
+                        sendWsAuthError(session);
+                        break;
+                    }
                     Map<String, Object> broadcastEvt = new HashMap<>();
                     broadcastEvt.put("type", "GLOBAL_BROADCAST_EVENT");
                     broadcastEvt.put("id", msg.getString("id") != null ? msg.getString("id") : ("BLS-" + System.currentTimeMillis()));
                     broadcastEvt.put("broadcastType", msg.getString("broadcastType") != null ? msg.getString("broadcastType") : "MARQUEE");
-                    broadcastEvt.put("senderId", msg.getString("senderId") != null ? msg.getString("senderId") : meta.userId);
-                    broadcastEvt.put("senderName", msg.getString("senderName") != null ? msg.getString("senderName") : meta.nickname);
+                    broadcastEvt.put("senderId", meta.userId);
+                    broadcastEvt.put("senderName", meta.nickname != null ? meta.nickname : "玩家");
                     broadcastEvt.put("senderAvatar", msg.getString("senderAvatar") != null ? msg.getString("senderAvatar") : "🦊");
                     broadcastEvt.put("senderVip", msg.getInteger("senderVip") != null ? msg.getInteger("senderVip") : 0);
                     String blessing = msg.getString("blessing");
@@ -816,6 +882,10 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     break;
 
                 case "GAME_ACTION":
+                    if (meta.userId == null || meta.userId.isBlank()) {
+                        sendWsAuthError(session);
+                        break;
+                    }
                     String gameRoom = msg.getString("roomCode") != null ? msg.getString("roomCode").trim() : meta.roomCode;
                     if (gameRoom != null) {
                         String actName = msg.getString("action");
@@ -2028,5 +2098,16 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             chat.put("timestamp", new Date().toString());
             broadcastToRoom(roomCode, chat, null);
         }, 800, TimeUnit.MILLISECONDS);
+    }
+
+    private void sendWsAuthError(WebSocketSession session) {
+        if (session == null || !session.isOpen()) return;
+        try {
+            Map<String, Object> err = new HashMap<>();
+            err.put("type", "ERROR");
+            err.put("code", 401);
+            err.put("message", "WebSocket 操作需要有效的登录会话凭证");
+            session.sendMessage(new TextMessage(JSON.toJSONString(err)));
+        } catch (IOException ignored) {}
     }
 }

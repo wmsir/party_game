@@ -2,6 +2,7 @@ package com.partygame.controller;
 
 import com.partygame.entity.User;
 import com.partygame.repository.UserRepository;
+import com.partygame.security.UserAuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,10 +19,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class WebPlayController {
 
     private final UserRepository userRepository;
+    private final UserAuthService userAuthService;
 
     // 通用矢量黄金硬币SVG图标 (杜绝Windows缺字豆腐块▯问题，全平台高质感高清晰展示)
     private static final String COIN_SVG = "<svg class='coin-svg' viewBox='0 0 24 24' width='16' height='16' style='vertical-align:-2.5px; display:inline-block; filter:drop-shadow(0 1px 2px rgba(217,119,6,0.3));'><circle cx='12' cy='12' r='10' fill='#F59E0B'/><circle cx='12' cy='12' r='7.2' fill='#FBBF24' stroke='#B45309' stroke-width='1.2'/><text x='12' y='15.8' font-size='10.5' font-weight='900' fill='#78350F' text-anchor='middle' font-family='sans-serif'>金</text></svg>";
@@ -112,10 +113,12 @@ public class WebPlayController {
                     .winCount(1)
                     .rankScore(1200)
                     .stamina(100)
+                    .token(userAuthService.issueSignedToken(uid))
                     .build();
             userRepository.save(user);
         } else {
             user.setNickname(gameName);
+            user.setToken(userAuthService.issueSignedToken(user.getId()));
             userRepository.save(user);
         }
 
@@ -177,6 +180,7 @@ public class WebPlayController {
         res.put("avatar", user.getAvatar());
         res.put("vipLevel", user.getVipLevel());
         res.put("coins", user.getCoins());
+        res.put("token", user.getToken());
         res.put("roomId", roomId);
         res.put("room", roomData);
         res.put("gameType", (roomData != null && roomData.get("gameType") != null) ? roomData.get("gameType") : (gameType != null ? gameType : "liars_dice"));
@@ -1913,16 +1917,29 @@ public class WebPlayController {
         return sb.toString();
     }
 
+    private static String sanitizeJsToken(String raw) {
+        if (raw == null) return "";
+        return raw.replaceAll("[^a-zA-Z0-9_-]", "");
+    }
+
     private String buildHtmlScriptHeader(String roomId, String gameType, boolean isTake6, String gameTitle, String tab, String view) {
+        String safeRoomId = sanitizeJsToken(roomId);
+        String safeGameType = sanitizeJsToken(gameType);
+        String safeTab = sanitizeJsToken(tab);
+        String safeView = sanitizeJsToken(view);
         return "<script>\n" +
-               "    let currentRoomId = '" + roomId + "';\n" +
-               "    let currentGameType = '" + gameType + "';\n" +
-               "    let currentLobbyTab = '" + tab + "';\n" +
-               "    let currentMainView = '" + (view.isEmpty() ? (roomId.isEmpty() ? "login" : "game") : view) + "';\n" +
+               "    let currentRoomId = '" + safeRoomId + "';\n" +
+               "    let currentGameType = '" + safeGameType + "';\n" +
+               "    let currentLobbyTab = '" + safeTab + "';\n" +
+               "    let currentMainView = '" + (safeView.isEmpty() ? (safeRoomId.isEmpty() ? "login" : "game") : safeView) + "';\n" +
                "    let currentUser = null;\n" +
                "    let myUserId = 'WEB' + Math.floor(Math.random() * 899999 + 100000);\n" +
                "    let myNickname = '玩家';\n" +
                "    let myAvatar = '" + (isTake6 ? "🐂" : "🦊") + "';\n" +
+               "    window.escapeHtml = function(str) {\n" +
+               "        if (str === null || str === undefined) return '';\n" +
+               "        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');\n" +
+               "    };\n" +
                "    window.COIN_ICON_SVG = '<svg class=\"coin-svg\" viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" style=\"vertical-align:-2px; margin-right:2px; display:inline-block;\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"#F59E0B\"/><circle cx=\"12\" cy=\"12\" r=\"7.2\" fill=\"#FBBF24\" stroke=\"#B45309\" stroke-width=\"1.2\"/><text x=\"12\" y=\"15.8\" font-size=\"10.5\" font-weight=\"900\" fill=\"#78350F\" text-anchor=\"middle\" font-family=\"sans-serif\">金</text></svg>';\n" +
                "    window.showToast = function(msg, duration = 2600) {\n" +
                "        let toast = document.getElementById('floatingToast');\n" +
@@ -1932,7 +1949,7 @@ public class WebPlayController {
                "            toast.style.cssText = 'position:fixed; top:24px; left:50%; transform:translateX(-50%); background:rgba(15,23,42,0.96); color:#fef08a; border:1.5px solid #f59e0b; padding:10px 24px; border-radius:24px; font-weight:bold; font-size:13px; box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:999999; pointer-events:none; transition:opacity 0.25s ease, transform 0.25s ease; text-align:center; max-width:90%; backdrop-filter:blur(8px);';\n" +
                "            document.body.appendChild(toast);\n" +
                "        }\n" +
-               "        toast.innerHTML = msg;\n" +
+               "        toast.textContent = msg == null ? '' : String(msg);\n" +
                "        toast.style.opacity = '1';\n" +
                "        toast.style.transform = 'translateX(-50%) translateY(0)';\n" +
                "        if (window.toastTimer) clearTimeout(window.toastTimer);\n" +
@@ -2160,7 +2177,7 @@ public class WebPlayController {
                 "                : { userId: myUserId, tierId: currentCashierOrder.tierId, payChannel: currentCashierOrder.channel };\n" +
                 "            const res = await fetch(url, {\n" +
                 "                method: 'POST',\n" +
-                "                headers: { 'Content-Type': 'application/json' },\n" +
+                "                headers: getAuthHeaders(),\n" +
                 "                body: JSON.stringify(body)\n" +
                 "            });\n" +
                 "            const d = await res.json();\n" +
@@ -2238,7 +2255,7 @@ public class WebPlayController {
                 "        try {\n" +
                 "            const res = await fetch(getApiPrefix() + '/api/shop/convert-diamonds', {\n" +
                 "                method: 'POST',\n" +
-                "                headers: { 'Content-Type': 'application/json' },\n" +
+                "                headers: getAuthHeaders(),\n" +
                 "                body: JSON.stringify({ userId: myUserId, diamonds: diamonds })\n" +
                 "            });\n" +
                 "            const d = await res.json();\n" +
@@ -2272,7 +2289,7 @@ public class WebPlayController {
                "    };\n" +
                "    window.loadSignInStatus = async function() {\n" +
                "        try {\n" +
-               "            const res = await fetch(getApiPrefix() + '/api/activity/sign-in?userId=' + myUserId);\n" +
+               "            const res = await fetch(getApiPrefix() + '/api/activity/sign-in?userId=' + encodeURIComponent(myUserId), { headers: getAuthHeaders() });\n" +
                "            const d = await res.json();\n" +
                "            if (d.code === 0 && d.data) {\n" +
                "                const grid = document.getElementById('signInScheduleGrid');\n" +
@@ -2309,7 +2326,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/activity/sign-in', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({ userId: myUserId })\n" +
                "            });\n" +
                "            const d = await res.json();\n" +
@@ -2522,7 +2539,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/shop/first-recharge', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({ userId: myUserId, payChannel: 'WXPAY' })\n" +
                "            });\n" +
                "            const d = await res.json();\n" +
@@ -2549,7 +2566,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/shop/bankrupt-relief', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({ userId: myUserId, isWatchAd: isWatchAd })\n" +
                "            });\n" +
                "            const d = await res.json();\n" +
@@ -2600,7 +2617,7 @@ public class WebPlayController {
                "            playDiceClatter();\n" +
                "            const res = await fetch(getApiPrefix() + '/api/shop/lucky-draw', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({ userId: myUserId, count: count, currency: currency })\n" +
                "            });\n" +
                "            const d = await res.json();\n" +
@@ -2623,7 +2640,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/shop/settle-double', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({ userId: myUserId, baseCoins: baseCoins })\n" +
                "            });\n" +
                "            const d = await res.json();\n" +
@@ -2764,9 +2781,11 @@ public class WebPlayController {
                "                const isPlaying = r.status === 'PLAYING';\n" +
                "                const statusBadge = isPlaying ? '<span style=\"color:#f59e0b; font-size:11px; font-weight:700; margin-left:6px;\">对战中</span>' : '<span style=\"color:#10b981; font-size:11px; font-weight:700; margin-left:6px;\">组队中</span>';\n" +
                "                const pCount = (r.players && r.players.length) ? r.players.length : 1;\n" +
+               "                const safeCode = escapeHtml(r.roomCode);\n" +
+               "                const safeGame = escapeHtml(r.gameType || 'take6');\n" +
                "                return '<div class=\"room-item-row\">' +\n" +
-               "                    '<div style=\"min-width:0;\"><span class=\"room-code-title pg-title\" style=\"font-weight:800; font-size:13px;\">#' + r.roomCode + '</span><span class=\"room-item-meta\">' + gName + '</span>' + statusBadge + '<span class=\"room-item-count tabular-nums\">(' + pCount + '/6人)</span></div>' +\n" +
-               "                    '<button style=\"padding:6px 12px; background:#10b981; color:#fff; border:none; border-radius:8px; font-size:11.5px; font-weight:800; cursor:pointer; flex-shrink:0;\" data-room=\"' + r.roomCode + '\" data-game=\"' + (r.gameType || 'take6') + '\" onclick=\"joinSpecificRoom(this.dataset.room, this.dataset.game)\">加入</button>' +\n" +
+               "                    '<div style=\"min-width:0;\"><span class=\"room-code-title pg-title\" style=\"font-weight:800; font-size:13px;\">#' + safeCode + '</span><span class=\"room-item-meta\">' + gName + '</span>' + statusBadge + '<span class=\"room-item-count tabular-nums\">(' + pCount + '/6人)</span></div>' +\n" +
+               "                    '<button style=\"padding:6px 12px; background:#10b981; color:#fff; border:none; border-radius:8px; font-size:11.5px; font-weight:800; cursor:pointer; flex-shrink:0;\" data-room=\"' + safeCode + '\" data-game=\"' + safeGame + '\" onclick=\"joinSpecificRoom(this.dataset.room, this.dataset.game)\">加入</button>' +\n" +
                "                    '</div>';\n" +
                "            }).join('');\n" +
                "        } catch(e) {\n" +
@@ -2792,7 +2811,7 @@ public class WebPlayController {
                "        try {\n" +
                "            await fetch(getApiPrefix() + '/api/rooms/create', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({\n" +
                "                    roomCode: newCode,\n" +
                "                    roomName: (myNickname || '玩家') + '的对决房',\n" +
@@ -2889,7 +2908,7 @@ public class WebPlayController {
                "            if (currentRoomId && myUserId) {\n" +
                "                fetch(getApiPrefix() + '/api/rooms/leave', {\n" +
                "                    method: 'POST',\n" +
-               "                    headers: { 'Content-Type': 'application/json' },\n" +
+               "                    headers: getAuthHeaders(),\n" +
                "                    body: JSON.stringify({ roomCode: currentRoomId, playerId: myUserId })\n" +
                "                }).catch(() => {});\n" +
                "            }\n" +
@@ -2915,7 +2934,7 @@ public class WebPlayController {
                "                if (currentRoomId && myUserId) {\n" +
                "                    fetch(getApiPrefix() + '/api/rooms/force-leave', {\n" +
                "                        method: 'POST',\n" +
-               "                        headers: { 'Content-Type': 'application/json' },\n" +
+               "                        headers: getAuthHeaders(),\n" +
                "                        body: JSON.stringify({ roomCode: currentRoomId, playerId: myUserId })\n" +
                "                    }).catch(() => {});\n" +
                "                }\n" +
@@ -2928,7 +2947,7 @@ public class WebPlayController {
                "                if (currentRoomId && myUserId) {\n" +
                "                    fetch(getApiPrefix() + '/api/rooms/leave', {\n" +
                "                        method: 'POST',\n" +
-               "                        headers: { 'Content-Type': 'application/json' },\n" +
+               "                        headers: getAuthHeaders(),\n" +
                "                        body: JSON.stringify({ roomCode: currentRoomId, playerId: myUserId })\n" +
                "                    }).catch(() => {});\n" +
                "                }\n" +
@@ -2951,7 +2970,7 @@ public class WebPlayController {
                "        const banner = document.getElementById('activeRoomBanner');\n" +
                "        let activeRoom = null;\n" +
                "        try {\n" +
-               "            const res = await fetch(getApiPrefix() + '/api/user/active-room?userId=' + encodeURIComponent(myUserId));\n" +
+               "            const res = await fetch(getApiPrefix() + '/api/user/active-room?userId=' + encodeURIComponent(myUserId), { headers: getAuthHeaders() });\n" +
                "            const data = await res.json();\n" +
                "            if (data && data.code === 200 && data.hasActiveRoom && data.activeRoom && data.activeRoom.roomCode) {\n" +
                "                activeRoom = data.activeRoom;\n" +
@@ -2966,7 +2985,7 @@ public class WebPlayController {
                "            const gTitle = activeRoom.gameType === 'take6' ? '谁是牛头王' : (activeRoom.gameType === 'liars_dice' ? '大话骰吹牛' : (activeRoom.gameType === 'party_wheel' ? '聚会大转盘' : '谁是卧底'));\n" +
                "            const statusText = activeRoom.status === 'PLAYING' ? '⚡ 托管代打中' : '等待准备中';\n" +
                "            if (banner && bannerText) {\n" +
-               "                bannerText.innerHTML = '🎮 检测到您在房间【#' + activeRoom.roomCode + '】(' + gTitle + ') 有未结束的对局 (' + statusText + ')！点击立即接管返回';\n" +
+               "                bannerText.innerHTML = '🎮 检测到您在房间【#' + escapeHtml(activeRoom.roomCode) + '】(' + escapeHtml(gTitle) + ') 有未结束的对局 (' + escapeHtml(statusText) + ')！点击立即接管返回';\n" +
                "                banner.style.display = 'flex';\n" +
                "            }\n" +
                "        } else {\n" +
@@ -3027,15 +3046,16 @@ public class WebPlayController {
                "        const isSvip = (vipLevel >= 4);\n" +
                "        const vipBadgeHtml = isVip ? ('<span class=\"badge-vip' + (isV10 ? ' v10' : (isSvip ? ' svip' : '')) + '\" style=\"margin-right:4px;\">' + (isV10 ? '✨ V10 无双' : ((isSvip ? '👑 SVIP' : 'VIP') + vipLevel)) + '</span> ') : '';\n" +
                "        const sColor = isV10 ? '#f59e0b' : (isVip ? (isSvip ? '#ff2e4d' : '#e60012') : (isMe ? '#10b981' : '#38bdf8'));\n" +
-               "        let formattedText = text;\n" +
-               "        const match = text.match(/#(\\d{6})/);\n" +
+               "        const safeSender = escapeHtml(sender || '玩家');\n" +
+               "        let formattedText = escapeHtml(text || '');\n" +
+               "        const match = String(text || '').match(/#(\\d{6})/);\n" +
                "        if (match) {\n" +
-               "            const rCode = match[1];\n" +
-               "            formattedText = text.replace(/#(\\d{6})/, '<span style=\"color:#fbbf24;font-weight:bold;\">#' + rCode + '</span> <button class=\"quick-join-btn\" data-room=\"' + rCode + '\" onclick=\"joinSpecificRoom(this.dataset.room)\" style=\"padding:2px 8px;background:#f59e0b;color:#000;border:none;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;margin-left:4px;\">⚡ 立即加入</button>');\n" +
+               "            const rCode = escapeHtml(match[1]);\n" +
+               "            formattedText = formattedText.replace(/#(\\d{6})/, '<span style=\"color:#fbbf24;font-weight:bold;\">#' + rCode + '</span> <button class=\"quick-join-btn\" data-room=\"' + rCode + '\" onclick=\"joinSpecificRoom(this.dataset.room)\" style=\"padding:2px 8px;background:#f59e0b;color:#000;border:none;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;margin-left:4px;\">⚡ 立即加入</button>');\n" +
                "        }\n" +
                "        const isCustomColor = Boolean(textColor && textColor !== 'COLOR_DEFAULT' && typeof CHAT_COLOR_MAP !== 'undefined' && CHAT_COLOR_MAP[textColor]);\n" +
                "        const msgSpan = isCustomColor ? ('<span style=\"color:' + CHAT_COLOR_MAP[textColor] + ';font-weight:bold;\">' + formattedText + '</span>') : ('<span class=\"chat-msg-default\">' + formattedText + '</span>');\n" +
-               "        div.innerHTML = vipBadgeHtml + '<span class=\"sender\" style=\"color:' + sColor + ';font-weight:bold;\">[' + sender + ']</span>: ' + msgSpan;\n" +
+               "        div.innerHTML = vipBadgeHtml + '<span class=\"sender\" style=\"color:' + sColor + ';font-weight:bold;\">[' + safeSender + ']</span>: ' + msgSpan;\n" +
                "        stream.appendChild(div); stream.scrollTop = stream.scrollHeight;\n" +
                "    }\n" +
                "    window.switchRankType = function(type) {\n" +
@@ -3059,10 +3079,10 @@ public class WebPlayController {
                "            container.innerHTML = list.slice(0, 30).map((u, i) => {\n" +
                "                const topClass = i === 0 ? 'top1' : (i === 1 ? 'top2' : (i === 2 ? 'top3' : ''));\n" +
                "                const medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : ('#' + (i+1))));\n" +
-               "                const scoreText = currentRankType === 'tier' ? ((u.rankScore || 1200) + ' 分 · ' + (u.winCount || 0) + '胜') : ('🪙 ' + Number(u.coins||0).toLocaleString());\n" +
+               "                const scoreText = currentRankType === 'tier' ? (Number(u.rankScore || 1200) + ' 分 · ' + Number(u.winCount || 0) + '胜') : ('🪙 ' + Number(u.coins||0).toLocaleString());\n" +
                "                return '<div class=\"rank-item ' + topClass + '\">' +\n" +
-               "                    '<div style=\"display:flex; align-items:center; gap:8px;\"><span style=\"font-size:16px; font-weight:800; width:26px; text-align:center;\">' + medal + '</span><span style=\"font-size:18px;\">' + (u.avatar||'🦊') + '</span><div><div class=\"rank-nick pg-title\" style=\"font-weight:bold; font-size:13px;\">' + (u.nickname||'玩家') + '</div><div class=\"pg-sub\" style=\"font-size:10px;\">' + (u.rankTier||'倔强青铜') + '</div></div></div>' +\n" +
-               "                    '<div style=\"font-weight:bold; font-size:12px; color:#d97706;\">' + scoreText + '</div>' +\n" +
+               "                    '<div style=\"display:flex; align-items:center; gap:8px;\"><span style=\"font-size:16px; font-weight:800; width:26px; text-align:center;\">' + medal + '</span><span style=\"font-size:18px;\">' + escapeHtml(u.avatar||'🦊') + '</span><div><div class=\"rank-nick pg-title\" style=\"font-weight:bold; font-size:13px;\">' + escapeHtml(u.nickname||'玩家') + '</div><div class=\"pg-sub\" style=\"font-size:10px;\">' + escapeHtml(u.rankTier||'倔强青铜') + '</div></div></div>' +\n" +
+               "                    '<div style=\"font-weight:bold; font-size:12px; color:#d97706;\">' + escapeHtml(scoreText) + '</div>' +\n" +
                "                    '</div>';\n" +
                "            }).join('');\n" +
                "        } catch(e) { container.innerHTML = '<div style=\"color:#ef4444; font-size:12px; text-align:center; padding:12px;\">拉取排行榜失败</div>'; }\n" +
@@ -3089,7 +3109,7 @@ public class WebPlayController {
                "        try {\n" +
                "            fetch(getApiPrefix() + '/api/friends/messages/read', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({ userId: myUserId, friendId: friendId })\n" +
                "            }).catch(() => {});\n" +
                "        } catch(e) {}\n" +
@@ -3103,7 +3123,7 @@ public class WebPlayController {
                "        if (!stream) return;\n" +
                "        stream.innerHTML = '<div style=\"text-align:center; color:#94a3b8; font-size:11px; margin:10px 0;\">💬 正在载入私信历史...</div>';\n" +
                "        try {\n" +
-               "            const res = await fetch(getApiPrefix() + '/api/friends/messages/history?userId=' + encodeURIComponent(myUserId) + '&friendId=' + encodeURIComponent(friendId));\n" +
+               "            const res = await fetch(getApiPrefix() + '/api/friends/messages/history?userId=' + encodeURIComponent(myUserId) + '&friendId=' + encodeURIComponent(friendId), { headers: getAuthHeaders() });\n" +
                "            const d = await res.json();\n" +
                "            const list = d.data || [];\n" +
                "            if (list.length === 0) {\n" +
@@ -3123,18 +3143,20 @@ public class WebPlayController {
                "        const isMe = String(msg.fromUserId) === String(myUserId);\n" +
                "        const row = document.createElement('div');\n" +
                "        row.className = 'chat-bubble-row ' + (isMe ? 'me' : 'other');\n" +
-               "        const av = isMe ? myAvatar : (msg.fromAvatar || activeDmUserAvatar || '🦊');\n" +
+               "        const av = escapeHtml(isMe ? myAvatar : (msg.fromAvatar || activeDmUserAvatar || '🦊'));\n" +
                "        const avDiv = '<div class=\"chat-bubble-avatar\">' + av + '</div>';\n" +
                "        let bubbleContent = '';\n" +
                "        if (msg.inviteRoomCode) {\n" +
                "            const gName = (msg.gameType === 'take6') ? '谁是牛头王' : ((msg.gameType === 'liars_dice') ? '大话骰吹牛' : '开黑对决');\n" +
+               "            const safeCode = escapeHtml(msg.inviteRoomCode);\n" +
+               "            const safeType = escapeHtml(msg.gameType || 'take6');\n" +
                "            bubbleContent = '<div class=\"chat-room-invite-card\">' +\n" +
                "                '<div class=\"chat-room-invite-title\">🎮 邀请你进入房间对局</div>' +\n" +
-               "                '<div class=\"chat-room-invite-room\">房间号: #' + msg.inviteRoomCode + ' · ' + gName + '</div>' +\n" +
-               "                '<button class=\"chat-room-invite-btn\" data-room=\"' + msg.inviteRoomCode + '\" data-type=\"' + (msg.gameType||'take6') + '\" onclick=\"joinSpecificRoom(this.dataset.room, this.dataset.type)\">⚡ 立即进入对局</button>' +\n" +
+               "                '<div class=\"chat-room-invite-room\">房间号: #' + safeCode + ' · ' + gName + '</div>' +\n" +
+               "                '<button class=\"chat-room-invite-btn\" data-room=\"' + safeCode + '\" data-type=\"' + safeType + '\" onclick=\"joinSpecificRoom(this.dataset.room, this.dataset.type)\">⚡ 立即进入对局</button>' +\n" +
                "                '</div>';\n" +
                "        } else {\n" +
-               "            bubbleContent = '<div class=\"chat-bubble-msg\">' + (msg.content || '') + '</div>';\n" +
+               "            bubbleContent = '<div class=\"chat-bubble-msg\">' + escapeHtml(msg.content || '') + '</div>';\n" +
                "        }\n" +
                "        const timeStr = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';\n" +
                "        const timeDiv = '<div class=\"chat-bubble-time\">' + timeStr + '</div>';\n" +
@@ -3167,7 +3189,7 @@ public class WebPlayController {
                "        try {\n" +
                "            fetch(getApiPrefix() + '/api/friends/messages/send', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify(msgObj)\n" +
                "            }).catch(() => {});\n" +
                "            if (ws && ws.readyState === WebSocket.OPEN) {\n" +
@@ -3198,7 +3220,7 @@ public class WebPlayController {
                "        try {\n" +
                "            fetch(getApiPrefix() + '/api/friends/messages/send', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify(msgObj)\n" +
                "            }).catch(() => {});\n" +
                "            if (ws && ws.readyState === WebSocket.OPEN) {\n" +
@@ -3335,7 +3357,7 @@ public class WebPlayController {
                "        try {\n" +
                "            fetch(getApiPrefix() + '/api/intimacy/add', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({\n" +
                "                    user1Id: myUserId,\n" +
                "                    user2Id: throwTargetUid,\n" +
@@ -3353,8 +3375,8 @@ public class WebPlayController {
                "        playBeep(650, 0.12);\n" +
                "        const banner = document.createElement('div');\n" +
                "        banner.className = 'fx-runner-banner';\n" +
-               "        banner.innerHTML = '<span style=\"font-size:24px;\">' + (data.itemEmoji || '🎁') + '</span> ' +\n" +
-               "            '<span>【<b>' + (data.senderName || '玩家') + '</b>】 向 【<b>' + (data.targetPlayerName || '好友') + '</b>】 投掷了 ' + (data.giftTitle || '礼物') + ' <b style=\"color:#fbbf24;\">x' + (data.combo || 1) + '</b>！亲密度 +' + (data.addedIntimacy || 10) + ' ❤️</span>';\n" +
+               "        banner.innerHTML = '<span style=\"font-size:24px;\">' + escapeHtml(data.itemEmoji || '🎁') + '</span> ' +\n" +
+               "            '<span>【<b>' + escapeHtml(data.senderName || '玩家') + '</b>】 向 【<b>' + escapeHtml(data.targetPlayerName || '好友') + '</b>】 投掷了 ' + escapeHtml(data.giftTitle || '礼物') + ' <b style=\"color:#fbbf24;\">x' + Number(data.combo || 1) + '</b>！亲密度 +' + Number(data.addedIntimacy || 10) + ' ❤️</span>';\n" +
                "        stage.appendChild(banner);\n" +
                "        setTimeout(() => { if (banner.parentNode) banner.parentNode.removeChild(banner); }, 4000);\n" +
                "        const proj = document.createElement('div');\n" +
@@ -3403,10 +3425,10 @@ public class WebPlayController {
                "        if (data.isGlobal || (data.combo && data.combo >= 66)) {\n" +
                "            const splash = document.createElement('div');\n" +
                "            splash.className = 'fx-luxury-splash';\n" +
-               "            splash.innerHTML = '<div style=\"font-size:72px;\">' + (data.itemEmoji || '🚀') + '</div>' +\n" +
+               "            splash.innerHTML = '<div style=\"font-size:72px;\">' + escapeHtml(data.itemEmoji || '🚀') + '</div>' +\n" +
                "                '<div style=\"font-size:24px; font-weight:800; color:#fbbf24; text-shadow:0 0 20px rgba(245,158,11,0.8); margin:12px 0;\">🎉 全服瞩目 · 豪礼降临！</div>' +\n" +
-               "                '<div style=\"font-size:15px; color:#f8fafc; font-weight:bold;\">【' + (data.senderName || '玩家') + '】 豪掷 【' + (data.targetPlayerName || '玩家') + '】 ' + (data.giftTitle || '') + ' x' + (data.combo || 1) + '！</div>' +\n" +
-               "                '<div style=\"font-size:12px; color:#cbd5e1; margin-top:8px;\">❤️ 亲密度狂飙 +' + (data.addedIntimacy || 100) + '！情谊天长地久！</div>';\n" +
+               "                '<div style=\"font-size:15px; color:#f8fafc; font-weight:bold;\">【' + escapeHtml(data.senderName || '玩家') + '】 豪掷 【' + escapeHtml(data.targetPlayerName || '玩家') + '】 ' + escapeHtml(data.giftTitle || '') + ' x' + Number(data.combo || 1) + '！</div>' +\n" +
+               "                '<div style=\"font-size:12px; color:#cbd5e1; margin-top:8px;\">❤️ 亲密度狂飙 +' + Number(data.addedIntimacy || 100) + '！情谊天长地久！</div>';\n" +
                "            stage.appendChild(splash);\n" +
                "            setTimeout(() => { if (splash.parentNode) splash.parentNode.removeChild(splash); }, 3800);\n" +
                "        }\n" +
@@ -3455,7 +3477,7 @@ public class WebPlayController {
                "        try {\n" +
                "            fetch(getApiPrefix() + '/api/chat/global-broadcast', {\n" +
                "                method: 'POST',\n" +
-               "                headers: {'Content-Type': 'application/json'},\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify(broadcastObj)\n" +
                "            }).catch(function(e) { console.error('喇叭HTTP广播异常:', e); });\n" +
                "        } catch (err) {}\n" +
@@ -3639,7 +3661,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/shop/buy', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({ userId: myUserId, itemId: itemId, autoEquip: true })\n" +
                "            });\n" +
                "            const d = await res.json();\n" +
@@ -3673,7 +3695,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/shop/equip', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({ userId: myUserId, slot: slot, itemId: itemId })\n" +
                "            });\n" +
                "            const d = await res.json();\n" +
@@ -3727,7 +3749,7 @@ public class WebPlayController {
                "        const wall = document.getElementById('intimacyWallList');\n" +
                "        const listContainer = document.getElementById('friendsListContainer');\n" +
                "        try {\n" +
-               "            const resRel = await fetch(getApiPrefix() + '/api/intimacy/my-relations?userId=' + encodeURIComponent(myUserId));\n" +
+               "            const resRel = await fetch(getApiPrefix() + '/api/intimacy/my-relations?userId=' + encodeURIComponent(myUserId), { headers: getAuthHeaders() });\n" +
                "            const dataRel = await resRel.json();\n" +
                "            const relations = dataRel.list || [];\n" +
                "            if (wall) {\n" +
@@ -3735,17 +3757,22 @@ public class WebPlayController {
                "                    wall.innerHTML = '<div style=\"color:#64748b; font-size:12px; text-align:center; padding:10px;\">暂无缔结的亲密关系，与好友互送礼物即可绑定～</div>';\n" +
                "                } else {\n" +
                "                    wall.innerHTML = relations.map(r => {\n" +
+               "                        const sId = escapeHtml(r.partnerId||'');\n" +
+               "                        const sName = escapeHtml(r.partnerName||'好友');\n" +
+               "                        const sAv = escapeHtml(r.partnerAvatar||'🦊');\n" +
+               "                        const sRel = escapeHtml(r.relationship || '好朋友');\n" +
+               "                        const sScore = Number(r.intimacyScore||10);\n" +
                "                        return '<div class=\"relation-card\">' +\n" +
-               "                            '<div style=\"display:flex; align-items:center; gap:8px;\"><span style=\"font-size:22px;\">' + (r.partnerAvatar||'🦊') + '</span><div><div class=\"pg-title\" style=\"font-weight:bold; font-size:13px;\">' + r.partnerName + '</div><div style=\"font-size:11px; color:#f43f5e;\">❤️ ' + (r.relationship || '好朋友') + ' (亲密度 ' + r.intimacyScore + ')</div></div></div>' +\n" +
+               "                            '<div style=\"display:flex; align-items:center; gap:8px;\"><span style=\"font-size:22px;\">' + sAv + '</span><div><div class=\"pg-title\" style=\"font-weight:bold; font-size:13px;\">' + sName + '</div><div style=\"font-size:11px; color:#f43f5e;\">❤️ ' + sRel + ' (亲密度 ' + sScore + ')</div></div></div>' +\n" +
                "                            '<div style=\"display:flex; gap:6px;\">' +\n" +
-               "                            '<button class=\"pg-btn-secondary\" style=\"padding:4px 8px; border-radius:6px; font-size:11px;\" data-uid=\"' + (r.partnerId||'') + '\" data-name=\"' + r.partnerName + '\" data-avatar=\"' + (r.partnerAvatar||'🦊') + '\" data-score=\"' + (r.intimacyScore||10) + '\" data-rel=\"' + (r.relationship||'好朋友') + '\" onclick=\"openFriendChatModal(this.dataset.uid, this.dataset.name, this.dataset.avatar, Number(this.dataset.score), this.dataset.rel)\">💬 私聊</button>' +\n" +
-               "                            '<button style=\"padding:4px 8px; background:#fff1f2; border:1px solid #fecdd3; color:#e11d48; border-radius:6px; font-size:11px; cursor:pointer;\" data-uid=\"' + (r.partnerId||'') + '\" data-name=\"' + r.partnerName + '\" data-avatar=\"' + (r.partnerAvatar||'🦊') + '\" onclick=\"openItemThrowModal(this.dataset.uid, this.dataset.name, this.dataset.avatar)\">🎁 互动</button>' +\n" +
+               "                            '<button class=\"pg-btn-secondary\" style=\"padding:4px 8px; border-radius:6px; font-size:11px;\" data-uid=\"' + sId + '\" data-name=\"' + sName + '\" data-avatar=\"' + sAv + '\" data-score=\"' + sScore + '\" data-rel=\"' + sRel + '\" onclick=\"openFriendChatModal(this.dataset.uid, this.dataset.name, this.dataset.avatar, Number(this.dataset.score), this.dataset.rel)\">💬 私聊</button>' +\n" +
+               "                            '<button style=\"padding:4px 8px; background:#fff1f2; border:1px solid #fecdd3; color:#e11d48; border-radius:6px; font-size:11px; cursor:pointer;\" data-uid=\"' + sId + '\" data-name=\"' + sName + '\" data-avatar=\"' + sAv + '\" onclick=\"openItemThrowModal(this.dataset.uid, this.dataset.name, this.dataset.avatar)\">🎁 互动</button>' +\n" +
                "                            '</div>' +\n" +
                "                            '</div>';\n" +
                "                    }).join('');\n" +
                "                }\n" +
                "            }\n" +
-               "            const resF = await fetch(getApiPrefix() + '/api/friends/list?userId=' + encodeURIComponent(myUserId));\n" +
+               "            const resF = await fetch(getApiPrefix() + '/api/friends/list?userId=' + encodeURIComponent(myUserId), { headers: getAuthHeaders() });\n" +
                "            const dataF = await resF.json();\n" +
                "            const friends = dataF.data || [];\n" +
                "            if (listContainer) {\n" +
@@ -3753,21 +3780,22 @@ public class WebPlayController {
                "                    listContainer.innerHTML = '<div style=\"color:#64748b; font-size:12px; text-align:center; padding:14px;\">暂无好友，快在对局或广场中结识玩伴吧～</div>';\n" +
                "                } else {\n" +
                "                    listContainer.innerHTML = friends.map(f => {\n" +
-               "                        const fId = String(f.id || f.friendId || '').replace(/-/g, '');\n" +
+               "                        const fId = escapeHtml(String(f.id || f.friendId || '').replace(/-/g, ''));\n" +
                "                        const fRawName = f.nickname || f.friendNickname || '好友';\n" +
+               "                        const fSafeName = escapeHtml(fRawName);\n" +
                "                        const fRemark = f.remark || '';\n" +
-               "                        const fDisplayName = fRemark ? (fRemark + ' <span style=\"font-size:11px; color:#64748b; font-weight:normal;\">(' + fRawName + ')</span>') : fRawName;\n" +
-               "                        const fAvatar = f.avatar || '🦊';\n" +
-               "                        const fIntimacy = f.intimacy || 10;\n" +
-               "                        const fRel = f.relationship || '好朋友';\n" +
-               "                        const fVip = f.vipLevel || 0;\n" +
+               "                        const fDisplayName = fRemark ? (escapeHtml(fRemark) + ' <span style=\"font-size:11px; color:#64748b; font-weight:normal;\">(' + fSafeName + ')</span>') : fSafeName;\n" +
+               "                        const fAvatar = escapeHtml(f.avatar || '🦊');\n" +
+               "                        const fIntimacy = Number(f.intimacy || 10);\n" +
+               "                        const fRel = escapeHtml(f.relationship || '好朋友');\n" +
+               "                        const fVip = Number(f.vipLevel || 0);\n" +
                "                        const vipBadge = (fVip > 0) ? ('<span class=\"badge-vip' + (fVip >= 4 ? ' svip' : '') + '\" style=\"margin-left:4px; font-size:10px; padding:1px 5px;\">' + (fVip >= 4 ? '👑 SVIP' : 'VIP') + fVip + '</span>') : '';\n" +
-               "                        return '<div class=\"room-item-row\" style=\"cursor:pointer;\" onclick=\"openPlayerProfileModal(\\'' + fId + '\\', \\'' + fRawName.replace(/'/g, \"\\\\'\") + '\\', \\'' + fAvatar + '\\')\">' +\n" +
+               "                        return '<div class=\"room-item-row\" style=\"cursor:pointer;\" data-uid=\"' + fId + '\" data-name=\"' + fSafeName + '\" data-avatar=\"' + fAvatar + '\" onclick=\"openPlayerProfileModal(this.dataset.uid, this.dataset.name, this.dataset.avatar)\">' +\n" +
                "                            '<div style=\"display:flex; align-items:center; gap:8px;\"><span style=\"font-size:24px;\">' + fAvatar + '</span><div><div class=\"pg-title\" style=\"font-weight:bold; font-size:13px; display:flex; align-items:center;\">' + fDisplayName + vipBadge + '</div><div class=\"pg-sub\" style=\"font-size:10.5px; margin-top:2px;\">UID: ' + fId + ' · ❤️ ' + fRel + ' (亲密 ' + fIntimacy + ')</div></div></div>' +\n" +
                "                            '<div style=\"display:flex; gap:6px;\" onclick=\"event.stopPropagation();\">' +\n" +
-               "                            '<button style=\"padding:4px 8px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\" onclick=\"openPlayerProfileModal(\\'' + fId + '\\', \\'' + fRawName.replace(/'/g, \"\\\\'\") + '\\', \\'' + fAvatar + '\\')\">👤 资料</button>' +\n" +
-               "                            '<button style=\"padding:4px 8px; background:#3b82f6; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\" data-uid=\"' + fId + '\" data-name=\"' + fRawName + '\" data-avatar=\"' + fAvatar + '\" data-score=\"' + fIntimacy + '\" data-rel=\"' + fRel + '\" onclick=\"openFriendChatModal(this.dataset.uid, this.dataset.name, this.dataset.avatar, Number(this.dataset.score), this.dataset.rel)\">💬 私聊</button>' +\n" +
-               "                            '<button style=\"padding:4px 8px; background:#f43f5e; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\" data-uid=\"' + fId + '\" data-name=\"' + fRawName + '\" data-avatar=\"' + fAvatar + '\" onclick=\"openItemThrowModal(this.dataset.uid, this.dataset.name, this.dataset.avatar)\">🎁 互动</button>' +\n" +
+               "                            '<button style=\"padding:4px 8px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\" data-uid=\"' + fId + '\" data-name=\"' + fSafeName + '\" data-avatar=\"' + fAvatar + '\" onclick=\"openPlayerProfileModal(this.dataset.uid, this.dataset.name, this.dataset.avatar)\">👤 资料</button>' +\n" +
+               "                            '<button style=\"padding:4px 8px; background:#3b82f6; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\" data-uid=\"' + fId + '\" data-name=\"' + fSafeName + '\" data-avatar=\"' + fAvatar + '\" data-score=\"' + fIntimacy + '\" data-rel=\"' + fRel + '\" onclick=\"openFriendChatModal(this.dataset.uid, this.dataset.name, this.dataset.avatar, Number(this.dataset.score), this.dataset.rel)\">💬 私聊</button>' +\n" +
+               "                            '<button style=\"padding:4px 8px; background:#f43f5e; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\" data-uid=\"' + fId + '\" data-name=\"' + fSafeName + '\" data-avatar=\"' + fAvatar + '\" onclick=\"openItemThrowModal(this.dataset.uid, this.dataset.name, this.dataset.avatar)\">🎁 互动</button>' +\n" +
                "                            '</div>' +\n" +
                "                            '</div>';\n" +
                "                    }).join('');\n" +
@@ -3780,7 +3808,7 @@ public class WebPlayController {
                "        const badge = document.getElementById('pendingRequestsCountBadge');\n" +
                "        if (!container) return;\n" +
                "        try {\n" +
-               "            const res = await fetch(getApiPrefix() + '/api/friends/requests?userId=' + encodeURIComponent(myUserId));\n" +
+               "            const res = await fetch(getApiPrefix() + '/api/friends/requests?userId=' + encodeURIComponent(myUserId), { headers: getAuthHeaders() });\n" +
                "            const d = await res.json();\n" +
                "            const list = d.data || [];\n" +
                "            if (badge) {\n" +
@@ -3796,13 +3824,13 @@ public class WebPlayController {
                "                return;\n" +
                "            }\n" +
                "            container.innerHTML = list.map(req => {\n" +
-               "                const reqId = req.id;\n" +
-               "                const fromId = String(req.fromUserId || '').replace(/-/g, '');\n" +
-               "                const rawName = req.nickname || (req.fromUser && req.fromUser.nickname) || '玩家';\n" +
-               "                const avatar = req.avatar || (req.fromUser && req.fromUser.avatar) || '🦊';\n" +
-               "                const title = req.levelTitle || (req.fromUser && req.fromUser.levelTitle) || '聚会玩家';\n" +
-               "                const msg = req.latestMessage || req.message || '请求添加您为好友';\n" +
-               "                const vip = req.vipLevel || (req.fromUser && req.fromUser.vipLevel) || 0;\n" +
+               "                const reqId = escapeHtml(req.id);\n" +
+               "                const fromId = escapeHtml(String(req.fromUserId || '').replace(/-/g, ''));\n" +
+               "                const rawName = escapeHtml(req.nickname || (req.fromUser && req.fromUser.nickname) || '玩家');\n" +
+               "                const avatar = escapeHtml(req.avatar || (req.fromUser && req.fromUser.avatar) || '🦊');\n" +
+               "                const title = escapeHtml(req.levelTitle || (req.fromUser && req.fromUser.levelTitle) || '聚会玩家');\n" +
+               "                const msg = escapeHtml(req.latestMessage || req.message || '请求添加您为好友');\n" +
+               "                const vip = Number(req.vipLevel || (req.fromUser && req.fromUser.vipLevel) || 0);\n" +
                "                const vipBadge = (vip > 0) ? ('<span class=\"badge-vip' + (vip >= 4 ? ' svip' : '') + '\" style=\"margin-left:4px; font-size:10px; padding:1px 5px;\">' + (vip >= 4 ? '👑 SVIP' : 'VIP') + vip + '</span>') : '';\n" +
                "                return '<div class=\"room-item-row\" style=\"border-radius:12px; padding:10px 12px; margin-bottom:8px;\">' +\n" +
                "                    '<div style=\"display:flex; align-items:flex-start; justify-content:space-between; width:100%; gap:8px;\">' +\n" +
@@ -3811,13 +3839,13 @@ public class WebPlayController {
                "                            '<div>' +\n" +
                "                                '<div class=\"pg-title\" style=\"font-weight:bold; font-size:13.5px; display:flex; align-items:center;\">' + rawName + vipBadge + '<span style=\"font-size:10px; background:rgba(59,130,246,0.16); color:#3b82f6; padding:1px 5px; border-radius:4px; margin-left:6px;\">' + title + '</span></div>' +\n" +
                "                                '<div class=\"pg-sub\" style=\"font-size:11px; margin-top:2px;\">UID: ' + fromId + '</div>' +\n" +
-               "                                '<div class=\"pg-soft-panel\" style=\"font-size:11.5px; border-radius:6px; padding:4px 8px; margin-top:4px; line-height:1.4;\">💬 附言/私信: ' + msg.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>' +\n" +
+               "                                '<div class=\"pg-soft-panel\" style=\"font-size:11.5px; border-radius:6px; padding:4px 8px; margin-top:4px; line-height:1.4;\">💬 附言/私信: ' + msg + '</div>' +\n" +
                "                            '</div>' +\n" +
                "                        '</div>' +\n" +
                "                        '<div style=\"display:flex; flex-direction:column; gap:4px; min-width:80px;\">' +\n" +
-               "                            '<button onclick=\"actionRespondFriendRequest(\\'' + reqId + '\\', \\'ACCEPT\\')\" style=\"padding:5px 8px; background:#10b981; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\">✅ 同意</button>' +\n" +
-               "                            '<button onclick=\"openFriendChatModal(\\'' + fromId + '\\', \\'' + rawName.replace(/'/g, \"\\\\'\") + '\\', \\'' + avatar + '\\')\" style=\"padding:5px 8px; background:#3b82f6; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\">💬 回复</button>' +\n" +
-               "                            '<button onclick=\"actionRespondFriendRequest(\\'' + reqId + '\\', \\'REJECT\\')\" style=\"padding:4px 8px; background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; border-radius:6px; font-size:10.5px; cursor:pointer;\">忽略</button>' +\n" +
+               "                            '<button data-req=\"' + reqId + '\" onclick=\"actionRespondFriendRequest(this.dataset.req, \\'ACCEPT\\')\" style=\"padding:5px 8px; background:#10b981; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\">✅ 同意</button>' +\n" +
+               "                            '<button data-uid=\"' + fromId + '\" data-name=\"' + rawName + '\" data-avatar=\"' + avatar + '\" onclick=\"openFriendChatModal(this.dataset.uid, this.dataset.name, this.dataset.avatar)\" style=\"padding:5px 8px; background:#3b82f6; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;\">💬 回复</button>' +\n" +
+               "                            '<button data-req=\"' + reqId + '\" onclick=\"actionRespondFriendRequest(this.dataset.req, \\'REJECT\\')\" style=\"padding:4px 8px; background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; border-radius:6px; font-size:10.5px; cursor:pointer;\">忽略</button>' +\n" +
                "                        '</div>' +\n" +
                "                    '</div>' +\n" +
                "                '</div>';\n" +
@@ -3828,7 +3856,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/friends/respond', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({ requestId: requestId, action: action, userId: myUserId })\n" +
                "            });\n" +
                "            const d = await res.json();\n" +
@@ -3849,7 +3877,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/friends/apply', {\n" +
                "                method: 'POST',\n" +
-               "                headers: {'Content-Type': 'application/json'},\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({\n" +
                "                    fromUserId: myUserId,\n" +
                "                    toUserId: target,\n" +
@@ -3928,8 +3956,13 @@ public class WebPlayController {
                "        const acc = document.getElementById('inputPwdAccount').value.trim();\n" +
                "        const pwd = document.getElementById('inputPwdPass').value.trim();\n" +
                "        const remember = document.getElementById('chkRememberPwd').checked;\n" +
-               "        if (!acc) {\n" +
-               "            if (!isAuto) alert('请输入您的登录账号或手机号！');\n" +
+               "        if (!acc || (!pwd && !isAuto)) {\n" +
+               "            if (!isAuto) alert('请输入您的登录账号与密码！');\n" +
+               "            return;\n" +
+               "        }\n" +
+               "        if (!pwd) {\n" +
+               "            localStorage.removeItem('party_auto_login');\n" +
+               "            switchMainView('login');\n" +
                "            return;\n" +
                "        }\n" +
                "        const btn = document.getElementById('btnPwdEnter');\n" +
@@ -3938,7 +3971,7 @@ public class WebPlayController {
                "            const res = await fetch(getApiPrefix() + '/api/auth/login', {\n" +
                "                method: 'POST',\n" +
                "                headers: {'Content-Type': 'application/json'},\n" +
-               "                body: JSON.stringify({ username: acc, password: pwd || '123' })\n" +
+               "                body: JSON.stringify({ username: acc, password: pwd })\n" +
                "            });\n" +
                "            const data = await res.json();\n" +
                "            if (data.code === 0 && data.data) {\n" +
@@ -3991,6 +4024,8 @@ public class WebPlayController {
                "                        if (d.code === 0 && d.data) {\n" +
                "                            if (d.data.status === 'CONFIRMED' && d.data.user) {\n" +
                "                                clearInterval(qrPollTimer); qrPollTimer = null;\n" +
+               "                                const qrTok = d.data.token || (d.data.user && d.data.user.token);\n" +
+               "                                if (qrTok) localStorage.setItem('pg_auth_token', qrTok);\n" +
                "                                if (tip) tip.innerText = '🎉 扫码授权成功！正在登入...';\n" +
                "                                onAuthSuccess(d.data.user);\n" +
                "                            } else if (d.data.status === 'EXPIRED') {\n" +
@@ -4203,12 +4238,15 @@ public class WebPlayController {
                "            });\n" +
                "            const data = await res.json();\n" +
                "            if (data.code === 200) {\n" +
+               "                if (data.token) localStorage.setItem('pg_auth_token', data.token);\n" +
                "                onAuthSuccess({ id: data.userId, nickname: data.nickname, avatar: data.avatar, coins: data.coins, vipLevel: data.vipLevel });\n" +
                "            } else {\n" +
                "                alert(data.message || '验证失败，请重试'); refreshCaptcha(); btn.disabled = false; btn.innerText = '⚡ 验证并立即试玩';\n" +
                "            }\n" +
                "        } catch(e) {\n" +
-               "            onAuthSuccess({ id: 'WEB-' + (Date.now()%100000), nickname: name, avatar: (currentGameType === 'take6' ? '🐂' : '🦊') });\n" +
+               "            alert('网络连接异常，请稍后重试');\n" +
+               "            btn.disabled = false;\n" +
+               "            btn.innerText = '⚡ 验证并立即试玩';\n" +
                "        }\n" +
                "    }\n" +
                "    function initWebSocket() {\n" +
@@ -4218,7 +4256,7 @@ public class WebPlayController {
                "        try {\n" +
                "            ws = new WebSocket(wsUrl);\n" +
                "            ws.onopen = () => {\n" +
-               "                ws.send(JSON.stringify({ type: 'INIT_USER', userId: myUserId, nickname: myNickname }));\n" +
+               "                ws.send(JSON.stringify({ type: 'INIT_USER', userId: myUserId, nickname: myNickname, token: localStorage.getItem('pg_auth_token') || '' }));\n" +
                "                if (currentRoomId) ws.send(JSON.stringify({ type: 'JOIN_ROOM', roomCode: currentRoomId, userId: myUserId, nickname: myNickname, avatar: myAvatar, gameType: currentGameType }));\n" +
                "            };\n" +
                "            ws.onmessage = (event) => {\n" +
@@ -4320,7 +4358,7 @@ public class WebPlayController {
                "            if (activeDmUserId && (String(msg.fromUserId) === String(activeDmUserId) || String(msg.toUserId) === String(activeDmUserId))) {\n" +
                "                renderDirectChatMessage(msg);\n" +
                "                playBeep(800, 0.1);\n" +
-               "                fetch(getApiPrefix() + '/api/friends/messages/read', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: myUserId, friendId: msg.fromUserId }) }).catch(() => {});\n" +
+               "                fetch(getApiPrefix() + '/api/friends/messages/read', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ userId: myUserId, friendId: msg.fromUserId }) }).catch(() => {});\n" +
                "            } else {\n" +
                "                playBeep(880, 0.2);\n" +
                "                appendChat('私信留言', '💬 【' + (msg.fromNickname || '私信') + '】: ' + (msg.content || ''));\n" +
@@ -4632,7 +4670,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/friends/remark', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({\n" +
                "                    userId: myUserId,\n" +
                "                    friendId: currentModalTargetUid,\n" +
@@ -4658,7 +4696,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/friends/apply', {\n" +
                "                method: 'POST',\n" +
-               "                headers: { 'Content-Type': 'application/json' },\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({\n" +
                "                    fromUserId: myUserId,\n" +
                "                    toUserId: currentModalTargetUid,\n" +
@@ -4701,7 +4739,7 @@ public class WebPlayController {
                "            }\n" +
                "            await fetch(getApiPrefix() + '/api/intimacy/add', {\n" +
                "                method: 'POST',\n" +
-               "                headers: {'Content-Type': 'application/json'},\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({\n" +
                "                    userA: myUserId,\n" +
                "                    userB: currentModalTargetUid,\n" +
@@ -4796,7 +4834,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/intimacy/set-relationship', {\n" +
                "                method: 'POST',\n" +
-               "                headers: {'Content-Type': 'application/json'},\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({\n" +
                "                    user1Id: myUserId,\n" +
                "                    user2Id: currentModalTargetUid,\n" +
@@ -4823,7 +4861,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/intimacy/remove-relationship', {\n" +
                "                method: 'POST',\n" +
-               "                headers: {'Content-Type': 'application/json'},\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({\n" +
                "                    user1Id: myUserId,\n" +
                "                    user2Id: currentModalTargetUid\n" +
@@ -4850,7 +4888,7 @@ public class WebPlayController {
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/rooms/kick', {\n" +
                "                method: 'POST',\n" +
-               "                headers: {'Content-Type': 'application/json'},\n" +
+               "                headers: getAuthHeaders(),\n" +
                "                body: JSON.stringify({\n" +
                "                    roomCode: currentRoomId,\n" +
                "                    operatorId: myUserId,\n" +
@@ -4915,7 +4953,7 @@ public class WebPlayController {
                "                const isSvip = pVip >= 4;\n" +
                "                const pVipBadge = isVip ? (' <span class=\"badge-vip' + (isV10 ? ' v10' : (isSvip ? ' svip' : '')) + '\" style=\"font-size:8px; padding:0 3px;\">' + (isV10 ? '✨' : (isSvip ? '👑' : '')) + 'V' + pVip + '</span>') : '';\n" +
                "                const pNameClass = isVip ? ('seat-name vip-nickname' + (isV10 ? ' v10' : (isSvip ? ' svip' : ''))) : 'seat-name';\n" +
-               "                div.innerHTML = '<span class=\"seat-mic-tag\">' + i + '号麦</span>' + kickBtn + badge + '<div class=\"seat-avatar\">' + (p.avatar || (currentGameType === 'take6' ? '🐂' : '🦊')) + '</div><div class=\"' + pNameClass + '\">' + (p.name || '玩家') + pVipBadge + (isMe ? ' (我)' : '') + '</div>';\n" +
+               "                div.innerHTML = '<span class=\"seat-mic-tag\">' + i + '号麦</span>' + kickBtn + badge + '<div class=\"seat-avatar\">' + escapeHtml(p.avatar || (currentGameType === 'take6' ? '🐂' : '🦊')) + '</div><div class=\"' + pNameClass + '\">' + escapeHtml(p.name || '玩家') + pVipBadge + (isMe ? ' (我)' : '') + '</div>';\n" +
                "                if (!isMe) {\n" +
                "                    div.style.cursor = 'pointer';\n" +
                "                    div.setAttribute('title', '点击查看名片、赠送礼物或缔结亲密关系');\n" +
@@ -5019,7 +5057,7 @@ public class WebPlayController {
                "        }\n" +
                "        fetch(getApiPrefix() + '/api/rooms/settings', {\n" +
                "            method: 'POST',\n" +
-               "            headers: {'Content-Type': 'application/json'},\n" +
+               "            headers: getAuthHeaders(),\n" +
                "            body: JSON.stringify({ roomCode: currentRoomId, allowSpectator: allowSpectator })\n" +
                "        }).catch(() => {});\n" +
                "        appendChat('系统', allowSpectator ? '👁️ 您已开启允许旁观模式' : '🚫 您已关闭旁观模式，禁止新观众进入');\n" +
@@ -5034,7 +5072,7 @@ public class WebPlayController {
                "            ws.send(JSON.stringify({ type: 'PLAYER_READY', roomCode: currentRoomId, userId: myUserId, isReady: myIsReady }));\n" +
                "        }\n" +
                "        try {\n" +
-               "            await fetch(getApiPrefix() + '/api/rooms/ready', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomCode: currentRoomId, playerId: myUserId, isReady: myIsReady }) });\n" +
+               "            await fetch(getApiPrefix() + '/api/rooms/ready', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ roomCode: currentRoomId, playerId: myUserId, isReady: myIsReady }) });\n" +
                "        } catch(e) {}\n" +
                 "    }\n");
         return sb.toString();
@@ -5554,13 +5592,13 @@ public class WebPlayController {
 "        const container = document.getElementById('take6ScoreBar'); if (!container) return; container.innerHTML = '';\n" +
 "        const myBulls = take6Scores[myUserId] || 0;\n" +
 "        const myDiv = document.createElement('div'); myDiv.className = 'take6-score-item me';\n" +
-"        myDiv.innerHTML = `<span>${myNickname} (我):</span> <span class='take6-score-bulls'>🐮${myBulls}分</span>`;\n" +
+"        myDiv.innerHTML = `<span>${escapeHtml(myNickname)} (我):</span> <span class='take6-score-bulls'>🐮${myBulls}分</span>`;\n" +
 "        container.appendChild(myDiv);\n" +
 "        players.forEach(p => {\n" +
 "            if (p.id && p.id !== myUserId) {\n" +
 "                const b = take6Scores[p.id] || 0;\n" +
 "                const d = document.createElement('div'); d.className = 'take6-score-item';\n" +
-"                d.innerHTML = `<span>${p.name || '玩家'}:</span> <span class='take6-score-bulls'>🐮${b}分</span>`;\n" +
+"                d.innerHTML = `<span>${escapeHtml(p.name || '玩家')}:</span> <span class='take6-score-bulls'>🐮${b}分</span>`;\n" +
 "                container.appendChild(d);\n" +
 "            }\n" +
 "        });\n" +
@@ -5910,7 +5948,7 @@ public class WebPlayController {
 "        playerList.sort((a, b) => (take6Scores[a.id] || 0) - (take6Scores[b.id] || 0));\n" +
 "        const winner = playerList[0];\n" +
 "        if (winner && titleEl) {\n" +
-"            titleEl.innerHTML = `🏆 【${winner.name || '玩家'}】荣获本场冠军！`;\n" +
+"            titleEl.innerHTML = `🏆 【${escapeHtml(winner.name || '玩家')}】荣获本场冠军！`;\n" +
 "            if (subtitleEl) subtitleEl.innerText = `最终吃下 ${take6Scores[winner.id] || 0} 个牛头惩罚，避坑王者！`;\n" +
 "        }\n" +
 "        const rankEmojis = ['🥇', '🥈', '🥉'];\n" +
@@ -5921,8 +5959,8 @@ public class WebPlayController {
 "            return `<div class='settlement-item ${idx === 0 ? 'winner' : ''}'>` +\n" +
 "                   `<div class='settlement-rank-badge ${idx < 3 ? 'settlement-rank-' + (idx+1) : ''}'>${rankBadge}</div>` +\n" +
 "                   `<div class='settlement-player-info'>` +\n" +
-"                   `<div class='settlement-avatar'>${p.avatar || '🐂'}</div>` +\n" +
-"                   `<div class='settlement-name'>${p.name || '玩家'}${isMe ? ' (我)' : ''}</div>` +\n" +
+"                   `<div class='settlement-avatar'>${escapeHtml(p.avatar || '🐂')}</div>` +\n" +
+"                   `<div class='settlement-name'>${escapeHtml(p.name || '玩家')}${isMe ? ' (我)' : ''}</div>` +\n" +
 "                   `</div>` +\n" +
 "                   `<div class='settlement-score'>🐮 ${bulls} 个</div>` +\n" +
 "                   `</div>`;\n" +
@@ -5954,7 +5992,7 @@ public class WebPlayController {
                "            ws.send(JSON.stringify({ type: 'GAME_ACTION', action: 'GAME_RESTART', roomCode: currentRoomId, senderId: myUserId }));\n" +
                "        }\n" +
                "        if (currentRoomId) {\n" +
-               "            fetch(getApiPrefix() + '/api/rooms/reset', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ roomCode: currentRoomId }) }).catch(() => {});\n" +
+               "            fetch(getApiPrefix() + '/api/rooms/reset', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ roomCode: currentRoomId }) }).catch(() => {});\n" +
                "        }\n" +
                "        resetTake6ToLobbyWaiting();\n" +
                "    };\n" +
@@ -5967,7 +6005,7 @@ public class WebPlayController {
                "            ws.send(JSON.stringify({ type: 'GAME_ACTION', action: 'GAME_RESTART', roomCode: currentRoomId, senderId: myUserId }));\n" +
                "        }\n" +
                "        if (currentRoomId) {\n" +
-               "            fetch(getApiPrefix() + '/api/rooms/reset', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ roomCode: currentRoomId }) }).catch(() => {});\n" +
+               "            fetch(getApiPrefix() + '/api/rooms/reset', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ roomCode: currentRoomId }) }).catch(() => {});\n" +
                "        }\n" +
                "        resetTake6ToLobbyWaiting();\n" +
                "    };\n" +
@@ -6226,7 +6264,7 @@ public class WebPlayController {
 "        const board = document.getElementById('bidStatusBoard'); if (!board) return;\n" +
 "        board.style.display = 'flex';\n" +
 "        const pureTag = effectivePure ? '<span style=\"background:#dc2626;color:#fff;font-size:10px;padding:1px 6px;border-radius:6px;margin-left:6px;\">斋</span>' : '';\n" +
-"        board.innerHTML = `<div class='bid-status-info'><div class='bid-status-title'>📢 当前叫点 (来自【${bidderName}】)</div><div class='bid-status-val'>${count} 个 ${face} 点${pureTag}</div></div><div class='bid-dice-badge'><svg viewBox='0 0 100 100' width='30' height='30'>${renderDotsSvgOnly(face)}</svg></div>`;\n" +
+"        board.innerHTML = `<div class='bid-status-info'><div class='bid-status-title'>📢 当前叫点 (来自【${escapeHtml(bidderName)}】)</div><div class='bid-status-val'>${count} 个 ${face} 点${pureTag}</div></div><div class='bid-dice-badge'><svg viewBox='0 0 100 100' width='30' height='30'>${renderDotsSvgOnly(face)}</svg></div>`;\n" +
 "        const tipEl = document.getElementById('turnTip'); if (tipEl) tipEl.innerText = '当前盘面：' + count + ' 个 ' + face + ' 点' + (effectivePure ? '【斋】' : '') + '！下家可加码、抓开或喊刚好(2x)！';\n" +
 "        const btnOpen = document.getElementById('btnDiceOpen'); if (btnOpen && !window.isSpectatorMode) btnOpen.disabled = false;\n" +
 "        const btnSpot = document.getElementById('btnDiceSpotOn'); if (btnSpot && !window.isSpectatorMode) btnSpot.disabled = false;\n" +
@@ -6261,7 +6299,7 @@ public class WebPlayController {
 "        const hintEl = document.getElementById('modalCurrentBidHint');\n" +
 "        if (hintEl) {\n" +
 "            if (currentBid) {\n" +
-"                hintEl.innerHTML = `当前底盘：<b>【${currentBid.bidderName || '玩家'}】</b>叫了 <b>${currentBid.count}</b> 个 <b>${currentBid.face}</b> 点${currentBid.isPure ? '【斋】' : ''} (同数量可叫更大点数，1点按斋且大于6点)`;\n" +
+"                hintEl.innerHTML = `当前底盘：<b>【${escapeHtml(currentBid.bidderName || '玩家')}】</b>叫了 <b>${currentBid.count}</b> 个 <b>${currentBid.face}</b> 点${currentBid.isPure ? '【斋】' : ''} (同数量可叫更大点数，1点按斋且大于6点)`;\n" +
 "            } else {\n" +
 "                hintEl.innerHTML = '当前底盘：首位叫点，请报出您的起叫点数！（1点默认万能，除非叫【斋】）';\n" +
 "            }\n" +
@@ -6323,8 +6361,8 @@ public class WebPlayController {
 "        if (board) {\n" +
 "            board.style.display = 'flex';\n" +
 "            board.innerHTML = isSpotOn\n" +
-"                ? `<div class='bid-status-info'><div class='bid-status-title' style='color:#7c3aed;'>🎯 精准喊刚好！(2x双倍奖惩)</div><div class='bid-status-val' style='color:#6d28d9;'>【${challengerName}】断定刚好相等！</div></div><div style='font-size:26px;'>🎯</div>`\n" +
-"                : `<div class='bid-status-info'><div class='bid-status-title' style='color:#ef4444;'>⚡ 抓吹牛开盅！</div><div class='bid-status-val' style='color:#dc2626;'>【${challengerName}】大喊：开！！</div></div><div style='font-size:26px;'>💥</div>`;\n" +
+"                ? `<div class='bid-status-info'><div class='bid-status-title' style='color:#7c3aed;'>🎯 精准喊刚好！(2x双倍奖惩)</div><div class='bid-status-val' style='color:#6d28d9;'>【${escapeHtml(challengerName)}】断定刚好相等！</div></div><div style='font-size:26px;'>🎯</div>`\n" +
+"                : `<div class='bid-status-info'><div class='bid-status-title' style='color:#ef4444;'>⚡ 抓吹牛开盅！</div><div class='bid-status-val' style='color:#dc2626;'>【${escapeHtml(challengerName)}】大喊：开！！</div></div><div style='font-size:26px;'>💥</div>`;\n" +
 "        }\n" +
 "        const stampOverlay = document.getElementById('diceStampOverlay');\n" +
 "        if (stampOverlay) {\n" +
@@ -6388,14 +6426,14 @@ public class WebPlayController {
                "        const content = (serverPayload && serverPayload.promptContent) ? serverPayload.promptContent : ('抽中【' + seg.label + '】，请按桌规完成！');\n" +
                "        const who = spinnerName || (serverPayload && serverPayload.spinnerName) || myNickname || '玩家';\n" +
                "        if (resultCard) {\n" +
-               "            resultCard.innerHTML = '<div style=\"font-size:14px; font-weight:900; margin-bottom:4px;\">🎉 【' + who + '】抽中：' + title + '</div>' +\n" +
-               "                                   '<div style=\"font-size:12.5px; font-weight:600; opacity:0.92;\">' + content + '</div>';\n" +
+               "            resultCard.innerHTML = '<div style=\"font-size:14px; font-weight:900; margin-bottom:4px;\">🎉 【' + escapeHtml(who) + '】抽中：' + escapeHtml(title) + '</div>' +\n" +
+               "                                   '<div style=\"font-size:12.5px; font-weight:600; opacity:0.92;\">' + escapeHtml(content) + '</div>';\n" +
                "            resultCard.style.display = 'block';\n" +
                "        }\n" +
                "        wheelHistory.unshift('【' + who + '】 · ' + title + '：' + content);\n" +
                "        wheelHistory = wheelHistory.slice(0, 6);\n" +
                "        if (histList) {\n" +
-               "            histList.innerHTML = wheelHistory.map(item => '<div class=\"wheel-history-item\">' + item + '</div>').join('');\n" +
+               "            histList.innerHTML = wheelHistory.map(item => '<div class=\"wheel-history-item\">' + escapeHtml(item) + '</div>').join('');\n" +
                "        }\n" +
                "    };\n" +
                "    function drawWheel(angle) {\n" +
@@ -6522,7 +6560,7 @@ public class WebPlayController {
                "        if (!logEl || !text) return;\n" +
                "        const row = document.createElement('div');\n" +
                "        row.className = 'uc-clue-item';\n" +
-               "        row.innerHTML = '<b style=\"color:#0284c7;\">' + (senderName || '玩家') + '：</b>' + String(text).replace(/</g, '&lt;');\n" +
+               "        row.innerHTML = '<b style=\"color:#0284c7;\">' + escapeHtml(senderName || '玩家') + '：</b>' + escapeHtml(text);\n" +
                "        logEl.appendChild(row);\n" +
                "        logEl.scrollTop = logEl.scrollHeight;\n" +
                "    };\n" +
@@ -6586,7 +6624,7 @@ public class WebPlayController {
                "            list = list.filter(p => window.undercoverRunoffCandidates.includes(p.id));\n" +
                "        }\n" +
                "        container.innerHTML = list.map(p => {\n" +
-               "            return '<button class=\"uc-vote-btn\" style=\"background:#334155; color:#f8fafc; border:1px solid #475569; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;\" data-uid=\"' + p.id + '\" data-name=\"' + (p.name || '玩家') + '\" onclick=\"actionVoteUndercover(this.dataset.uid, this.dataset.name, this)\">🗳️ 投 ' + (p.name || '玩家') + '</button>';\n" +
+               "            return '<button class=\"uc-vote-btn\" style=\"background:#334155; color:#f8fafc; border:1px solid #475569; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer;\" data-uid=\"' + escapeHtml(p.id) + '\" data-name=\"' + escapeHtml(p.name || '玩家') + '\" onclick=\"actionVoteUndercover(this.dataset.uid, this.dataset.name, this)\">🗳️ 投 ' + escapeHtml(p.name || '玩家') + '</button>';\n" +
                "        }).join('');\n" +
                "    }\n" +
                "    window.actionVoteUndercover = function(targetId, targetName, btnEl) {\n" +
@@ -6649,9 +6687,11 @@ public class WebPlayController {
                "        const isSvip = (vipLevel >= 4);\n" +
                "        const vipBadgeHtml = isVip ? ('<span class=\"badge-vip' + (isV10 ? ' v10' : (isSvip ? ' svip' : '')) + '\" style=\"margin-right:4px;\">' + (isV10 ? '✨ V10 无双' : ((isSvip ? '👑 ' : '') + 'V' + vipLevel)) + '</span>') : '';\n" +
                "        const nameColor = isV10 ? '#f59e0b' : (isVip ? (isSvip ? '#ff2e4d' : '#e60012') : '#38bdf8');\n" +
+               "        const safeSender = escapeHtml(sender || '玩家');\n" +
+               "        const safeText = escapeHtml(text || '');\n" +
                "        const isCustomColor = Boolean(textColor && textColor !== 'COLOR_DEFAULT' && typeof CHAT_COLOR_MAP !== 'undefined' && CHAT_COLOR_MAP[textColor]);\n" +
-               "        const msgSpan = isCustomColor ? ('<span style=\"color:' + CHAT_COLOR_MAP[textColor] + ';font-weight:bold;\">' + text + '</span>') : ('<span class=\"chat-msg-default\">' + text + '</span>');\n" +
-               "        div.innerHTML = vipBadgeHtml + '<span class=\"sender\" style=\"color:' + nameColor + ';\">' + sender + ':</span> ' + msgSpan;\n" +
+               "        const msgSpan = isCustomColor ? ('<span style=\"color:' + CHAT_COLOR_MAP[textColor] + ';font-weight:bold;\">' + safeText + '</span>') : ('<span class=\"chat-msg-default\">' + safeText + '</span>');\n" +
+               "        div.innerHTML = vipBadgeHtml + '<span class=\"sender\" style=\"color:' + nameColor + ';\">' + safeSender + ':</span> ' + msgSpan;\n" +
                "        stream.appendChild(div); stream.scrollTop = stream.scrollHeight;\n" +
                "    }\n" +
                "    window.updateRoomQuickPhrases = function(gType) {\n" +

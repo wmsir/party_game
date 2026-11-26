@@ -1,7 +1,9 @@
 package com.partygame.controller;
 
 import com.partygame.entity.FriendRequest;
+import com.partygame.entity.User;
 import com.partygame.repository.DirectMessageRepository;
+import com.partygame.security.UserAuthService;
 import com.partygame.service.FriendService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,21 +18,22 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class FriendController {
 
     private final FriendService friendService;
     private final DirectMessageRepository directMessageRepository;
+    private final UserAuthService userAuthService;
 
     /**
-     * 查询真实好友列表 (纯数据库数据，清空了所有假数据)
+     * 查询真实好友列表 (强校验登录用户并绑定 userId)
      */
     @GetMapping({"/api/friends/list", "/party-game/api/friends/list"})
-    public ResponseEntity<?> getFriends(@RequestParam(required = false) String userId) {
-        if (userId == null || userId.trim().isEmpty()) {
-            return ResponseEntity.ok(createSuccess(Collections.emptyList()));
-        }
-        List<Map<String, Object>> friends = friendService.getFriendList(userId.trim());
+    public ResponseEntity<?> getFriends(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestParam(required = false) String userId) {
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, userId);
+        List<Map<String, Object>> friends = friendService.getFriendList(authed.getId());
         return ResponseEntity.ok(createSuccess(friends));
     }
 
@@ -38,19 +41,23 @@ public class FriendController {
      * 查询真实好友申请列表
      */
     @GetMapping({"/api/friends/requests", "/party-game/api/friends/requests"})
-    public ResponseEntity<?> getRequests(@RequestParam(required = false) String userId) {
-        if (userId == null || userId.trim().isEmpty()) {
-            return ResponseEntity.ok(createSuccess(Collections.emptyList()));
-        }
-        List<Map<String, Object>> requests = friendService.getPendingRequests(userId.trim());
+    public ResponseEntity<?> getRequests(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestParam(required = false) String userId) {
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, userId);
+        List<Map<String, Object>> requests = friendService.getPendingRequests(authed.getId());
         return ResponseEntity.ok(createSuccess(requests));
     }
 
     /**
-     * 发送好友申请 (支持灵活传参: fromUserId/applicantId, toUserId/targetId, 并支持留言)
+     * 发送好友申请 (强绑定当前认证用户)
      */
     @PostMapping({"/api/friends/apply", "/party-game/api/friends/apply"})
-    public ResponseEntity<?> applyFriend(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> applyFriend(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestBody Map<String, String> body) {
         String fromUserId = body.get("fromUserId");
         if (fromUserId == null || fromUserId.trim().isEmpty()) {
             fromUserId = body.get("applicantId");
@@ -67,15 +74,16 @@ public class FriendController {
             toUserId = body.get("friendId");
         }
 
-        if (fromUserId == null || toUserId == null || fromUserId.trim().isEmpty() || toUserId.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(createError("请提供完整的双方用户编号"));
+        if (toUserId == null || toUserId.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(createError("请提供完整的对方用户编号"));
         }
 
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, fromUserId);
         String message = body.get("message");
         if (message == null) message = body.get("content");
 
         try {
-            FriendRequest req = friendService.applyFriend(fromUserId.trim(), toUserId.trim(), message);
+            FriendRequest req = friendService.applyFriend(authed.getId(), toUserId.trim(), message);
             Map<String, Object> res = createSuccess(req);
             res.put("message", "好友申请已成功发送，等待对方确认！");
             return ResponseEntity.ok(res);
@@ -88,15 +96,19 @@ public class FriendController {
      * 处理好友申请 (同意/拒绝)
      */
     @PostMapping({"/api/friends/respond", "/party-game/api/friends/respond"})
-    public ResponseEntity<?> respondRequest(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> respondRequest(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestBody Map<String, String> body) {
         String requestId = body.get("requestId");
         String action = body.get("action");
         String userId = body.get("userId");
-        if (requestId == null || action == null || userId == null) {
+        if (requestId == null || action == null) {
             return ResponseEntity.badRequest().body(createError("参数不完整"));
         }
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, userId);
         try {
-            FriendRequest req = friendService.respondRequest(requestId, action, userId);
+            FriendRequest req = friendService.respondRequest(requestId, action, authed.getId());
             Map<String, Object> res = createSuccess(req);
             res.put("message", "ACCEPT".equalsIgnoreCase(action) ? "已同意好友申请！正式成为好友！" : "已拒绝好友申请");
             return ResponseEntity.ok(res);
@@ -109,15 +121,19 @@ public class FriendController {
      * 设置/修改好友备注名
      */
     @PostMapping({"/api/friends/remark", "/party-game/api/friends/remark"})
-    public ResponseEntity<?> setRemark(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> setRemark(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestBody Map<String, String> body) {
         String userId = body.get("userId");
         String friendId = body.get("friendId");
         String remark = body.get("remark");
-        if (userId == null || friendId == null) {
+        if (friendId == null) {
             return ResponseEntity.badRequest().body(createError("参数不完整"));
         }
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, userId);
         try {
-            friendService.updateRemark(userId, friendId, remark);
+            friendService.updateRemark(authed.getId(), friendId, remark);
             Map<String, Object> res = createSuccess(null);
             res.put("message", "好友备注修改成功！");
             return ResponseEntity.ok(res);
@@ -127,21 +143,26 @@ public class FriendController {
     }
 
     /**
-     * 发送私信消息（支持数据库持久化 + 在线 WebSocket 毫秒级直推双重保障）
+     * 发送私信消息（强制校验发信人并支持数据库持久化 + 在线 WebSocket 毫秒级直推）
      */
     @PostMapping({"/api/friends/messages/send", "/party-game/api/friends/messages/send"})
-    public ResponseEntity<?> sendMessage(@RequestBody Map<String, String> body) {
-        String fromUserId = body.get("fromUserId");
+    public ResponseEntity<?> sendMessage(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestBody Map<String, String> body) {
+        String rawFromUserId = body.get("fromUserId");
         String toUserId = body.get("toUserId");
         String content = body.get("content");
-        String fromNickname = body.get("fromNickname");
-        String fromAvatar = body.get("fromAvatar");
         String inviteRoomCode = body.get("inviteRoomCode");
         String msgId = body.get("id");
 
-        if (fromUserId == null || toUserId == null || content == null) {
+        if (toUserId == null || content == null) {
             return ResponseEntity.badRequest().body(createError("消息参数不完整"));
         }
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, rawFromUserId);
+        String fromUserId = authed.getId();
+        String fromNickname = authed.getNickname() != null ? authed.getNickname() : "好友";
+        String fromAvatar = authed.getAvatar() != null ? authed.getAvatar() : "🦊";
 
         if (msgId == null || msgId.isEmpty()) {
             msgId = "DM-" + System.currentTimeMillis();
@@ -153,8 +174,8 @@ public class FriendController {
         dm.put("id", msgId);
         dm.put("toUserId", toUserId);
         dm.put("fromUserId", fromUserId);
-        dm.put("fromNickname", fromNickname != null ? fromNickname : "好友");
-        dm.put("fromAvatar", fromAvatar != null ? fromAvatar : "🦊");
+        dm.put("fromNickname", fromNickname);
+        dm.put("fromAvatar", fromAvatar);
         dm.put("content", content);
         dm.put("inviteRoomCode", inviteRoomCode);
         dm.put("timestamp", timestamp);
@@ -184,25 +205,30 @@ public class FriendController {
      * 标记与指定好友的私信为已读
      */
     @PostMapping({"/api/friends/messages/read", "/party-game/api/friends/messages/read"})
-    public ResponseEntity<?> markMessagesAsRead(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> markMessagesAsRead(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestBody Map<String, String> body) {
         String userId = body.get("userId");
         String friendId = body.get("friendId");
-        if (userId == null || friendId == null) {
+        if (friendId == null) {
             return ResponseEntity.badRequest().body(createError("参数不完整"));
         }
-        directMessageRepository.markAsReadBetween(userId.trim(), friendId.trim());
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, userId);
+        directMessageRepository.markAsReadBetween(authed.getId(), friendId.trim());
         return ResponseEntity.ok(createSuccess(Map.of("status", "ok")));
     }
 
     /**
-     * 查询离线/未读私信（用户登录后主动同步兜底，基于 isRead 状态可靠拉取，杜绝漏信）
+     * 查询离线/未读私信
      */
     @GetMapping({"/api/friends/messages/unread", "/party-game/api/friends/messages/unread"})
-    public ResponseEntity<?> getUnreadMessages(@RequestParam String userId) {
-        if (userId == null || userId.trim().isEmpty()) {
-            return ResponseEntity.ok(createSuccess(Collections.emptyList()));
-        }
-        List<com.partygame.entity.DirectMessageRecord> list = directMessageRepository.findByToUserIdAndIsReadFalseOrderByTimestampAsc(userId.trim());
+    public ResponseEntity<?> getUnreadMessages(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestParam(required = false) String userId) {
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, userId);
+        List<com.partygame.entity.DirectMessageRecord> list = directMessageRepository.findByToUserIdAndIsReadFalseOrderByTimestampAsc(authed.getId());
         if (!list.isEmpty()) {
             for (com.partygame.entity.DirectMessageRecord r : list) {
                 r.setDelivered(true);
@@ -216,11 +242,16 @@ public class FriendController {
      * 查询与指定好友的聊天历史
      */
     @GetMapping({"/api/friends/messages/history", "/party-game/api/friends/messages/history"})
-    public ResponseEntity<?> getChatHistory(@RequestParam String userId, @RequestParam String friendId) {
-        if (userId == null || friendId == null) {
+    public ResponseEntity<?> getChatHistory(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Token", required = false) String userTokenHeader,
+            @RequestParam(required = false) String userId,
+            @RequestParam String friendId) {
+        if (friendId == null || friendId.isBlank()) {
             return ResponseEntity.ok(createSuccess(Collections.emptyList()));
         }
-        List<com.partygame.entity.DirectMessageRecord> history = directMessageRepository.findChatHistory(userId.trim(), friendId.trim());
+        User authed = userAuthService.requireUser(authHeader, userTokenHeader, userId);
+        List<com.partygame.entity.DirectMessageRecord> history = directMessageRepository.findChatHistory(authed.getId(), friendId.trim());
         return ResponseEntity.ok(createSuccess(history));
     }
 

@@ -2,8 +2,10 @@ package com.partygame.service;
 
 import com.partygame.entity.User;
 import com.partygame.repository.UserRepository;
+import com.partygame.security.UserAuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,10 @@ public class UserService {
     private final UserRepository userRepository;
     private final com.partygame.repository.FriendRelationRepository friendRelationRepository;
     private final SmsService smsService;
+    private final UserAuthService userAuthService;
+
+    @Value("${party.oneid.base-url:https://fwpt.cn}")
+    private String oneIdBaseUrl;
 
     private static final String[] AVATARS = {"🦊", "🐼", "🦁", "🐯", "🐰", "🦄", "🐨", "🐺"};
 
@@ -67,7 +73,7 @@ public class UserService {
         if (!userList.isEmpty()) {
             User user = userList.get(0);
             user.setLastLoginAt(java.time.LocalDateTime.now());
-            user.setToken("token_trial_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8));
+            user.setToken(userAuthService.issueSignedToken(user.getId()));
             if (customNickname != null && !customNickname.trim().isEmpty() && (user.getNickname() == null || user.getNickname().startsWith("试玩玩家_"))) {
                 user.setNickname(customNickname.trim());
             }
@@ -102,7 +108,7 @@ public class UserService {
                 .entranceBanner("BANNER_DEFAULT")
                 .diceCupSkin("CLASSIC_GOLD")
                 .inventory("[\"CLASSIC_GOLD\",\"FRAME_DEFAULT\",\"BANNER_DEFAULT\"]")
-                .token("token_trial_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8))
+                .token(userAuthService.issueSignedToken(userId))
                 .lastLoginAt(java.time.LocalDateTime.now())
                 .build();
 
@@ -155,9 +161,9 @@ public class UserService {
             ).orElse(userList.get(0));
 
             user.setLastLoginAt(java.time.LocalDateTime.now());
-            user.setToken("token_phone_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8));
+            user.setToken(userAuthService.issueSignedToken(user.getId()));
             userRepository.save(user);
-            log.info("老用户手机免密登录成功: id={}, phone={}, nickname={}, vipLevel={}", user.getId(), phone, user.getNickname(), user.getVipLevel());
+            log.info("老用户手机登录成功: id={}, phone={}, nickname={}, vipLevel={}", user.getId(), phone, user.getNickname(), user.getVipLevel());
             return user;
         }
 
@@ -187,7 +193,7 @@ public class UserService {
                 .entranceBanner("BANNER_DEFAULT")
                 .diceCupSkin("CLASSIC_GOLD")
                 .inventory("[\"CLASSIC_GOLD\",\"FRAME_DEFAULT\",\"BANNER_DEFAULT\"]")
-                .token("token_phone_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8))
+                .token(userAuthService.issueSignedToken(userId))
                 .lastLoginAt(java.time.LocalDateTime.now())
                 .build();
 
@@ -201,7 +207,7 @@ public class UserService {
      */
     @Transactional
     public User guestLogin() {
-        int rand = (int)(1000 + Math.random() * 9000);
+        int rand = 1000 + new java.security.SecureRandom().nextInt(9000);
         String userId = "9" + rand + String.format("%04d", System.currentTimeMillis() % 10000);
         String randomAvatar = AVATARS[rand % AVATARS.length];
 
@@ -226,7 +232,7 @@ public class UserService {
                 .entranceBanner("BANNER_DEFAULT")
                 .diceCupSkin("CLASSIC_GOLD")
                 .inventory("[\"CLASSIC_GOLD\",\"FRAME_DEFAULT\",\"BANNER_DEFAULT\"]")
-                .token("token_guest_" + System.currentTimeMillis())
+                .token(userAuthService.issueSignedToken(userId))
                 .lastLoginAt(java.time.LocalDateTime.now())
                 .build();
 
@@ -292,18 +298,18 @@ public class UserService {
                         .entranceBanner("BANNER_DEFAULT")
                         .diceCupSkin("CLASSIC_GOLD")
                         .inventory("[\"CLASSIC_GOLD\",\"FRAME_DEFAULT\",\"BANNER_DEFAULT\"]")
-                        .token("token_fwpt_" + System.currentTimeMillis())
+                        .token(userAuthService.issueSignedToken(userId))
                         .lastLoginAt(java.time.LocalDateTime.now())
                         .build();
                 log.info("FWPT 统一用户首次登录桌游吧，自动初始化档案: username={}, nickname={}", clean, nickname);
             } else {
-                // 已有老玩家，同步最新 FWPT 口令与活跃态
-                user.setPassword(password);
+                // 已有老玩家，同步最新 FWPT 口令与活跃态（安全哈希保存）
+                user.setPassword(passwordEncoder.encode(password));
                 if (fwptRealName != null && !fwptRealName.trim().isEmpty() && (user.getNickname() == null || user.getNickname().startsWith("聚会好友_"))) {
                     user.setNickname(fwptRealName.trim());
                 }
                 user.setLastLoginAt(java.time.LocalDateTime.now());
-                user.setToken("token_fwpt_" + System.currentTimeMillis());
+                user.setToken(userAuthService.issueSignedToken(user.getId()));
                 log.info("FWPT 统一用户在桌游吧核验成功并同步最新口令: username={}", clean);
             }
             return userRepository.save(user);
@@ -324,7 +330,7 @@ public class UserService {
             }
             if (matched) {
                 user.setLastLoginAt(java.time.LocalDateTime.now());
-                user.setToken("token_user_" + System.currentTimeMillis());
+                user.setToken(userAuthService.issueSignedToken(user.getId()));
                 return userRepository.save(user);
             }
         }
@@ -337,6 +343,21 @@ public class UserService {
         }
     }
 
+    private String resolveOneIdEndpoint(String path) {
+        String base = (oneIdBaseUrl == null || oneIdBaseUrl.isBlank()) ? "https://fwpt.cn" : oneIdBaseUrl.trim();
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        java.net.URI uri = java.net.URI.create(base);
+        String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase() : "";
+        String host = uri.getHost() != null ? uri.getHost().toLowerCase() : "";
+        boolean isLoopback = "127.0.0.1".equals(host) || "localhost".equals(host) || "::1".equals(host);
+        if (!"https".equals(scheme) && !("http".equals(scheme) && isLoopback)) {
+            throw new IllegalStateException("OneID bridge requires HTTPS URL: " + base);
+        }
+        return base + path;
+    }
+
     /**
      * 联动 FWPT 统一通行证中心 (OneID) 校验账号与口令
      */
@@ -344,68 +365,58 @@ public class UserService {
         if (username == null || password == null || username.trim().isEmpty() || password.trim().isEmpty()) {
             return null;
         }
-        String[] candidateUrls = new String[]{
-                "http://101.35.100.169:8088/api/v1/auth/login",
-                "https://fwpt.cn/api/v1/auth/login"
-        };
-        for (String targetUrl : candidateUrls) {
-            try {
-                java.net.URL url = new java.net.URL(targetUrl);
-                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
-                if (conn instanceof javax.net.ssl.HttpsURLConnection) {
-                    ((javax.net.ssl.HttpsURLConnection) conn).setHostnameVerifier((hostname, session) -> true);
-                }
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
-                conn.setRequestProperty("User-Agent", "PartyGameServer/1.0 (FWPT-OneID-Bridge)");
-                conn.setConnectTimeout(2500);
-                conn.setReadTimeout(3000);
-                conn.setDoOutput(true);
+        try {
+            String targetUrl = resolveOneIdEndpoint("/api/v1/auth/login");
+            java.net.URL url = new java.net.URL(targetUrl);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
+            conn.setRequestProperty("User-Agent", "PartyGameServer/1.0 (FWPT-OneID-Bridge)");
+            conn.setConnectTimeout(2500);
+            conn.setReadTimeout(3000);
+            conn.setDoOutput(true);
 
-                String payload = "{\"username\":\"" + escapeJson(username) + "\",\"password\":\"" + escapeJson(password) + "\",\"account\":\"" + escapeJson(username) + "\"}";
-                try (java.io.OutputStream os = conn.getOutputStream()) {
-                    os.write(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                }
+            String payload = "{\"username\":\"" + escapeJson(username) + "\",\"password\":\"" + escapeJson(password) + "\",\"account\":\"" + escapeJson(username) + "\"}";
+            try (java.io.OutputStream os = conn.getOutputStream()) {
+                os.write(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
 
-                int code = conn.getResponseCode();
-                if (code == 200) {
-                    try (java.io.InputStream is = conn.getInputStream();
-                         java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is, java.nio.charset.StandardCharsets.UTF_8))) {
-                        StringBuilder sb = new StringBuilder();
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            sb.append(line);
-                        }
-                        String respBody = sb.toString();
-                        if (respBody.contains("已被管理员冻结")) {
-                            Map<String, Object> frozenMap = new HashMap<>();
-                            frozenMap.put("frozen", true);
-                            return frozenMap;
-                        }
-                        if (respBody.contains("\"00000\"") && respBody.contains("\"token\"")) {
-                            Map<String, Object> result = new HashMap<>();
-                            result.put("username", username);
-                            String realName = extractJsonField(respBody, "realName");
-                            String phone = extractJsonField(respBody, "phone");
-                            if (realName != null) result.put("realName", realName);
-                            if (phone != null) result.put("phone", phone);
-                            log.info("FWPT 统一通行证核验成功: account={}, realName={}", username, realName);
-                            return result;
-                        }
-                        // 已连通主节点但返回非 00000（如密码错误或不存在），无需再重试备用域名
-                        break;
+            int code = conn.getResponseCode();
+            if (code == 200) {
+                try (java.io.InputStream is = conn.getInputStream();
+                     java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is, java.nio.charset.StandardCharsets.UTF_8))) {
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    String respBody = sb.toString();
+                    if (respBody.contains("已被管理员冻结")) {
+                        Map<String, Object> frozenMap = new HashMap<>();
+                        frozenMap.put("frozen", true);
+                        return frozenMap;
+                    }
+                    if (respBody.contains("\"00000\"") && respBody.contains("\"token\"")) {
+                        Map<String, Object> result = new HashMap<>();
+                        result.put("username", username);
+                        String realName = extractJsonField(respBody, "realName");
+                        String phone = extractJsonField(respBody, "phone");
+                        if (realName != null) result.put("realName", realName);
+                        if (phone != null) result.put("phone", phone);
+                        log.info("FWPT 统一通行证核验成功: account={}, realName={}", username, realName);
+                        return result;
                     }
                 }
-            } catch (Exception e) {
-                log.warn("FWPT 统一通行证校验异常 ({}): {}", targetUrl, e.getMessage());
             }
+        } catch (Exception e) {
+            log.warn("FWPT 统一通行证校验异常: {}", e.getMessage());
         }
         return null;
     }
 
     private void syncRegisterToFwpt(String username, String nickname, String password, String phone) {
         try {
-            java.net.URL url = new java.net.URL("http://101.35.100.169:8088/api/v1/auth/register");
+            java.net.URL url = new java.net.URL(resolveOneIdEndpoint("/api/v1/auth/register"));
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
@@ -480,7 +491,7 @@ public class UserService {
                 .entranceBanner("BANNER_DEFAULT")
                 .diceCupSkin("CLASSIC_GOLD")
                 .inventory("[\"CLASSIC_GOLD\",\"FRAME_DEFAULT\",\"BANNER_DEFAULT\"]")
-                .token("token_reg_" + System.currentTimeMillis())
+                .token(userAuthService.issueSignedToken(userId))
                 .lastLoginAt(java.time.LocalDateTime.now())
                 .build();
         User saved = userRepository.save(newUser);
@@ -546,10 +557,10 @@ public class UserService {
         }
 
         if (password != null && !password.trim().isEmpty()) {
-            if (password.length() < 3) {
-                throw new IllegalArgumentException("密码长度不能少于3位");
+            if (password.trim().length() < 6) {
+                throw new IllegalArgumentException("密码长度不能少于6位");
             }
-            user.setPassword(password.trim());
+            user.setPassword(passwordEncoder.encode(password.trim()));
         }
 
         if (avatar != null && !avatar.trim().isEmpty()) {
