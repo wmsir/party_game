@@ -1,6 +1,6 @@
 # 🎲 聚会桌游吧 (PartyGame Club) —— 跨平台实时联机聚会桌游与互动社交平台
 
-> **当前版本**：`v1.0.58`  
+> **当前版本**：`v1.0.59`  
 > **支持终端**：Android (`.apk` / `.aab`) · iOS (`.ipa`) · 鸿蒙 HarmonyOS Next / OpenHarmony (`.hap`) · Windows (`.exe`) · Web (`H5`)  
 > **后端架构**：Spring Boot 3 + WebSocket + JPA + MySQL 8.0 (`9001` 端口)
 

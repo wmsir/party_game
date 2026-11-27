@@ -205,6 +205,19 @@ public class WebPlayController {
         }
     }
 
+    @GetMapping(value = {"/js/webplay-enterprise.js", "/party-game/js/webplay-enterprise.js"}, produces = "application/javascript;charset=UTF-8")
+    public ResponseEntity<String> getWebPlayEnterpriseJs() {
+        try {
+            ClassPathResource res = new ClassPathResource("static/js/webplay-enterprise.js");
+            String js = StreamUtils.copyToString(res.getInputStream(), StandardCharsets.UTF_8);
+            return ResponseEntity.ok()
+                    .header("Cache-Control", "public, max-age=300")
+                    .body(js);
+        } catch (Exception e) {
+            return ResponseEntity.ok("/* webplay-enterprise fallback */");
+        }
+    }
+
     @GetMapping(value = {
             "/play", "/party-game/play",
             "/lobby", "/party-game/lobby",
@@ -237,7 +250,15 @@ public class WebPlayController {
         String cleanTab = (tab != null && !tab.trim().isEmpty()) ? tab.trim() : "games";
         String cleanView = (view != null && !view.trim().isEmpty()) ? view.trim() : "";
         String uri = (request != null && request.getRequestURI() != null) ? request.getRequestURI() : "";
-        String assetPrefix = uri.startsWith("/party-game") ? "/party-game" : "";
+        String ctx = (request != null && request.getContextPath() != null) ? request.getContextPath() : "";
+        String fwdPrefix = (request != null && request.getHeader("X-Forwarded-Prefix") != null) ? request.getHeader("X-Forwarded-Prefix").trim() : "";
+        String fwdUri = (request != null && request.getHeader("X-Forwarded-URI") != null) ? request.getHeader("X-Forwarded-URI").trim() : "";
+        String assetPrefix = "";
+        if (fwdPrefix.startsWith("/party-game") || fwdUri.startsWith("/party-game") || ctx.startsWith("/party-game") || uri.startsWith("/party-game")) {
+            assetPrefix = "/party-game";
+        } else if (!fwdPrefix.isEmpty() && !"/".equals(fwdPrefix)) {
+            assetPrefix = fwdPrefix.endsWith("/") ? fwdPrefix.substring(0, fwdPrefix.length() - 1) : fwdPrefix;
+        }
         String html = getWebPlayHtml(cleanRoom, cleanGameType, cleanTab, cleanView, assetPrefix);
         return ResponseEntity.ok(html);
     }
@@ -261,7 +282,7 @@ public class WebPlayController {
         sb.append(buildHtmlScriptDice());
         sb.append(buildHtmlScriptWheel());
         sb.append(buildHtmlScriptUndercover());
-        sb.append(buildHtmlScriptTail(isTake6));
+        sb.append(buildHtmlScriptTail(isTake6, assetPrefix));
         return sb.toString();
     }
     private String buildHtmlHead(boolean isTake6, String gameTitle, String gameBadge, String roomId, String assetPrefix) {
@@ -371,7 +392,7 @@ public class WebPlayController {
         sb.append("        .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px #34d399; animation: pulseDot 1s infinite; }\n");
         sb.append("        @keyframes pulseDot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { transform: scale(1.3); } }\n");
         sb.append("        .btn-banner-action { font-size: 12px; font-weight: bold; background: rgba(255,255,255,0.25); padding: 4px 10px; border-radius: 6px; white-space: nowrap; }\n");
-        sb.append("        .lobby-content { flex: 1; max-width: 980px; margin: 0 auto; width: 100%; padding: 16px 18px 80px 18px; }\n");
+        sb.append("        .lobby-content { flex: 1; max-width: 1280px; margin: 0 auto; width: 100%; padding: 20px 24px 80px 24px; }\n");
         sb.append("        /* 游戏模式卡片 (纯白高质感微阴影) */\n");
         sb.append("        .game-mode-card { background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 18px; padding: 16px; margin-bottom: 14px; position: relative; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.04); }\n");
         sb.append("        .game-mode-card.take6 { border-color: rgba(245, 158, 11, 0.36); }\n");
@@ -380,7 +401,7 @@ public class WebPlayController {
         sb.append("        .game-mode-card.undercover { border-color: rgba(16, 185, 129, 0.36); }\n");
         sb.append("        .game-mode-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }\n");
         sb.append("        .game-mode-title { font-size: 17px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px; }\n");
-        sb.append("        .game-mode-badge { font-size: 10.5px; padding: 2px 7px; border-radius: 6px; font-weight: bold; }\n");
+        sb.append("        .game-mode-badge { font-size: 12px; padding: 3px 9px; border-radius: 6px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }\n");
         sb.append("        .game-mode-desc { font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 14px; }\n");
         sb.append("        .game-mode-actions { display: flex; gap: 10px; }\n");
         sb.append("        .btn-mode-quick { flex: 1; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 10px; border-radius: 10px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 3px 10px rgba(16,185,129,0.25); }\n");
@@ -424,7 +445,7 @@ public class WebPlayController {
         sb.append("        .stat-val { font-size: 16px; font-weight: 800; color: #0f172a; }\n");
         sb.append("        .stat-lbl { font-size: 11px; color: #64748b; margin-top: 2px; }\n");
         sb.append("        /* 底部导航栏: 明亮白底 */\n");
-        sb.append("        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(14px); border-top: 1px solid #e2e8f0; display: flex; justify-content: space-around; align-items: center; z-index: 90; max-width: 600px; margin: 0 auto; box-shadow: 0 -2px 10px rgba(0,0,0,0.03); }\n");
+        sb.append("        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 58px; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(14px); border-top: 1px solid #e2e8f0; display: flex; justify-content: space-around; align-items: center; z-index: 90; width: 100%; box-shadow: 0 -2px 10px rgba(0,0,0,0.03); }\n");
         sb.append("        .nav-tab-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: #64748b; background: none; border: none; cursor: pointer; padding: 6px 0; transition: all 0.18s; }\n");
         sb.append("        .nav-tab-btn.active { color: #10b981; font-weight: bold; transform: scale(1.05); }\n");
         sb.append("        .nav-tab-icon { font-size: 18px; }\n");
@@ -701,7 +722,10 @@ public class WebPlayController {
         sb.append("        .spinner-inline { display: inline-block; width: 14px; height: 14px; border: 2px solid #ffffff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -2px; margin-right: 6px; }\n");
         sb.append("        @keyframes spin { to { transform: rotate(360deg); } }\n");
         sb.append("    </style>\n");
-        sb.append("    <link rel='stylesheet' href='" + assetPrefix + "/css/webplay-pro.css?v=2.2'>\n");
+        sb.append("    <link id='webplayProCssLink' rel='stylesheet' href='" + assetPrefix + "/css/webplay-pro.css?v=3.1'>\n");
+        sb.append("    <script>\n");
+        sb.append("    (function(){if(location.pathname.indexOf('/party-game')===0){var l=document.getElementById('webplayProCssLink');if(l&&l.getAttribute('href').indexOf('/party-game')!==0){l.href='/party-game/css/webplay-pro.css?v=3.1';}document.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('a[href=\"/download/app\"],a[href=\"/landing\"]').forEach(function(a){a.setAttribute('href','/party-game'+a.getAttribute('href'));});});}})();\n");
+        sb.append("    </script>\n");
         sb.append("</head>\n");
         sb.append("<body>\n");
         return sb.toString();
@@ -834,335 +858,441 @@ public class WebPlayController {
         sb.append("    </div>\n");
         sb.append("</div>\n");
         sb.append("<div class='app-view' id='viewLobby'>\n");
-        sb.append("    <div class='lobby-header-wrap'>\n");
-        sb.append("        <div class='lobby-header'>\n");
-        sb.append("            <div class='lobby-user-info' onclick='openMyProfileModal()' style='cursor:pointer;' title='点击查看个人完整资料卡'>\n");
-        sb.append("                <div class='avatar-wrap'>\n");
-        sb.append("                    <div class='lobby-avatar' id='lobbyUserAvatar'>🦊</div>\n");
-        sb.append("                    <span class='avatar-crown' id='avatarVipCrown' style='display:none;'>👑</span>\n");
-        sb.append("                </div>\n");
-        sb.append("                <div class='lobby-user-details'>\n");
-        sb.append("                    <div class='lobby-user-name'>\n");
-        sb.append("                        <span id='lobbyUserName'>玩家昵称</span>\n");
-        sb.append("                        <span class='badge-vip' id='lobbyUserVip' onclick='event.stopPropagation(); openVipPrivilegesModal()' title='点击查看尊享 VIP 特权' style='display:none;'>👑 VIP 1</span>\n");
-        sb.append("                    </div>\n");
-        sb.append("                    <div class='lobby-user-sub' id='lobbyUserUid'>\n");
-        sb.append("                        <span>UID: <span id='lobbyUserUidText'>未登录</span></span>\n");
-        sb.append("                        <button class='btn-copy-id' onclick='event.stopPropagation(); copyUserId(myUserId)' title='一键复制UID'>📋 复制</button>\n");
-        sb.append("                        <span id='lobbyUserRankTier'>· 🥉 倔强青铜</span>\n");
+        sb.append("    <div class='ent-shell' id='lobbyEnterpriseShell'>\n");
+        sb.append("        <aside class='ent-sidebar' aria-label='主导航栏'>\n");
+        sb.append("            <div class='ent-brand-row'>\n");
+        sb.append("                <div class='ent-brand-identity'>\n");
+        sb.append("                    <span class='ent-brand-logo'>🎲</span>\n");
+        sb.append("                    <div class='ent-brand-copy'>\n");
+        sb.append("                        <div class='ent-brand-title'>聚会桌游吧</div>\n");
+        sb.append("                        <div class='ent-brand-sub'>ENTERPRISE v3.0</div>\n");
         sb.append("                    </div>\n");
         sb.append("                </div>\n");
+        sb.append("                <button type='button' class='ent-collapse-btn' id='btnToggleSidebar' title='折叠或展开侧边导航' aria-label='折叠或展开侧边导航'>☰</button>\n");
         sb.append("            </div>\n");
-        sb.append("            <div style='display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;'>\n");
-        sb.append("                <div class='lobby-assets'>\n");
-        sb.append("                    <div class='asset-chip coin' onclick='switchLobbyTab(\"shop\")' title='前往商店'>" + COIN_SVG + " <span id='lobbyUserCoins'>2,000</span></div>\n");
-        sb.append("                    <div class='asset-chip diamond' onclick='switchLobbyTab(\"shop\")' title='前往商店'>💎 <span id='lobbyUserDiamonds'>50</span></div>\n");
-        sb.append("                </div>\n");
-        sb.append("                <button class='btn-theme-toggle' id='btnLobbyThemeToggle' onclick='toggleWebTheme()' title='切换护眼明亮 / 夜店暗黑主题'>🌙 暗黑</button>\n");
-        sb.append("                <button class='btn-logout' onclick='logoutUser()' title='安全退出登录'>🚪 退出</button>\n");
+        sb.append("            <div class='ent-sidebar-section'>\n");
+        sb.append("                <div class='ent-sidebar-title'>核心大厅</div>\n");
+        sb.append("                <button type='button' class='ent-nav-item desktop-nav-btn active' data-lobby-tab='games' onclick='switchLobbyTab(\"games\")'>\n");
+        sb.append("                    <span class='ent-nav-icon'>🎮</span><span class='ent-nav-label'>游戏大厅</span><span id='sidebarRoomCount' class='ent-nav-badge'>0</span>\n");
+        sb.append("                </button>\n");
+        sb.append("                <button type='button' class='ent-nav-item desktop-nav-btn' data-lobby-tab='square' onclick='switchLobbyTab(\"square\")'>\n");
+        sb.append("                    <span class='ent-nav-icon'>💬</span><span class='ent-nav-label'>社交广场</span>\n");
+        sb.append("                </button>\n");
+        sb.append("                <button type='button' class='ent-nav-item desktop-nav-btn' data-lobby-tab='rank' onclick='switchLobbyTab(\"rank\")'>\n");
+        sb.append("                    <span class='ent-nav-icon'>🏆</span><span class='ent-nav-label'>荣耀排行</span>\n");
+        sb.append("                </button>\n");
+        sb.append("                <button type='button' class='ent-nav-item desktop-nav-btn' data-lobby-tab='friends' onclick='switchLobbyTab(\"friends\")'>\n");
+        sb.append("                    <span class='ent-nav-icon'>👥</span><span class='ent-nav-label'>亲密好友</span><span id='sidebarReqBadge' class='ent-nav-badge danger' style='display:none;'>0</span>\n");
+        sb.append("                </button>\n");
+        sb.append("                <button type='button' class='ent-nav-item desktop-nav-btn' data-lobby-tab='shop' onclick='switchLobbyTab(\"shop\")'>\n");
+        sb.append("                    <span class='ent-nav-icon'>🛍️</span><span class='ent-nav-label'>装扮商城</span>\n");
+        sb.append("                </button>\n");
+        sb.append("                <button type='button' class='ent-nav-item desktop-nav-btn' data-lobby-tab='profile' onclick='switchLobbyTab(\"profile\")'>\n");
+        sb.append("                    <span class='ent-nav-icon'>👤</span><span class='ent-nav-label'>个人中心</span>\n");
+        sb.append("                </button>\n");
         sb.append("            </div>\n");
-        sb.append("        </div>\n");
-        sb.append("        <nav class='desktop-lobby-nav' aria-label='大厅主导航'>\n");
-        sb.append("            <button type='button' class='desktop-nav-btn active' data-lobby-tab='games' onclick='switchLobbyTab(\"games\")'>🎮 游戏大厅</button>\n");
-        sb.append("            <button type='button' class='desktop-nav-btn' data-lobby-tab='square' onclick='switchLobbyTab(\"square\")'>💬 社交广场</button>\n");
-        sb.append("            <button type='button' class='desktop-nav-btn' data-lobby-tab='rank' onclick='switchLobbyTab(\"rank\")'>🏆 荣耀排行榜</button>\n");
-        sb.append("            <button type='button' class='desktop-nav-btn' data-lobby-tab='friends' onclick='switchLobbyTab(\"friends\")'>👥 亲密好友</button>\n");
-        sb.append("            <button type='button' class='desktop-nav-btn' data-lobby-tab='shop' onclick='switchLobbyTab(\"shop\")'>🛍️ 装扮商城</button>\n");
-        sb.append("            <button type='button' class='desktop-nav-btn' data-lobby-tab='profile' onclick='switchLobbyTab(\"profile\")'>👤 个人中心</button>\n");
-        sb.append("        </nav>\n");
-        sb.append("    </div>\n");
-        sb.append("    <div class='active-room-banner' id='activeRoomBanner' style='display:none;' onclick='rejoinActiveRoom()'>\n");
-        sb.append("        <div class='banner-content'>\n");
-        sb.append("            <span class='pulse-dot'></span>\n");
-        sb.append("            <span id='activeRoomBannerText'></span>\n");
-        sb.append("        </div>\n");
-        sb.append("        <span class='btn-banner-action'>立即重连 ➔</span>\n");
-        sb.append("    </div>\n");
-        sb.append("    <div class='lobby-content'>\n");
-        sb.append("        <div id='lobbyTabGames' class='lobby-tab-content'>\n");
-        /* 首屏核心：快速开局与游戏列表 */
-        sb.append("            <div class='lobby-hero-card'>\n" +
-                  "                <div>\n" +
-                  "                    <div style='font-size:18px; font-weight:900;'>快速开局 · 跨端实时联机对战</div>\n" +
-                  "                    <div style='font-size:12.5px; color:#cbd5e1; margin-top:4px;'>选择下方任意桌游模式，支持一键秒匹、创建专属房间或输入 6 位房间号精准加入</div>\n" +
-                  "                </div>\n" +
-                  "                <div style='display:flex; gap:8px; flex-shrink:0; flex-wrap:wrap;'>\n" +
-                  "                    <button type='button' class='btn-hero-ghost' onclick='openGameRulesModal(\"take6\")'>📖 玩法宝典</button>\n" +
-                  "                    <button type='button' class='btn-hero-primary' onclick='quickPlayGame(\"take6\")'>⚡ 快速开局</button>\n" +
-                  "                </div>\n" +
-                  "            </div>\n");
-        sb.append("            <div class='commercial-quick-bar'>\n" +
-                  "                <button type='button' class='btn-commercial-tag first-recharge' onclick='openFirstRechargeModal()'>\n" +
-                  "                    <span class='comm-badge'>1100%返利</span>\n" +
-                  "                    <span class='comm-icon'>🎁</span>\n" +
-                  "                    <div><div class='comm-title'>6元首充豪礼</div><div class='comm-sub'>送绝版骰盅+VIP1</div></div>\n" +
-                  "                </button>\n" +
-                  "                <button type='button' class='btn-commercial-tag daily-signin' onclick='openSignInModal()'>\n" +
-                  "                    <span class='comm-icon'>📅</span>\n" +
-                  "                    <div><div class='comm-title'>每日连续签到</div><div class='comm-sub'>满7天领66钻石</div></div>\n" +
-                  "                </button>\n" +
-                  "                <button type='button' class='btn-commercial-tag lucky-gacha' onclick='openLuckyGachaModal()'>\n" +
-                  "                    <span class='comm-badge'>保底必出</span>\n" +
-                  "                    <span class='comm-icon'>🎯</span>\n" +
-                  "                    <div><div class='comm-title'>幸运夺宝盲盒</div><div class='comm-sub'>抽888钻与火箭</div></div>\n" +
-                  "                </button>\n" +
-                  "                <button type='button' class='btn-commercial-tag relief' onclick='openBankruptReliefModal()'>\n" +
-                  "                    <span class='comm-icon'>🆘</span>\n" +
-                  "                    <div><div class='comm-title'>免费领救济金</div><div class='comm-sub'>每日补给秒回血</div></div>\n" +
-                  "                </button>\n" +
-                  "            </div>\n");
-        sb.append("            <div class='lobby-games-workspace'>\n" +
-                  "                <div class='lobby-games-main'>\n");
-        sb.append("            <div class='category-filter-bar'>\n" +
-                  "                <button class='cat-pill active' data-cat='all' onclick='filterLobbyGameCategory(\"all\", this)'>🔥 全部玩法 (4)</button>\n" +
-                  "                <button class='cat-pill' data-cat='strategy' onclick='filterLobbyGameCategory(\"strategy\", this)'>🎲 策略博弈</button>\n" +
-                  "                <button class='cat-pill' data-cat='party' onclick='filterLobbyGameCategory(\"party\", this)'>🎡 酒桌破冰</button>\n" +
-                  "                <button class='cat-pill' data-cat='deduction' onclick='filterLobbyGameCategory(\"deduction\", this)'>🕵️ 推理猜词</button>\n" +
-                  "            </div>\n");
-        sb.append("            <div class='game-modes-grid'>\n");
-        sb.append("                <div class='game-mode-card take6' data-cat='strategy'>\n");
-        sb.append("                    <div class='game-mode-top'>\n");
-        sb.append("                        <div class='game-mode-title'><span>🐂 谁是牛头王 (Take 6!)</span></div>\n");
-        sb.append("                        <span class='game-mode-badge' style='background:#f59e0b; color:#1e293b;'>德式策略 · 6人开黑</span>\n");
+        sb.append("            <div class='ent-sidebar-section'>\n");
+        sb.append("                <div class='ent-sidebar-title'>福利中心</div>\n");
+        sb.append("                <button type='button' class='ent-nav-item' onclick='openFirstRechargeModal()'>\n");
+        sb.append("                    <span class='ent-nav-icon'>🎁</span><span class='ent-nav-label'>6元首充礼</span>\n");
+        sb.append("                </button>\n");
+        sb.append("                <button type='button' class='ent-nav-item' onclick='openSignInModal()'>\n");
+        sb.append("                    <span class='ent-nav-icon'>📅</span><span class='ent-nav-label'>7天签到</span>\n");
+        sb.append("                </button>\n");
+        sb.append("                <button type='button' class='ent-nav-item' onclick='openLuckyGachaModal()'>\n");
+        sb.append("                    <span class='ent-nav-icon'>🎯</span><span class='ent-nav-label'>幸运盲盒</span>\n");
+        sb.append("                </button>\n");
+        sb.append("                <button type='button' class='ent-nav-item' onclick='openBankruptReliefModal()'>\n");
+        sb.append("                    <span class='ent-nav-icon'>🆘</span><span class='ent-nav-label'>领救济金</span>\n");
+        sb.append("                </button>\n");
+        sb.append("            </div>\n");
+        sb.append("            <div class='ent-sidebar-footer'>\n");
+        sb.append("                <button type='button' class='ent-nav-item' onclick='openMyProfileModal()'>\n");
+        sb.append("                    <span class='ent-nav-icon'>🪪</span><span class='ent-nav-label'>我的名片</span>\n");
+        sb.append("                </button>\n");
+        sb.append("                <a class='ent-nav-item' href='" + assetPrefix + "/download/app'>\n");
+        sb.append("                    <span class='ent-nav-icon'>📲</span><span class='ent-nav-label'>下载 APP</span>\n");
+        sb.append("                </a>\n");
+        sb.append("                <button type='button' class='ent-nav-item ent-nav-danger' onclick='logoutUser()'>\n");
+        sb.append("                    <span class='ent-nav-icon'>🚪</span><span class='ent-nav-label'>退出登录</span>\n");
+        sb.append("                </button>\n");
+        sb.append("            </div>\n");
+        sb.append("        </aside>\n");
+        sb.append("        <div class='ent-main-col'>\n");
+        sb.append("            <header class='ent-topbar' id='lobbyHeader'>\n");
+        sb.append("                <div class='lobby-user-info' onclick='openMyProfileModal()' style='cursor:pointer;' title='点击查看个人完整资料卡'>\n");
+        sb.append("                    <div class='avatar-wrap'>\n");
+        sb.append("                        <div class='lobby-avatar' id='lobbyUserAvatar'>🦊</div>\n");
+        sb.append("                        <span class='avatar-crown' id='avatarVipCrown' style='display:none;'>👑</span>\n");
         sb.append("                    </div>\n");
-        sb.append("                    <div class='game-mode-desc'>每轮盲选一张卡牌同时亮出，按从小到大顺序入行；放进第6张牌的玩家收走整行牛头！支持落位风险预览～</div>\n");
-        sb.append("                    <div class='game-mode-actions'>\n");
-        sb.append("                        <button class='btn-mode-quick' onclick='quickPlayGame(\"take6\")'>⚡ 快速匹配开局</button>\n");
-        sb.append("                        <button class='btn-mode-create' onclick='createRoomQuick(\"take6\")'>➕ 创建新房间</button>\n");
-        sb.append("                        <button class='btn-mode-rules' onclick='openGameRulesModal(\"take6\")'>📖 规则</button>\n");
+        sb.append("                    <div class='lobby-user-details'>\n");
+        sb.append("                        <div class='lobby-user-name'>\n");
+        sb.append("                            <span id='lobbyUserName'>玩家昵称</span>\n");
+        sb.append("                            <span class='badge-vip' id='lobbyUserVip' onclick='event.stopPropagation(); openVipPrivilegesModal()' title='点击查看尊享 VIP 特权' style='display:none;'>👑 VIP 1</span>\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <div class='lobby-user-sub' id='lobbyUserUid'>\n");
+        sb.append("                            <span class='ent-uid-meta'><span>UID: <span id='lobbyUserUidText'>未登录</span></span><button type='button' class='btn-copy-id' onclick='event.stopPropagation(); copyUserId(myUserId)' title='一键复制UID'>📋 复制</button><span aria-hidden='true'>·</span></span>\n");
+        sb.append("                            <span id='lobbyUserRankTier'>🥉 倔强青铜</span>\n");
+        sb.append("                        </div>\n");
         sb.append("                    </div>\n");
         sb.append("                </div>\n");
-        sb.append("                <div class='game-mode-card dice' data-cat='strategy'>\n" +
-                  "                    <div class='game-mode-top'>\n" +
-                  "                        <div class='game-mode-title'><span>🎲 大话骰吹牛 (Liar's Dice)</span></div>\n" +
-                  "                        <span class='game-mode-badge' style='background:#3b82f6; color:#fff;'>酒吧经典 · 精准2x</span>\n" +
-                  "                    </div>\n" +
-                  "                    <div class='game-mode-desc'>支持1点万能飞与叫【斋】、纯1大于6、顺子重摇、豹子加码及“刚好 (Spot On)”双倍绝杀裁决！</div>\n" +
-                  "                    <div class='game-mode-actions'>\n" +
-                  "                        <button class='btn-mode-quick' style='background:linear-gradient(135deg,#3b82f6,#2563eb);' onclick='quickPlayGame(\"liars_dice\")'>⚡ 快速匹配开局</button>\n" +
-                  "                        <button class='btn-mode-create' onclick='createRoomQuick(\"liars_dice\")'>➕ 创建新房间</button>\n" +
-                  "                        <button class='btn-mode-rules' onclick='openGameRulesModal(\"liars_dice\")'>📖 规则</button>\n" +
-                  "                    </div>\n" +
-                  "                </div>\n" +
-                  "                <div class='game-mode-card wheel' data-cat='party'>\n" +
-                  "                    <div class='game-mode-top'>\n" +
-                  "                        <div class='game-mode-title'><span>🎡 聚会大冒险大转盘 (Party Wheel)</span></div>\n" +
-                  "                        <span class='game-mode-badge' style='background:#ec4899; color:#fff;'>四大题库 · 酒桌破冰</span>\n" +
-                  "                    </div>\n" +
-                  "                    <div class='game-mode-desc'>破冰、老友、心动、才艺四套分场景不重样题库，全桌同步高速轮盘与实时历史记录！</div>\n" +
-                  "                    <div class='game-mode-actions'>\n" +
-                  "                        <button class='btn-mode-quick' style='background:linear-gradient(135deg,#ec4899,#be185d);' onclick='quickPlayGame(\"party_wheel\")'>⚡ 快速匹配开局</button>\n" +
-                  "                        <button class='btn-mode-create' onclick='createRoomQuick(\"party_wheel\")'>➕ 创建新房间</button>\n" +
-                  "                        <button class='btn-mode-rules' onclick='openGameRulesModal(\"party_wheel\")'>📖 规则</button>\n" +
-                  "                    </div>\n" +
-                  "                </div>\n" +
-                  "                <div class='game-mode-card undercover' data-cat='deduction'>\n" +
-                  "                    <div class='game-mode-top'>\n" +
-                  "                        <div class='game-mode-title'><span>🕵️ 谁是卧底 (Undercover)</span></div>\n" +
-                  "                        <span class='game-mode-badge' style='background:#10b981; color:#fff;'>经典推理 · 平票PK</span>\n" +
-                  "                    </div>\n" +
-                  "                    <div class='game-mode-desc'>随机词库盲盒发词、麦序轮流发言、平票 PK 复投机制与局终全部阵营揭晓，聚会推理必备！</div>\n" +
-                  "                    <div class='game-mode-actions'>\n" +
-                  "                        <button class='btn-mode-quick' style='background:linear-gradient(135deg,#10b981,#047857);' onclick='quickPlayGame(\"undercover\")'>⚡ 快速匹配开局</button>\n" +
-                  "                        <button class='btn-mode-create' onclick='createRoomQuick(\"undercover\")'>➕ 创建新房间</button>\n" +
-                  "                        <button class='btn-mode-rules' onclick='openGameRulesModal(\"undercover\")'>📖 规则</button>\n" +
-                  "                    </div>\n" +
-                  "                </div>\n" +
-                  "            </div>\n" +
-                  "                </div>\n" +
-                  "                <aside class='lobby-rooms-sidebar'>\n");
-        sb.append("            <div class='search-room-bar'>\n");
-        sb.append("                <input type='text' id='inputSearchRoomCode' inputmode='numeric' class='search-room-input' placeholder='输入 6 位房间号精确加入...' maxlength='12' onkeydown='if(event.key===\"Enter\")joinSearchedRoom()'>\n");
-        sb.append("                <button class='btn-search-go' onclick='joinSearchedRoom()'>🔍 进入房间</button>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div class='room-list-box'>\n");
-        sb.append("                <div class='room-list-header'>\n");
-        sb.append("                    <span style='display:inline-flex; align-items:center; gap:6px;'>🔥 当前活跃开黑房间 <span id='lobbyRoomCountBadge' class='pg-count-pill'>0</span></span>\n");
-        sb.append("                    <button style='background:none; border:none; color:#38bdf8; font-size:12px; font-weight:700; cursor:pointer;' onclick='refreshLobbyRooms()'>🔄 刷新列表</button>\n");
+        sb.append("                <div class='ent-topbar-actions'>\n");
+        sb.append("                    <button type='button' class='ent-cmd-trigger' id='btnOpenCmdPalette' onclick='openCommandPalette()' title='打开快捷命令面板 (Ctrl+K / ⌘K)'>\n");
+        sb.append("                        <svg class='ent-cmd-ico' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><circle cx='11' cy='11' r='7'></circle><line x1='21' y1='21' x2='16.65' y2='16.65'></line></svg><span class='ent-cmd-text'>快捷指令 / 搜房</span><span class='ent-cmd-short'>搜房</span><kbd class='ent-kbd'>Ctrl+K</kbd>\n");
+        sb.append("                    </button>\n");
+        sb.append("                    <button type='button' class='ent-btn-create-room' id='btnTopCreateRoom' onclick='openCreateRoomModal()'><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.6' stroke-linecap='round' aria-hidden='true'><line x1='12' y1='5' x2='12' y2='19'></line><line x1='5' y1='12' x2='19' y2='12'></line></svg><span>创建房间</span></button>\n");
+        sb.append("                    <div class='lobby-assets'>\n");
+        sb.append("                        <div class='asset-chip coin' onclick='switchLobbyTab(\"shop\")' title='前往商店'>" + COIN_SVG + " <span id='lobbyUserCoins'>2,000</span></div>\n");
+        sb.append("                        <div class='asset-chip diamond' onclick='switchLobbyTab(\"shop\")' title='前往商店'>💎 <span id='lobbyUserDiamonds'>50</span></div>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <button type='button' class='btn-theme-toggle' id='btnLobbyThemeToggle' onclick='toggleWebTheme()' title='切换护眼明亮 / 夜店暗黑主题'><span class='ent-theme-ico'>🌙</span><span class='ent-theme-label'>暗黑</span></button>\n");
+        sb.append("                    <button type='button' class='btn-logout' onclick='logoutUser()' title='安全退出登录'>🚪 退出</button>\n");
         sb.append("                </div>\n");
-        sb.append("                <div id='lobbyRoomList' style='display:flex; flex-direction:column; gap:8px;'>\n");
-        sb.append("                    <div style='color:#64748b; font-size:12px; text-align:center; padding:16px;'>正在拉取在线房间列表...</div>\n");
+        sb.append("            </header>\n");
+        sb.append("            <div class='active-room-banner' id='activeRoomBanner' style='display:none;' onclick='rejoinActiveRoom()'>\n");
+        sb.append("                <div class='banner-content'>\n");
+        sb.append("                    <span class='pulse-dot'></span>\n");
+        sb.append("                    <span id='activeRoomBannerText'></span>\n");
         sb.append("                </div>\n");
+        sb.append("                <span class='btn-banner-action'>立即重连 ➔</span>\n");
         sb.append("            </div>\n");
-        sb.append("                </aside>\n");
-        sb.append("            </div>\n");
-        sb.append("        </div>\n");
-        sb.append("        <div id='lobbyTabSquare' class='lobby-tab-content' style='display:none;'>\n");
-        sb.append("            <div class='square-tabs'>\n");
-        sb.append("                <button class='square-tab-btn active' id='btnChanWorld' onclick='switchSquareChannel(\"WORLD\")'>全服世界频道</button>\n");
-        sb.append("                <button class='square-tab-btn' id='btnChanCity' onclick='switchSquareChannel(\"CITY\")'>同城交友频道</button>\n");
-        sb.append("                <button class='square-tab-btn' onclick='switchLobbyTab(\"friends\")'>我的好友</button>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div class='square-chat-stream' id='squareChatStream'>\n");
-        sb.append("                <div class='chat-line'><span class='system'>[广场公告]</span> 欢迎来到聚会桌游交流广场！文明发言，文明开黑～</div>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div class='quick-phrases' style='margin-bottom:8px;'>\n");
-        sb.append("                <div class='phrase-chip' onclick='sendSquareQuickMsg(\"有没有牛头王老司机？求进房带飞！\")'>🐮 牛头王求组</div>\n");
-        sb.append("                <div class='phrase-chip' onclick='sendSquareQuickMsg(\"大话骰吹牛高手何在？决战到天亮！\")'>🎲 吹牛来战</div>\n");
-        sb.append("                <div class='phrase-chip' onclick='sendSquareQuickMsg(\"加个好友处CP，互送鲜花提亲密度！\")'>❤️ 处CP加好友</div>\n");
-        sb.append("                <div class='phrase-chip' onclick='sendSquareQuickMsg(\"今晚全场的消费由赵公子买单！\")'>💰 赵公子买单</div>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div class='square-input-bar'>\n");
-        sb.append("                <input type='text' id='squareChatInput' class='form-input' placeholder='在广场发送消息...' maxlength='50' onkeydown='if(event.key===\"Enter\")sendSquareChatMessage()'>\n");
-        sb.append("                <button class='btn-search-go' onclick='sendSquareChatMessage()'>发送</button>\n");
-        sb.append("                <button style='background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:none; padding:7px 12px; border-radius:10px; font-weight:bold; font-size:12px; cursor:pointer; margin-left:6px; white-space:nowrap;' onclick='openGlobalBroadcastModal()'>📢 全服喇叭</button>\n");
-        sb.append("            </div>\n");
-        sb.append("        </div>\n");
-        sb.append("        <div id='lobbyTabRank' class='lobby-tab-content' style='display:none;'>\n");
-        sb.append("            <div class='rank-tabs'>\n");
-        sb.append("                <button class='rank-tab-btn active' id='btnRankTier' onclick='switchRankType(\"tier\")'>🏆 天梯排位积分榜</button>\n");
-        sb.append("                <button class='rank-tab-btn' id='btnRankWealth' onclick='switchRankType(\"wealth\")'>💰 财富神豪金币榜</button>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div class='my-rank-banner' id='myRankCard'>\n");
-        sb.append("                <div style='display:flex; align-items:center; gap:10px;'>\n");
-        sb.append("                    <span style='font-size:24px;'>🎖️</span>\n");
-        sb.append("                    <div style='text-align:left;'>\n");
-        sb.append("                        <div style='font-size:13px; font-weight:bold; color:#b45309;'>我的天梯排位</div>\n");
-        sb.append("                        <div style='font-size:11px; color:#475569;' id='myRankDesc'>暂未进入前50名 · 积分 1200 · 胜率 50%</div>\n");
+        sb.append("            <div class='lobby-content'>\n");
+        sb.append("                <div id='lobbyTabGames' class='lobby-tab-content'>\n");
+        sb.append("                    <section class='ent-hero-stage'>\n");
+        sb.append("                        <div class='ent-hero-copy'>\n");
+        sb.append("                            <div class='ent-hero-eyebrow'>LIVE PARTY ARENA · 跨端实时联机桌游</div>\n");
+        sb.append("                            <h2 class='ent-hero-title'>聚在一起，下一局更好玩</h2>\n");
+        sb.append("                            <p class='ent-hero-desc'>服务端权威发牌裁决，支持 6 人实时对战、好友观战席、断线秒级重连与 APP 无缝互通。</p>\n");
+        sb.append("                            <div class='ent-hero-metrics'>\n");
+        sb.append("                                <div class='ent-metric-pill'><span class='ent-metric-dot online'></span>在线房间 <b id='heroOnlineRoomsCount' class='tabular-nums'>0</b></div>\n");
+        sb.append("                                <div class='ent-metric-pill'><span class='ent-metric-dot waiting'></span>可加入组队 <b id='heroWaitingRoomsCount' class='tabular-nums'>0</b></div>\n");
+        sb.append("                            </div>\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <div class='ent-hero-actions'>\n");
+        sb.append("                            <button type='button' class='btn-hero-primary' onclick='quickPlayGame(\"take6\")'>⚡ 快速开局</button>\n");
+        sb.append("                            <button type='button' class='btn-hero-secondary' onclick='openCreateRoomModal()'>➕ 自定义建房</button>\n");
+        sb.append("                            <button type='button' class='btn-hero-ghost' onclick='openGameRulesModal(\"take6\")'>📖 玩法宝典</button>\n");
+        sb.append("                        </div>\n");
+        sb.append("                    </section>\n");
+        sb.append("                    <div class='commercial-quick-bar ent-perk-ribbon'>\n");
+        sb.append("                        <button type='button' class='btn-commercial-tag first-recharge' onclick='openFirstRechargeModal()'>\n");
+        sb.append("                            <span class='comm-badge'>1100%返利</span>\n");
+        sb.append("                            <span class='comm-icon'>🎁</span>\n");
+        sb.append("                            <div><div class='comm-title'>6元首充豪礼</div><div class='comm-sub'>送绝版骰盅+VIP1</div></div>\n");
+        sb.append("                        </button>\n");
+        sb.append("                        <button type='button' class='btn-commercial-tag daily-signin' onclick='openSignInModal()'>\n");
+        sb.append("                            <span class='comm-icon'>📅</span>\n");
+        sb.append("                            <div><div class='comm-title'>每日连续签到</div><div class='comm-sub'>满7天领66钻石</div></div>\n");
+        sb.append("                        </button>\n");
+        sb.append("                        <button type='button' class='btn-commercial-tag lucky-gacha' onclick='openLuckyGachaModal()'>\n");
+        sb.append("                            <span class='comm-badge'>保底必出</span>\n");
+        sb.append("                            <span class='comm-icon'>🎯</span>\n");
+        sb.append("                            <div><div class='comm-title'>幸运夺宝盲盒</div><div class='comm-sub'>抽888钻与火箭</div></div>\n");
+        sb.append("                        </button>\n");
+        sb.append("                        <button type='button' class='btn-commercial-tag relief' onclick='openBankruptReliefModal()'>\n");
+        sb.append("                            <span class='comm-icon'>🆘</span>\n");
+        sb.append("                            <div><div class='comm-title'>免费领救济金</div><div class='comm-sub'>每日补给秒回血</div></div>\n");
+        sb.append("                        </button>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div class='lobby-games-workspace'>\n");
+        sb.append("                        <div class='lobby-games-main'>\n");
+        sb.append("                            <div class='category-filter-bar'>\n");
+        sb.append("                                <button type='button' class='cat-pill active' data-cat='all' onclick='filterLobbyGameCategory(\"all\", this)'>🔥 全部玩法 (4)</button>\n");
+        sb.append("                                <button type='button' class='cat-pill' data-cat='strategy' onclick='filterLobbyGameCategory(\"strategy\", this)'>🎲 策略博弈</button>\n");
+        sb.append("                                <button type='button' class='cat-pill' data-cat='party' onclick='filterLobbyGameCategory(\"party\", this)'>🎡 酒桌破冰</button>\n");
+        sb.append("                                <button type='button' class='cat-pill' data-cat='deduction' onclick='filterLobbyGameCategory(\"deduction\", this)'>🕵️ 推理猜词</button>\n");
+        sb.append("                            </div>\n");
+        sb.append("                            <div class='game-modes-grid'>\n");
+        sb.append("                                <div class='game-mode-card take6' data-cat='strategy'>\n");
+        sb.append("                                    <div class='game-mode-top'>\n");
+        sb.append("                                        <div class='game-mode-title'><span>🐂 谁是牛头王 (Take 6!)</span></div>\n");
+        sb.append("                                        <span class='game-mode-badge' style='background:#f59e0b; color:#1e293b;'>德式策略 · 6人开黑</span>\n");
+        sb.append("                                    </div>\n");
+        sb.append("                                    <div class='game-mode-desc'>每轮盲选一张卡牌同时亮出，按从小到大顺序入行；放进第6张牌的玩家收走整行牛头！支持落位风险预览～</div>\n");
+        sb.append("                                    <div class='game-mode-meta-row'>\n");
+        sb.append("                                        <span class='game-live-pill'>🟢 活跃房间 <b id='gameLiveCount_take6' class='tabular-nums'>0</b></span>\n");
+        sb.append("                                        <span class='game-meta-tag'>2-6人 · 约8分钟</span>\n");
+        sb.append("                                    </div>\n");
+        sb.append("                                    <div class='game-mode-actions'>\n");
+        sb.append("                                        <button type='button' class='btn-mode-quick' onclick='quickPlayGame(\"take6\")'>⚡ 快速匹配开局</button>\n");
+        sb.append("                                        <button type='button' class='btn-mode-create' onclick='openCreateRoomModal(\"take6\")'>➕ 创建新房间</button>\n");
+        sb.append("                                        <button type='button' class='btn-mode-rules' onclick='openGameRulesModal(\"take6\")'>📖 规则</button>\n");
+        sb.append("                                    </div>\n");
+        sb.append("                                </div>\n");
+        sb.append("                                <div class='game-mode-card dice' data-cat='strategy'>\n");
+        sb.append("                                    <div class='game-mode-top'>\n");
+        sb.append("                                        <div class='game-mode-title'><span>🎲 大话骰吹牛 (Liar's Dice)</span></div>\n");
+        sb.append("                                        <span class='game-mode-badge' style='background:#1d4ed8; color:#fff;'>酒吧经典 · 精准2x</span>\n");
+        sb.append("                                    </div>\n");
+        sb.append("                                    <div class='game-mode-desc'>支持1点万能飞与叫【斋】、纯1大于6、顺子重摇、豹子加码及“刚好 (Spot On)”双倍绝杀裁决！</div>\n");
+        sb.append("                                    <div class='game-mode-meta-row'>\n");
+        sb.append("                                        <span class='game-live-pill'>🟢 活跃房间 <b id='gameLiveCount_liars_dice' class='tabular-nums'>0</b></span>\n");
+        sb.append("                                        <span class='game-meta-tag'>2-6人 · 约5分钟</span>\n");
+        sb.append("                                    </div>\n");
+        sb.append("                                    <div class='game-mode-actions'>\n");
+        sb.append("                                        <button type='button' class='btn-mode-quick' style='background:linear-gradient(135deg,#3b82f6,#2563eb);' onclick='quickPlayGame(\"liars_dice\")'>⚡ 快速匹配开局</button>\n");
+        sb.append("                                        <button type='button' class='btn-mode-create' onclick='openCreateRoomModal(\"liars_dice\")'>➕ 创建新房间</button>\n");
+        sb.append("                                        <button type='button' class='btn-mode-rules' onclick='openGameRulesModal(\"liars_dice\")'>📖 规则</button>\n");
+        sb.append("                                    </div>\n");
+        sb.append("                                </div>\n");
+        sb.append("                                <div class='game-mode-card wheel' data-cat='party'>\n");
+        sb.append("                                    <div class='game-mode-top'>\n");
+        sb.append("                                        <div class='game-mode-title'><span>🎡 聚会大冒险大转盘 (Party Wheel)</span></div>\n");
+        sb.append("                                        <span class='game-mode-badge' style='background:#be185d; color:#fff;'>四大题库 · 酒桌破冰</span>\n");
+        sb.append("                                    </div>\n");
+        sb.append("                                    <div class='game-mode-desc'>破冰、老友、心动、才艺四套分场景不重样题库，全桌同步高速轮盘与实时历史记录！</div>\n");
+        sb.append("                                    <div class='game-mode-meta-row'>\n");
+        sb.append("                                        <span class='game-live-pill'>🟢 活跃房间 <b id='gameLiveCount_party_wheel' class='tabular-nums'>0</b></span>\n");
+        sb.append("                                        <span class='game-meta-tag'>2-8人 · 破冰必备</span>\n");
+        sb.append("                                    </div>\n");
+        sb.append("                                    <div class='game-mode-actions'>\n");
+        sb.append("                                        <button type='button' class='btn-mode-quick' style='background:linear-gradient(135deg,#ec4899,#be185d);' onclick='quickPlayGame(\"party_wheel\")'>⚡ 快速匹配开局</button>\n");
+        sb.append("                                        <button type='button' class='btn-mode-create' onclick='openCreateRoomModal(\"party_wheel\")'>➕ 创建新房间</button>\n");
+        sb.append("                                        <button type='button' class='btn-mode-rules' onclick='openGameRulesModal(\"party_wheel\")'>📖 规则</button>\n");
+        sb.append("                                    </div>\n");
+        sb.append("                                </div>\n");
+        sb.append("                                <div class='game-mode-card undercover' data-cat='deduction'>\n");
+        sb.append("                                    <div class='game-mode-top'>\n");
+        sb.append("                                        <div class='game-mode-title'><span>🕵️ 谁是卧底 (Undercover)</span></div>\n");
+        sb.append("                                        <span class='game-mode-badge' style='background:#047857; color:#fff;'>经典推理 · 平票PK</span>\n");
+        sb.append("                                    </div>\n");
+        sb.append("                                    <div class='game-mode-desc'>随机词库盲盒发词、麦序轮流发言、平票 PK 复投机制与局终全部阵营揭晓，聚会推理必备！</div>\n");
+        sb.append("                                    <div class='game-mode-meta-row'>\n");
+        sb.append("                                        <span class='game-live-pill'>🟢 活跃房间 <b id='gameLiveCount_undercover' class='tabular-nums'>0</b></span>\n");
+        sb.append("                                        <span class='game-meta-tag'>4-8人 · 约6分钟</span>\n");
+        sb.append("                                    </div>\n");
+        sb.append("                                    <div class='game-mode-actions'>\n");
+        sb.append("                                        <button type='button' class='btn-mode-quick' style='background:linear-gradient(135deg,#10b981,#047857);' onclick='quickPlayGame(\"undercover\")'>⚡ 快速匹配开局</button>\n");
+        sb.append("                                        <button type='button' class='btn-mode-create' onclick='openCreateRoomModal(\"undercover\")'>➕ 创建新房间</button>\n");
+        sb.append("                                        <button type='button' class='btn-mode-rules' onclick='openGameRulesModal(\"undercover\")'>📖 规则</button>\n");
+        sb.append("                                    </div>\n");
+        sb.append("                                </div>\n");
+        sb.append("                            </div>\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <aside class='lobby-rooms-sidebar'>\n");
+        sb.append("                            <div class='room-list-box ent-room-browser'>\n");
+        sb.append("                                <div class='room-list-header'>\n");
+        sb.append("                                    <span style='display:inline-flex; align-items:center; gap:6px;'>🔥 当前活跃开黑房间 <span id='lobbyRoomCountBadge' class='pg-count-pill'>0</span></span>\n");
+        sb.append("                                    <button type='button' style='background:none; border:none; color:#38bdf8; font-size:12px; font-weight:700; cursor:pointer;' onclick='refreshLobbyRooms()'>🔄 刷新列表</button>\n");
+        sb.append("                                </div>\n");
+        sb.append("                                <div class='search-room-bar'>\n");
+        sb.append("                                    <input type='text' id='inputSearchRoomCode' inputmode='numeric' class='search-room-input' placeholder='输入 6 位房间号或关键字筛选...' maxlength='12' onkeydown='if(event.key===\"Enter\")joinSearchedRoom()'>\n");
+        sb.append("                                    <button type='button' class='btn-search-go' id='btnSearchRoomGo' onclick='joinSearchedRoom()'>🔍 进入房间</button>\n");
+        sb.append("                                </div>\n");
+        sb.append("                                <div class='ent-room-filter-bar' id='roomFilterBar'>\n");
+        sb.append("                                    <button type='button' class='ent-filter-pill active' data-room-filter='all'>全部</button>\n");
+        sb.append("                                    <button type='button' class='ent-filter-pill' data-room-filter='WAITING'>等待中</button>\n");
+        sb.append("                                    <button type='button' class='ent-filter-pill' data-room-filter='take6'>🐂 牛头王</button>\n");
+        sb.append("                                    <button type='button' class='ent-filter-pill' data-room-filter='liars_dice'>🎲 大话骰</button>\n");
+        sb.append("                                    <button type='button' class='ent-filter-pill' data-room-filter='party_wheel'>🎡 大转盘</button>\n");
+        sb.append("                                    <button type='button' class='ent-filter-pill' data-room-filter='undercover'>🕵️ 卧底</button>\n");
+        sb.append("                                </div>\n");
+        sb.append("                                <div id='lobbyRoomList' style='display:flex; flex-direction:column; gap:8px;'>\n");
+        sb.append("                                    <div style='color:#64748b; font-size:12px; text-align:center; padding:16px;'>正在拉取在线房间列表...</div>\n");
+        sb.append("                                </div>\n");
+        sb.append("                            </div>\n");
+        sb.append("                        </aside>\n");
         sb.append("                    </div>\n");
         sb.append("                </div>\n");
-        sb.append("                <button style='background:#f59e0b; color:#1e293b; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:bold; cursor:pointer;' onclick='quickPlayGame(\"take6\")'>前往冲榜 ➔</button>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div id='rankListContainer' style='display:flex; flex-direction:column; gap:8px;'>\n");
-        sb.append("                <div style='color:#64748b; font-size:12px; text-align:center; padding:16px;'>正在拉取最新排行榜数据...</div>\n");
-        sb.append("            </div>\n");
-        sb.append("        </div>\n");
-        sb.append("        <div id='lobbyTabFriends' class='lobby-tab-content' style='display:none;'>\n");
-        sb.append("            <div class='square-tabs'>\n");
-        sb.append("                <button class='square-tab-btn' onclick='switchLobbyTab(\"square\"); switchSquareChannel(\"WORLD\")'>全服世界频道</button>\n");
-        sb.append("                <button class='square-tab-btn' onclick='switchLobbyTab(\"square\"); switchSquareChannel(\"CITY\")'>同城交友频道</button>\n");
-        sb.append("                <button class='square-tab-btn active'>❤️ 亲密好友</button>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div class='lobby-friends-workspace'><div>\n");
-        sb.append("            <div class='intimacy-wall'>\n");
-        sb.append("                <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>\n");
-        sb.append("                    <span class='pg-title' style='font-size:14px; font-weight:bold;'>❤️ 我的亲密关系墙</span>\n");
-        sb.append("                    <span style='font-size:11px; color:#f43f5e;'>结交知己 · 缔结良缘</span>\n");
-        sb.append("                </div>\n");
-        sb.append("                <div id='intimacyWallList'>\n");
-        sb.append("                    <div class='pg-sub' style='font-size:12px; text-align:center; padding:12px;'>暂无已缔结的亲密关系，互送礼物达到亲密度即可绑定～</div>\n");
-        sb.append("                </div>\n");
-        sb.append("                <div class='pg-rose-panel' style='padding:10px; font-size:11px; line-height:1.5; margin-top:10px; text-align:left;'>\n");
-        sb.append("                    💡 <b>亲密度规则</b>：送鲜花/啤酒/互动道具可增加亲密度；满50点可设为<b>【朋友】</b>，100点<b>【发小/死党】</b>，200点<b>【知己/闺蜜/基友】</b>，520点<b>【情侣/老婆/老公】</b>！\n");
-        sb.append("                </div>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div class='search-room-bar'>\n");
-        sb.append("                <input type='text' id='inputAddFriendUid' class='search-room-input' placeholder='输入玩家 UID 或昵称添加好友...'>\n");
-        sb.append("                <button class='btn-search-go' onclick='actionApplyFriend()'>➕ 申请好友</button>\n");
-        sb.append("            </div>\n");
-        sb.append("            </div><div>\n");
-        sb.append("            <div class='room-list-box' id='pendingRequestsBox' style='margin-bottom:12px;'>\n");
-        sb.append("                <div class='room-list-header pg-blue-header'>\n");
-        sb.append("                    <span style='font-weight:800; display:flex; align-items:center; gap:6px;'>📩 好友申请与陌生人留言 <span id='pendingRequestsCountBadge' class='badge-vip' style='display:none; background:#ef4444; font-size:10px; padding:1px 6px;'>0</span></span>\n");
-        sb.append("                    <button style='background:none; border:none; color:inherit; font-size:12px; cursor:pointer; font-weight:bold;' onclick='loadFriendRequestsData()'>🔄 刷新申请</button>\n");
-        sb.append("                </div>\n");
-        sb.append("                <div id='pendingRequestsContainer' style='display:flex; flex-direction:column; gap:8px; padding:8px 0;'>\n");
-        sb.append("                    <div class='pg-sub' style='font-size:12px; text-align:center; padding:12px;'>暂无待处理的好友申请与陌生人留言</div>\n");
-        sb.append("                </div>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div class='room-list-box'>\n");
-        sb.append("                <div class='room-list-header'>\n");
-        sb.append("                    <span>👥 我的好友列表</span>\n");
-        sb.append("                    <button style='background:none; border:none; color:#38bdf8; font-size:12px; cursor:pointer;' onclick='loadFriendsData()'>🔄 刷新好友</button>\n");
-        sb.append("                </div>\n");
-        sb.append("                <div id='friendsListContainer' style='display:flex; flex-direction:column; gap:8px;'>\n");
-        sb.append("                    <div class='pg-sub' style='font-size:12px; text-align:center; padding:16px;'>正在拉取好友列表...</div>\n");
-        sb.append("                </div>\n");
-        sb.append("            </div>\n");
-        sb.append("            </div></div>\n");
-        sb.append("        </div>\n");
-        sb.append("        <div id='lobbyTabShop' class='lobby-tab-content' style='display:none;'>\n");
-        sb.append("            <div class='pg-shop-vip-banner'>\n");
-        sb.append("                <div>\n");
-        sb.append("                    <div style='font-size:14px; font-weight:800; color:#d97706; display:flex; align-items:center; gap:6px;'>\n");
-        sb.append("                        <span>👑 VIP 特权装扮商城</span>\n");
-        sb.append("                        <span class='badge-vip' id='shopUserVipBadge'>V1</span>\n");
-        sb.append("                    </div>\n");
-        sb.append("                    <div class='pg-sub' style='font-size:11.5px; margin-top:2px;'>\n");
-        sb.append("                        金币 " + COIN_SVG + " <span id='shopUserCoins' style='font-weight:bold;'>2,000</span> · 钻石 💎 <span id='shopUserDiamonds' style='font-weight:bold;'>50</span>\n");
+        sb.append("                <div id='lobbyTabSquare' class='lobby-tab-content' style='display:none;'>\n");
+        sb.append("                    <div class='ent-square-workspace'>\n");
+        sb.append("                        <div class='ent-square-main'>\n");
+        sb.append("                            <div class='square-tabs'>\n");
+        sb.append("                                <button type='button' class='square-tab-btn active' id='btnChanWorld' onclick='switchSquareChannel(\"WORLD\")'>全服世界频道</button>\n");
+        sb.append("                                <button type='button' class='square-tab-btn' id='btnChanCity' onclick='switchSquareChannel(\"CITY\")'>同城交友频道</button>\n");
+        sb.append("                                <button type='button' class='square-tab-btn' onclick='switchLobbyTab(\"friends\")'>我的好友</button>\n");
+        sb.append("                            </div>\n");
+        sb.append("                            <div class='square-chat-stream' id='squareChatStream'>\n");
+        sb.append("                                <div class='chat-line'><span class='system'>[广场公告]</span> 欢迎来到聚会桌游交流广场！文明发言，文明开黑～</div>\n");
+        sb.append("                            </div>\n");
+        sb.append("                            <div class='quick-phrases' style='margin-bottom:8px;'>\n");
+        sb.append("                                <div class='phrase-chip' onclick='sendSquareQuickMsg(\"有没有牛头王老司机？求进房带飞！\")'>🐮 牛头王求组</div>\n");
+        sb.append("                                <div class='phrase-chip' onclick='sendSquareQuickMsg(\"大话骰吹牛高手何在？决战到天亮！\")'>🎲 吹牛来战</div>\n");
+        sb.append("                                <div class='phrase-chip' onclick='sendSquareQuickMsg(\"加个好友处CP，互送鲜花提亲密度！\")'>❤️ 处CP加好友</div>\n");
+        sb.append("                                <div class='phrase-chip' onclick='sendSquareQuickMsg(\"今晚全场的消费由赵公子买单！\")'>💰 赵公子买单</div>\n");
+        sb.append("                            </div>\n");
+        sb.append("                            <div class='square-input-bar'>\n");
+        sb.append("                                <input type='text' id='squareChatInput' class='form-input' placeholder='在广场发送消息...' maxlength='50' onkeydown='if(event.key===\"Enter\")sendSquareChatMessage()'>\n");
+        sb.append("                                <button type='button' class='btn-search-go' onclick='sendSquareChatMessage()'>发送</button>\n");
+        sb.append("                                <button type='button' style='background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:none; padding:7px 12px; border-radius:10px; font-weight:bold; font-size:12px; cursor:pointer; margin-left:6px; white-space:nowrap;' onclick='openGlobalBroadcastModal()'>📢 全服喇叭</button>\n");
+        sb.append("                            </div>\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <aside class='ent-square-aside'>\n");
+        sb.append("                            <div class='room-list-box ent-square-aside-card'>\n");
+        sb.append("                                <div class='room-list-header'><span>🧭 广场公约 &amp; 极速进房</span></div>\n");
+        sb.append("                                <div class='pg-sub' style='font-size:12px; line-height:1.6; margin-bottom:12px;'>\n");
+        sb.append("                                    1. 在聊天中输入 <b>#6位房间号</b>（如 #123456）将自动生成一键进房卡片；<br>\n");
+        sb.append("                                    2. 使用全服大喇叭可向全服在线玩家同步投送高亮跑马灯邀约；<br>\n");
+        sb.append("                                    3. 请勿发布广告或违规言论，共同维护优质组局环境。\n");
+        sb.append("                                </div>\n");
+        sb.append("                                <div style='display:flex; flex-direction:column; gap:8px;'>\n");
+        sb.append("                                    <button type='button' class='btn-mode-quick' onclick='openCreateRoomModal()'>➕ 立即创建开黑房</button>\n");
+        sb.append("                                    <button type='button' class='btn-mode-create' onclick='openCommandPalette()'>🔍 快捷输号进房 (Ctrl+K)</button>\n");
+        sb.append("                                    <button type='button' class='btn-mode-rules' onclick='openGameRulesModal(\"take6\")'>📖 查看四大玩法规则</button>\n");
+        sb.append("                                </div>\n");
+        sb.append("                            </div>\n");
+        sb.append("                        </aside>\n");
         sb.append("                    </div>\n");
         sb.append("                </div>\n");
-        sb.append("                <button style='background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:none; padding:8px 16px; border-radius:10px; font-size:12px; font-weight:bold; cursor:pointer; box-shadow:0 2px 6px rgba(245,158,11,0.3);' onclick='switchShopCategory(\"recharge\")'>⚡ 立即充值</button>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div class='shop-sub-nav'>\n");
-        sb.append("                <button class='shop-sub-btn active' id='shopNavDiceCup' onclick='switchShopCategory(\"dice_cup\")'>🎲 骰盅皮肤</button>\n");
-        sb.append("                <button class='shop-sub-btn' id='shopNavAvatarFrame' onclick='switchShopCategory(\"avatar_frame\")'>🖼️ 头像边框</button>\n");
-        sb.append("                <button class='shop-sub-btn' id='shopNavEntranceBanner' onclick='switchShopCategory(\"entrance_banner\")'>🚩 进场横幅</button>\n");
-        sb.append("                <button class='shop-sub-btn' id='shopNavChatTextColor' onclick='switchShopCategory(\"chat_text_color\")'>🎨 文字颜色</button>\n");
-        sb.append("                <button class='shop-sub-btn' id='shopNavGiftProp' onclick='switchShopCategory(\"gift_prop\")'>🎁 互动道具</button>\n");
-        sb.append("                <button class='shop-sub-btn' id='shopNavRecharge' onclick='switchShopCategory(\"recharge\")'>💎 官方充值</button>\n");
-        sb.append("                <button class='shop-sub-btn' id='shopNavVipCenter' onclick='switchShopCategory(\"vip_center\")'>👑 VIP特权</button>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div id='shopCatalogContainer' style='min-height:220px;'>\n");
-        sb.append("                <div class='pg-sub' style='font-size:12px; text-align:center; padding:30px;'>正在加载商城装扮与道具...</div>\n");
-        sb.append("            </div>\n");
-        sb.append("        </div>\n");
-        sb.append("        <div id='lobbyTabProfile' class='lobby-tab-content' style='display:none;'>\n");
-        sb.append("            <div class='lobby-profile-workspace'>\n");
-        sb.append("            <div class='profile-card' style='margin-bottom:0;'>\n");
-        sb.append("                <div class='lobby-avatar' id='profileAvatarBig' style='width:58px; height:58px; font-size:28px; margin:0 auto 10px; border-width:3px;'>🦊</div>\n");
-        sb.append("                <div class='pg-title' style='font-size:18px; font-weight:bold;' id='profileNickname'>玩家昵称</div>\n");
-        sb.append("                <div class='pg-sub' style='font-size:12px; margin-top:2px;' id='profileUidText'>OneID 通行证已就绪</div>\n");
-        sb.append("                <div class='profile-stat-grid'>\n");
-        sb.append("                    <div class='profile-stat-box'>\n");
-        sb.append("                        <div class='stat-val' id='statTotalGames'>0</div>\n");
-        sb.append("                        <div class='stat-lbl'>总局数</div>\n");
+        sb.append("                <div id='lobbyTabRank' class='lobby-tab-content' style='display:none;'>\n");
+        sb.append("                    <div class='rank-tabs'>\n");
+        sb.append("                        <button type='button' class='rank-tab-btn active' id='btnRankTier' onclick='switchRankType(\"tier\")'>🏆 天梯排位积分榜</button>\n");
+        sb.append("                        <button type='button' class='rank-tab-btn' id='btnRankWealth' onclick='switchRankType(\"wealth\")'>💰 财富神豪金币榜</button>\n");
         sb.append("                    </div>\n");
-        sb.append("                    <div class='profile-stat-box'>\n");
-        sb.append("                        <div class='stat-val' id='statWinCount'>0</div>\n");
-        sb.append("                        <div class='stat-lbl'>胜场数</div>\n");
+        sb.append("                    <div class='my-rank-banner' id='myRankCard'>\n");
+        sb.append("                        <div style='display:flex; align-items:center; gap:10px;'>\n");
+        sb.append("                            <span style='font-size:24px;'>🎖️</span>\n");
+        sb.append("                            <div style='text-align:left;'>\n");
+        sb.append("                                <div style='font-size:13px; font-weight:bold; color:#b45309;'>我的天梯排位</div>\n");
+        sb.append("                                <div style='font-size:11px; color:#475569;' id='myRankDesc'>暂未进入前50名 · 积分 1200 · 胜率 50%</div>\n");
+        sb.append("                            </div>\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <button type='button' style='background:#f59e0b; color:#1e293b; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:bold; cursor:pointer;' onclick='quickPlayGame(\"take6\")'>前往冲榜 ➔</button>\n");
         sb.append("                    </div>\n");
-        sb.append("                    <div class='profile-stat-box'>\n");
-        sb.append("                        <div class='stat-val' style='color:#10b981;' id='statWinRate'>0%</div>\n");
-        sb.append("                        <div class='stat-lbl'>综合胜率</div>\n");
-        sb.append("                    </div>\n");
-        sb.append("                    <div class='profile-stat-box'>\n");
-        sb.append("                        <div class='stat-val' style='color:#f59e0b;' id='statRankScore'>1200</div>\n");
-        sb.append("                        <div class='stat-lbl'>天梯积分</div>\n");
+        sb.append("                    <div id='rankPodium' class='ent-rank-podium'></div>\n");
+        sb.append("                    <div id='rankListContainer' style='display:flex; flex-direction:column; gap:8px;'>\n");
+        sb.append("                        <div style='color:#64748b; font-size:12px; text-align:center; padding:16px;'>正在拉取最新排行榜数据...</div>\n");
         sb.append("                    </div>\n");
         sb.append("                </div>\n");
-        sb.append("                <div class='pg-soft-panel' style='display:flex; justify-content:space-around; padding:10px; font-size:12px;'>\n");
-        sb.append("                    <div>" + COIN_SVG + " 金币：<b id='profileCoins' style='color:#d97706;'>2,000</b></div>\n");
-        sb.append("                    <div>💎 钻石：<b id='profileDiamonds' style='color:#0284c7;'>50</b></div>\n");
-        sb.append("                    <div>👑 VIP：<b id='profileVip' style='color:#d97706;'>VIP 1</b></div>\n");
+        sb.append("                <div id='lobbyTabFriends' class='lobby-tab-content' style='display:none;'>\n");
+        sb.append("                    <div class='square-tabs'>\n");
+        sb.append("                        <button type='button' class='square-tab-btn' onclick='switchLobbyTab(\"square\"); switchSquareChannel(\"WORLD\")'>全服世界频道</button>\n");
+        sb.append("                        <button type='button' class='square-tab-btn' onclick='switchLobbyTab(\"square\"); switchSquareChannel(\"CITY\")'>同城交友频道</button>\n");
+        sb.append("                        <button type='button' class='square-tab-btn active'>❤️ 亲密好友</button>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div class='lobby-friends-workspace'><div>\n");
+        sb.append("                    <div class='intimacy-wall'>\n");
+        sb.append("                        <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;'>\n");
+        sb.append("                            <span class='pg-title' style='font-size:14px; font-weight:bold;'>❤️ 我的亲密关系墙</span>\n");
+        sb.append("                            <span style='font-size:11px; color:#f43f5e;'>结交知己 · 缔结良缘</span>\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <div id='intimacyWallList'>\n");
+        sb.append("                            <div class='pg-sub' style='font-size:12px; text-align:center; padding:12px;'>暂无已缔结的亲密关系，互送礼物达到亲密度即可绑定～</div>\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <div class='pg-rose-panel' style='padding:10px; font-size:11px; line-height:1.5; margin-top:10px; text-align:left;'>\n");
+        sb.append("                            💡 <b>亲密度规则</b>：送鲜花/啤酒/互动道具可增加亲密度；满50点可设为<b>【朋友】</b>，100点<b>【发小/死党】</b>，200点<b>【知己/闺蜜/基友】</b>，520点<b>【情侣/老婆/老公】</b>！\n");
+        sb.append("                        </div>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div class='search-room-bar'>\n");
+        sb.append("                        <input type='text' id='inputAddFriendUid' class='search-room-input' placeholder='输入玩家 UID 或昵称添加好友...'>\n");
+        sb.append("                        <button type='button' class='btn-search-go' onclick='actionApplyFriend()'>➕ 申请好友</button>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    </div><div>\n");
+        sb.append("                    <div class='room-list-box' id='pendingRequestsBox' style='margin-bottom:12px;'>\n");
+        sb.append("                        <div class='room-list-header pg-blue-header'>\n");
+        sb.append("                            <span style='font-weight:800; display:flex; align-items:center; gap:6px;'>📩 好友申请与陌生人留言 <span id='pendingRequestsCountBadge' class='badge-vip' style='display:none; background:#ef4444; font-size:10px; padding:1px 6px;'>0</span></span>\n");
+        sb.append("                            <button type='button' style='background:none; border:none; color:inherit; font-size:12px; cursor:pointer; font-weight:bold;' onclick='loadFriendRequestsData()'>🔄 刷新申请</button>\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <div id='pendingRequestsContainer' style='display:flex; flex-direction:column; gap:8px; padding:8px 0;'>\n");
+        sb.append("                            <div class='pg-sub' style='font-size:12px; text-align:center; padding:12px;'>暂无待处理的好友申请与陌生人留言</div>\n");
+        sb.append("                        </div>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div class='room-list-box'>\n");
+        sb.append("                        <div class='room-list-header'>\n");
+        sb.append("                            <span>👥 我的好友列表</span>\n");
+        sb.append("                            <button type='button' style='background:none; border:none; color:#38bdf8; font-size:12px; cursor:pointer;' onclick='loadFriendsData()'>🔄 刷新好友</button>\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <div id='friendsListContainer' style='display:flex; flex-direction:column; gap:8px;'>\n");
+        sb.append("                            <div class='pg-sub' style='font-size:12px; text-align:center; padding:16px;'>正在拉取好友列表...</div>\n");
+        sb.append("                        </div>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    </div></div>\n");
+        sb.append("                </div>\n");
+        sb.append("                <div id='lobbyTabShop' class='lobby-tab-content' style='display:none;'>\n");
+        sb.append("                    <div class='pg-shop-vip-banner'>\n");
+        sb.append("                        <div>\n");
+        sb.append("                            <div style='font-size:14px; font-weight:800; color:#d97706; display:flex; align-items:center; gap:6px;'>\n");
+        sb.append("                                <span>👑 VIP 特权装扮商城</span>\n");
+        sb.append("                                <span class='badge-vip' id='shopUserVipBadge'>V1</span>\n");
+        sb.append("                            </div>\n");
+        sb.append("                            <div class='pg-sub' style='font-size:11.5px; margin-top:2px;'>\n");
+        sb.append("                                金币 " + COIN_SVG + " <span id='shopUserCoins' style='font-weight:bold;'>2,000</span> · 钻石 💎 <span id='shopUserDiamonds' style='font-weight:bold;'>50</span>\n");
+        sb.append("                            </div>\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <button type='button' style='background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:none; padding:8px 16px; border-radius:10px; font-size:12px; font-weight:bold; cursor:pointer; box-shadow:0 2px 6px rgba(245,158,11,0.3);' onclick='switchShopCategory(\"recharge\")'>⚡ 立即充值</button>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div class='shop-sub-nav'>\n");
+        sb.append("                        <button type='button' class='shop-sub-btn active' id='shopNavDiceCup' onclick='switchShopCategory(\"dice_cup\")'>🎲 骰盅皮肤</button>\n");
+        sb.append("                        <button type='button' class='shop-sub-btn' id='shopNavAvatarFrame' onclick='switchShopCategory(\"avatar_frame\")'>🖼️ 头像边框</button>\n");
+        sb.append("                        <button type='button' class='shop-sub-btn' id='shopNavEntranceBanner' onclick='switchShopCategory(\"entrance_banner\")'>🚩 进场横幅</button>\n");
+        sb.append("                        <button type='button' class='shop-sub-btn' id='shopNavChatTextColor' onclick='switchShopCategory(\"chat_text_color\")'>🎨 文字颜色</button>\n");
+        sb.append("                        <button type='button' class='shop-sub-btn' id='shopNavGiftProp' onclick='switchShopCategory(\"gift_prop\")'>🎁 互动道具</button>\n");
+        sb.append("                        <button type='button' class='shop-sub-btn' id='shopNavRecharge' onclick='switchShopCategory(\"recharge\")'>💎 官方充值</button>\n");
+        sb.append("                        <button type='button' class='shop-sub-btn' id='shopNavVipCenter' onclick='switchShopCategory(\"vip_center\")'>👑 VIP特权</button>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div id='shopCatalogContainer' style='min-height:220px;'>\n");
+        sb.append("                        <div class='pg-sub' style='font-size:12px; text-align:center; padding:30px;'>正在加载商城装扮与道具...</div>\n");
+        sb.append("                    </div>\n");
+        sb.append("                </div>\n");
+        sb.append("                <div id='lobbyTabProfile' class='lobby-tab-content' style='display:none;'>\n");
+        sb.append("                    <div class='lobby-profile-workspace'>\n");
+        sb.append("                    <div class='profile-card' style='margin-bottom:0;'>\n");
+        sb.append("                        <div class='lobby-avatar' id='profileAvatarBig' style='width:58px; height:58px; font-size:28px; margin:0 auto 10px; border-width:3px;'>🦊</div>\n");
+        sb.append("                        <div class='pg-title' style='font-size:18px; font-weight:bold;' id='profileNickname'>玩家昵称</div>\n");
+        sb.append("                        <div class='pg-sub' style='font-size:12px; margin-top:2px;' id='profileUidText'>OneID 通行证已就绪</div>\n");
+        sb.append("                        <div id='profileWinRateRing' class='ent-winrate-ring'></div>\n");
+        sb.append("                        <div class='profile-stat-grid'>\n");
+        sb.append("                            <div class='profile-stat-box'>\n");
+        sb.append("                                <div class='stat-val' id='statTotalGames'>0</div>\n");
+        sb.append("                                <div class='stat-lbl'>总局数</div>\n");
+        sb.append("                            </div>\n");
+        sb.append("                            <div class='profile-stat-box'>\n");
+        sb.append("                                <div class='stat-val' id='statWinCount'>0</div>\n");
+        sb.append("                                <div class='stat-lbl'>胜场数</div>\n");
+        sb.append("                            </div>\n");
+        sb.append("                            <div class='profile-stat-box'>\n");
+        sb.append("                                <div class='stat-val' style='color:#10b981;' id='statWinRate'>0%</div>\n");
+        sb.append("                                <div class='stat-lbl'>综合胜率</div>\n");
+        sb.append("                            </div>\n");
+        sb.append("                            <div class='profile-stat-box'>\n");
+        sb.append("                                <div class='stat-val' style='color:#f59e0b;' id='statRankScore'>1200</div>\n");
+        sb.append("                                <div class='stat-lbl'>天梯积分</div>\n");
+        sb.append("                            </div>\n");
+        sb.append("                        </div>\n");
+        sb.append("                        <div class='pg-soft-panel' style='display:flex; justify-content:space-around; padding:10px; font-size:12px;'>\n");
+        sb.append("                            <div>" + COIN_SVG + " 金币：<b id='profileCoins' style='color:#d97706;'>2,000</b></div>\n");
+        sb.append("                            <div>💎 钻石：<b id='profileDiamonds' style='color:#0284c7;'>50</b></div>\n");
+        sb.append("                            <div>👑 VIP：<b id='profileVip' style='color:#d97706;'>VIP 1</b></div>\n");
+        sb.append("                        </div>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div style='display:flex; flex-direction:column; gap:12px;'>\n");
+        sb.append("                    <div style='display:grid; grid-template-columns:repeat(3,1fr); gap:10px;'>\n");
+        sb.append("                        <button type='button' class='pg-welfare-btn' onclick='openSignInModal()'><span style='font-size:20px;'>📅</span><span>每日签到领奖</span></button>\n");
+        sb.append("                        <button type='button' class='pg-welfare-btn' onclick='openBankruptReliefModal()'><span style='font-size:20px;'>🆘</span><span>免费领救济金</span></button>\n");
+        sb.append("                        <button type='button' class='pg-welfare-btn' onclick='openLuckyGachaModal()'><span style='font-size:20px;'>🎯</span><span>金币幸运盲盒</span></button>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <div class='pg-surface-panel' style='padding:14px; font-size:12px; line-height:1.6; text-align:left;'>\n");
+        sb.append("                        <div class='pg-title' style='font-weight:bold; margin-bottom:6px;'>🛡️ 公平竞技与战绩说明</div>\n");
+        sb.append("                        <div class='pg-sub'>1. 聚会桌游吧坚持公平竞技原则，所有联机对局记录真实计入天梯积分与胜率统计，不支持付费重置或修改战绩；<br>2. 对局中途若网络断开，系统将自动开启智能托管并保留重连通道。</div>\n");
+        sb.append("                    </div>\n");
+        sb.append("                    <button type='button' style='width:100%; padding:13px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.38); color:#ef4444; border-radius:12px; font-weight:bold; font-size:14px; cursor:pointer;' onclick='logoutUser()'>🚪 退出登录当前账号</button>\n");
+        sb.append("                    </div></div>\n");
         sb.append("                </div>\n");
         sb.append("            </div>\n");
-        sb.append("            <div style='display:flex; flex-direction:column; gap:12px;'>\n");
-        sb.append("            <div style='display:grid; grid-template-columns:repeat(3,1fr); gap:10px;'>\n");
-        sb.append("                <button type='button' class='pg-welfare-btn' onclick='openSignInModal()'><span style='font-size:20px;'>📅</span><span>每日签到领奖</span></button>\n");
-        sb.append("                <button type='button' class='pg-welfare-btn' onclick='openBankruptReliefModal()'><span style='font-size:20px;'>🆘</span><span>免费领救济金</span></button>\n");
-        sb.append("                <button type='button' class='pg-welfare-btn' onclick='openLuckyGachaModal()'><span style='font-size:20px;'>🎯</span><span>金币幸运盲盒</span></button>\n");
-        sb.append("            </div>\n");
-        sb.append("            <div class='pg-surface-panel' style='padding:14px; font-size:12px; line-height:1.6; text-align:left;'>\n");
-        sb.append("                <div class='pg-title' style='font-weight:bold; margin-bottom:6px;'>🛡️ 公平竞技与战绩说明</div>\n");
-        sb.append("                <div class='pg-sub'>1. 聚会桌游吧坚持公平竞技原则，所有联机对局记录真实计入天梯积分与胜率统计，不支持付费重置或修改战绩；<br>2. 对局中途若网络断开，系统将自动开启智能托管并保留重连通道。</div>\n");
-        sb.append("            </div>\n");
-        sb.append("            <button style='width:100%; padding:13px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.38); color:#ef4444; border-radius:12px; font-weight:bold; font-size:14px; cursor:pointer;' onclick='logoutUser()'>🚪 退出登录当前账号</button>\n");
-        sb.append("            </div></div>\n");
         sb.append("        </div>\n");
         sb.append("    </div>\n");
         sb.append("    <div class='bottom-nav'>\n");
-        sb.append("        <button class='nav-tab-btn active' id='navItemGames' onclick='switchLobbyTab(\"games\")'>\n");
+        sb.append("        <button type='button' class='nav-tab-btn active' id='navItemGames' onclick='switchLobbyTab(\"games\")'>\n");
         sb.append("            <span class='nav-tab-icon'>🎮</span>\n");
         sb.append("            <span>游戏大厅</span>\n");
         sb.append("        </button>\n");
-        sb.append("        <button class='nav-tab-btn' id='navItemSquare' onclick='switchLobbyTab(\"square\")'>\n");
+        sb.append("        <button type='button' class='nav-tab-btn' id='navItemSquare' onclick='switchLobbyTab(\"square\")'>\n");
         sb.append("            <span class='nav-tab-icon'>💬</span>\n");
         sb.append("            <span>广场</span>\n");
         sb.append("        </button>\n");
-        sb.append("        <button class='nav-tab-btn' id='navItemFriends' onclick='switchLobbyTab(\"friends\")'>\n");
+        sb.append("        <button type='button' class='nav-tab-btn' id='navItemFriends' onclick='switchLobbyTab(\"friends\")'>\n");
         sb.append("            <span class='nav-tab-icon'>👥</span>\n");
         sb.append("            <span>好友</span>\n");
         sb.append("        </button>\n");
-        sb.append("        <button class='nav-tab-btn' id='navItemRank' onclick='switchLobbyTab(\"rank\")'>\n");
+        sb.append("        <button type='button' class='nav-tab-btn' id='navItemRank' onclick='switchLobbyTab(\"rank\")'>\n");
         sb.append("            <span class='nav-tab-icon'>🏆</span>\n");
         sb.append("            <span>排行</span>\n");
         sb.append("        </button>\n");
-        sb.append("        <button class='nav-tab-btn' id='navItemShop' onclick='switchLobbyTab(\"shop\")'>\n");
+        sb.append("        <button type='button' class='nav-tab-btn' id='navItemShop' onclick='switchLobbyTab(\"shop\")'>\n");
         sb.append("            <span class='nav-tab-icon'>🛍️</span>\n");
         sb.append("            <span>商店</span>\n");
         sb.append("        </button>\n");
-        sb.append("        <button class='nav-tab-btn' id='navItemProfile' onclick='switchLobbyTab(\"profile\")'>\n");
+        sb.append("        <button type='button' class='nav-tab-btn' id='navItemProfile' onclick='switchLobbyTab(\"profile\")'>\n");
         sb.append("            <span class='nav-tab-icon'>👤</span>\n");
         sb.append("            <span>我的</span>\n");
         sb.append("        </button>\n");
@@ -1678,6 +1808,63 @@ public class WebPlayController {
                   "        </div>\n" +
                   "    </div>\n" +
                   "</div>\n");
+
+        /* 9. 企业级自定义创建房间弹窗 (#createRoomModal) */
+        sb.append("<div class='modal-overlay' id='createRoomModal' style='display:none; z-index:1005;' onclick='if(event.target===this)closeCreateRoomModal()'>\n");
+        sb.append("    <div class='commercial-modal-card ent-create-room-card' style='max-width:480px; text-align:left;'>\n");
+        sb.append("        <button type='button' onclick='closeCreateRoomModal()' style='position:absolute; top:14px; right:16px; background:none; border:none; font-size:22px; color:#94a3b8; cursor:pointer;' aria-label='关闭创建房间弹窗'>✕</button>\n");
+        sb.append("        <div style='display:flex; align-items:center; gap:10px; margin-bottom:14px;'>\n");
+        sb.append("            <span style='font-size:26px;'>🏠</span>\n");
+        sb.append("            <div>\n");
+        sb.append("                <div class='pg-title' style='font-size:17px; font-weight:900;'>自定义创建开黑房间</div>\n");
+        sb.append("                <div class='pg-sub' style='font-size:11.5px;'>选择玩法模式、定制房间名称与观战权限，立即生成 6 位房号</div>\n");
+        sb.append("            </div>\n");
+        sb.append("        </div>\n");
+        sb.append("        <div class='form-group'>\n");
+        sb.append("            <label class='form-label'>选择桌游玩法</label>\n");
+        sb.append("            <div class='ent-create-game-grid'>\n");
+        sb.append("                <button type='button' class='ent-create-game-opt selected' data-game='take6' onclick='selectCreateRoomGame(\"take6\")'>\n");
+        sb.append("                    <span class='ent-opt-icon'>🐂</span><span class='ent-opt-name'>谁是牛头王</span><span class='ent-opt-sub'>2-6人策略</span>\n");
+        sb.append("                </button>\n");
+        sb.append("                <button type='button' class='ent-create-game-opt' data-game='liars_dice' onclick='selectCreateRoomGame(\"liars_dice\")'>\n");
+        sb.append("                    <span class='ent-opt-icon'>🎲</span><span class='ent-opt-name'>大话骰吹牛</span><span class='ent-opt-sub'>2-6人博弈</span>\n");
+        sb.append("                </button>\n");
+        sb.append("                <button type='button' class='ent-create-game-opt' data-game='party_wheel' onclick='selectCreateRoomGame(\"party_wheel\")'>\n");
+        sb.append("                    <span class='ent-opt-icon'>🎡</span><span class='ent-opt-name'>聚会大转盘</span><span class='ent-opt-sub'>2-8人破冰</span>\n");
+        sb.append("                </button>\n");
+        sb.append("                <button type='button' class='ent-create-game-opt' data-game='undercover' onclick='selectCreateRoomGame(\"undercover\")'>\n");
+        sb.append("                    <span class='ent-opt-icon'>🕵️</span><span class='ent-opt-name'>谁是卧底</span><span class='ent-opt-sub'>4-8人推理</span>\n");
+        sb.append("                </button>\n");
+        sb.append("            </div>\n");
+        sb.append("        </div>\n");
+        sb.append("        <div class='form-group'>\n");
+        sb.append("            <label class='form-label' for='inputCustomRoomName'>房间标题 (可选)</label>\n");
+        sb.append("            <input type='text' id='inputCustomRoomName' class='form-input' placeholder='如：周末欢乐开黑局（留空自动生成）' maxlength='24'>\n");
+        sb.append("        </div>\n");
+        sb.append("        <div class='ent-create-room-options'>\n");
+        sb.append("            <label class='remember-label'>\n");
+        sb.append("                <input type='checkbox' id='chkCustomAllowSpectator' class='remember-checkbox' checked>\n");
+        sb.append("                <span>允许好友进入观战席</span>\n");
+        sb.append("            </label>\n");
+        sb.append("        </div>\n");
+        sb.append("        <div style='display:flex; gap:10px; margin-top:16px;'>\n");
+        sb.append("            <button type='button' class='btn-mode-create' style='flex:1;' onclick='closeCreateRoomModal()'>取消</button>\n");
+        sb.append("            <button type='button' id='btnConfirmCreateRoom' class='btn-mode-quick' style='flex:2;' onclick='submitCustomCreateRoom()'>🚀 立即创建并进房</button>\n");
+        sb.append("        </div>\n");
+        sb.append("    </div>\n");
+        sb.append("</div>\n");
+
+        /* 10. 全局快捷命令面板 (#commandPaletteModal) */
+        sb.append("<div class='modal-overlay' id='commandPaletteModal' style='display:none; z-index:1010;' onclick='if(event.target===this)closeCommandPalette()'>\n");
+        sb.append("    <div class='commercial-modal-card ent-cmd-modal' style='max-width:540px; text-align:left;'>\n");
+        sb.append("        <div class='ent-cmd-header'>\n");
+        sb.append("            <span class='ent-cmd-search-icon'>🔍</span>\n");
+        sb.append("            <input type='text' id='cmdPaletteInput' class='ent-cmd-input' placeholder='输入指令、页面名称或 6 位房间号直达...' autocomplete='off'>\n");
+        sb.append("            <button type='button' class='ent-cmd-close' onclick='closeCommandPalette()' aria-label='关闭命令面板'>ESC</button>\n");
+        sb.append("        </div>\n");
+        sb.append("        <div id='cmdPaletteList' class='ent-cmd-list'></div>\n");
+        sb.append("    </div>\n");
+        sb.append("</div>\n");
 
         return sb.toString();
     }
@@ -2759,7 +2946,7 @@ public class WebPlayController {
                "        const elVipModalLevel = document.getElementById('vipModalCurrentLevel');\n" +
                "        if (elVipModalLevel) elVipModalLevel.innerText = (vip >= 4 ? '👑 SVIP ' + vip : (vip > 0 ? '👑 VIP ' + vip : '未激活'));\n" +
                "        const elUidText = document.getElementById('lobbyUserUidText'); if (elUidText) elUidText.innerText = uid;\n" +
-               "        const elRankTier = document.getElementById('lobbyUserRankTier'); if (elRankTier) elRankTier.innerText = '· ' + (user.rankTier || '🥉 倔强青铜');\n" +
+               "        const elRankTier = document.getElementById('lobbyUserRankTier'); if (elRankTier) elRankTier.innerText = (user.rankTier || '🥉 倔强青铜');\n" +
                "    }\n" +
                "    window.updateUserStateUi = updateHeaderUserUi;\n" +
                "    window.refreshLobbyRooms = async function() {\n" +
@@ -4209,16 +4396,18 @@ public class WebPlayController {
                "        switchMainView('login');\n" +
                "    }\n" +
                "    async function refreshCaptcha() {\n" +
+               "        const box = document.getElementById('captchaBox');\n" +
+               "        if (!box) return;\n" +
                "        try {\n" +
                "            const res = await fetch(getApiPrefix() + '/api/web/captcha');\n" +
                "            const data = await res.json();\n" +
                "            if (data.code === 200) {\n" +
                "                currentCaptchaId = data.captchaId;\n" +
-               "                document.getElementById('captchaBox').innerText = data.displayCode;\n" +
+               "                box.innerText = data.displayCode;\n" +
                "            }\n" +
                "        } catch(e) {\n" +
                "            currentCaptchaId = 'LOCAL_RAND';\n" +
-               "            document.getElementById('captchaBox').innerText = Math.random().toString(36).substring(2, 6).toUpperCase();\n" +
+               "            box.innerText = Math.random().toString(36).substring(2, 6).toUpperCase();\n" +
                "        }\n" +
                "    }\n" +
                "    async function submitAuth() {\n" +
@@ -4248,21 +4437,29 @@ public class WebPlayController {
                "            btn.disabled = false;\n" +
                "            btn.innerText = '⚡ 验证并立即试玩';\n" +
                "        }\n" +
-               "    }\n" +
-               "    function initWebSocket() {\n" +
+               "    }\n");
+        sb.append("    function initWebSocket() {\n" +
+               "        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;\n" +
                "        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';\n" +
                "        const wsHost = window.location.host || 'fwpt.cn';\n" +
                "        const wsUrl = protocol + '//' + wsHost + (getApiPrefix() || '') + '/ws';\n" +
                "        try {\n" +
-               "            ws = new WebSocket(wsUrl);\n" +
-               "            ws.onopen = () => {\n" +
-               "                ws.send(JSON.stringify({ type: 'INIT_USER', userId: myUserId, nickname: myNickname, token: localStorage.getItem('pg_auth_token') || '' }));\n" +
-               "                if (currentRoomId) ws.send(JSON.stringify({ type: 'JOIN_ROOM', roomCode: currentRoomId, userId: myUserId, nickname: myNickname, avatar: myAvatar, gameType: currentGameType }));\n" +
+               "            const sock = new WebSocket(wsUrl);\n" +
+               "            ws = sock;\n" +
+               "            sock.onopen = () => {\n" +
+               "                if (sock.readyState !== WebSocket.OPEN) return;\n" +
+               "                sock.send(JSON.stringify({ type: 'INIT_USER', userId: myUserId, nickname: myNickname, token: localStorage.getItem('pg_auth_token') || '' }));\n" +
+               "                if (currentRoomId) sock.send(JSON.stringify({ type: 'JOIN_ROOM', roomCode: currentRoomId, userId: myUserId, nickname: myNickname, avatar: myAvatar, gameType: currentGameType }));\n" +
                "            };\n" +
-               "            ws.onmessage = (event) => {\n" +
+               "            sock.onmessage = (event) => {\n" +
                "                try { const msg = JSON.parse(event.data); handleWsMessage(msg); } catch(e) {}\n" +
                "            };\n" +
-               "            ws.onclose = () => { setTimeout(initWebSocket, 3500); };\n" +
+               "            sock.onclose = () => {\n" +
+               "                if (ws === sock) {\n" +
+               "                    ws = null;\n" +
+               "                    setTimeout(initWebSocket, 3500);\n" +
+               "                }\n" +
+               "            };\n" +
                "        } catch(e) {}\n" +
                "    }\n" +
                "    let h5MarqueeTimer = null;\n" +
@@ -6640,7 +6837,7 @@ public class WebPlayController {
                "    };\n";
     }
 
-    private String buildHtmlScriptTail(boolean isTake6) {
+    private String buildHtmlScriptTail(boolean isTake6, String assetPrefix) {
         return "    window.togglePwdVisibility = function() {\n" +
                "        const inp = document.getElementById('inputPwdPass');\n" +
                "        const btn = document.getElementById('btnTogglePwdVis');\n" +
@@ -6711,7 +6908,7 @@ public class WebPlayController {
                "        document.body.classList.toggle('dark-mode', isDark);\n" +
                "        const b1 = document.getElementById('btnLobbyThemeToggle');\n" +
                "        const b2 = document.getElementById('btnRoomThemeToggle');\n" +
-               "        if (b1) b1.innerText = isDark ? '☀️ 护眼' : '🌙 暗黑';\n" +
+               "        if (b1) b1.innerHTML = isDark ? '<span class=\"ent-theme-ico\">☀️</span><span class=\"ent-theme-label\">护眼</span>' : '<span class=\"ent-theme-ico\">🌙</span><span class=\"ent-theme-label\">暗黑</span>';\n" +
                "        if (b2) b2.innerText = isDark ? '☀️' : '🌙';\n" +
                "    }\n" +
                "    window.toggleWebTheme = function() {\n" +
@@ -6773,7 +6970,7 @@ public class WebPlayController {
                "            });\n" +
                "        }\n" +
                "        initAuthFromStorage();\n" +
-               "        refreshCaptcha();\n" +
+               "        if (document.getElementById('captchaBox')) refreshCaptcha();\n" +
                "        renderSeats([]);\n" +
                "        if (currentGameType === 'take6') { renderTake6WaitingState(); }\n" +
                "        else if (currentGameType === 'liars_dice') { renderDiceWaitingState(); }\n" +
@@ -6793,6 +6990,7 @@ public class WebPlayController {
                "        }, 2000);\n" +
                "    };\n" +
                "</script>\n" +
+               "<script defer id='webplayEnterpriseJsScript' src='" + assetPrefix + "/js/webplay-enterprise.js?v=3.1' onerror=\"if(location.pathname.indexOf('/party-game')===0&&!this.dataset.retried){this.dataset.retried='1';var n=document.createElement('script');n.defer=true;n.src='/party-game/js/webplay-enterprise.js?v=3.1';document.head.appendChild(n);}\"></script>\n" +
                "</body>\n" +
                "</html>\n";
     }
