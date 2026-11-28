@@ -1,5 +1,4 @@
 import java.util.Properties
-import java.io.FileInputStream
 
 plugins {
     id "com.android.application"
@@ -9,10 +8,53 @@ plugins {
 }
 
 def keystoreProperties = new Properties()
-def keystorePropertiesFile = rootProject.file('key.properties')
-def hasKeystore = keystorePropertiesFile.exists()
-if (hasKeystore) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+def keystorePropertiesFile = [
+    rootProject.file("../key.properties"),
+    rootProject.file("key.properties")
+].find { it.exists() }
+if (keystorePropertiesFile != null) {
+    keystorePropertiesFile.withReader("UTF-8") { reader ->
+        keystoreProperties.load(reader)
+    }
+}
+
+def resolveSigningValue = { String envKey, String propKey ->
+    def envVal = System.getenv(envKey)
+    if (envVal != null && !envVal.trim().isEmpty()) {
+        return envVal.trim()
+    }
+    def propVal = keystoreProperties.getProperty(propKey)
+    return (propVal != null && !propVal.trim().isEmpty()) ? propVal.trim() : null
+}
+
+def envStoreFilePath = System.getenv("PARTY_GAME_KEYSTORE_FILE")?.trim()
+def propStoreFilePath = keystoreProperties.getProperty("storeFile")?.trim()
+def releaseStoreFilePath = (envStoreFilePath && !envStoreFilePath.isEmpty()) ? envStoreFilePath : (propStoreFilePath ?: null)
+def releaseStoreFile = null
+if (releaseStoreFilePath) {
+    def candidate = new File(releaseStoreFilePath)
+    if (candidate.isAbsolute()) {
+        releaseStoreFile = candidate
+    } else if (envStoreFilePath && !envStoreFilePath.isEmpty()) {
+        releaseStoreFile = rootProject.file(releaseStoreFilePath)
+    } else if (keystorePropertiesFile != null) {
+        releaseStoreFile = new File(keystorePropertiesFile.parentFile, releaseStoreFilePath)
+    } else {
+        releaseStoreFile = rootProject.file(releaseStoreFilePath)
+    }
+}
+def releaseStorePassword = resolveSigningValue("PARTY_GAME_KEYSTORE_PASSWORD", "storePassword")
+def releaseKeyAlias = resolveSigningValue("PARTY_GAME_KEY_ALIAS", "keyAlias")
+def releaseKeyPassword = resolveSigningValue("PARTY_GAME_KEY_PASSWORD", "keyPassword")
+def hasReleaseSigning = releaseStoreFile != null && releaseStoreFile.exists() && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+def isReleaseTaskRequested = gradle.startParameter.taskNames.any {
+    def lower = it.toLowerCase()
+    lower.contains("release") || lower.contains("bundle")
+}
+if (isReleaseTaskRequested && !hasReleaseSigning) {
+    throw new GradleException(
+        "Missing Android release signing configuration! Provide party_game_app/android/key.properties or PARTY_GAME_KEYSTORE_* env vars (storeFile=${releaseStoreFilePath ?: 'unset'})."
+    )
 }
 
 android {
@@ -39,18 +81,18 @@ android {
 
     signingConfigs {
         release {
-            if (hasKeystore) {
-                keyAlias = keystoreProperties['keyAlias']
-                keyPassword = keystoreProperties['keyPassword']
-                storeFile = keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-                storePassword = keystoreProperties['storePassword']
+            if (hasReleaseSigning) {
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                storeFile = releaseStoreFile
+                storePassword = releaseStorePassword
             }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = hasKeystore ? signingConfigs.release : signingConfigs.debug
+            signingConfig = signingConfigs.release
             minifyEnabled = true
             shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

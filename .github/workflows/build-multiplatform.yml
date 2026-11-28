@@ -55,25 +55,19 @@ jobs:
           flutter-version: '3.27.x'
           cache: true
 
-      - name: Configure Release Keystore (if Secrets Present)
+      - name: Decode & Validate Release Keystore (Fail-Fast)
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_B64" ] && [ -n "$STORE_PASS" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASS" ]; then
-            echo "$KEYSTORE_B64" | base64 --decode > party_game_app/android/app/upload-keystore.jks
-            cat > party_game_app/android/key.properties <<EOF
-          storePassword=$STORE_PASS
-          keyPassword=$KEY_PASS
-          keyAlias=$KEY_ALIAS
-          storeFile=upload-keystore.jks
-          EOF
-            echo "Release keystore configured."
-          else
-            echo "No release keystore secrets configured; falling back to debug signing."
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$STORE_PASS" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASS" ]; then
+            echo "::error::Missing PartyGame Android release signing secrets!"
+            exit 1
           fi
+          printf '%s' "$KEYSTORE_B64" | tr -d ' \t\r\n' | base64 -d > "${{ runner.temp }}/party_game-release.jks"
+          chmod 600 "${{ runner.temp }}/party_game-release.jks"
 
       - name: Flutter Pub Get & Analyze
         run: |
@@ -92,6 +86,11 @@ jobs:
           fi
 
       - name: Build Android Release APK
+        env:
+          PARTY_GAME_KEYSTORE_FILE: ${{ runner.temp }}/party_game-release.jks
+          PARTY_GAME_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          PARTY_GAME_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          PARTY_GAME_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -o pipefail
           cd party_game_app
@@ -106,6 +105,11 @@ jobs:
           fi
 
       - name: Build Android Release AAB
+        env:
+          PARTY_GAME_KEYSTORE_FILE: ${{ runner.temp }}/party_game-release.jks
+          PARTY_GAME_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          PARTY_GAME_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          PARTY_GAME_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -o pipefail
           cd party_game_app
@@ -118,6 +122,27 @@ jobs:
             done
             exit 1
           fi
+
+      - name: Verify Release APK Signature
+        run: |
+          CERT_OUT=$(keytool -printcert -jarfile party_game_app/build/app/outputs/flutter-apk/app-release.apk)
+          echo "$CERT_OUT"
+          if echo "$CERT_OUT" | grep -qi "Android Debug"; then
+            echo "::error::APK is signed with Android Debug certificate!"
+            exit 1
+          fi
+          EXPECTED_SHA256="57:23:10:82:59:0C:65:3F:E6:FF:9D:47:55:6E:FA:EE:8F:87:80:72:8C:DF:99:8F:79:63:2C:6C:BD:4C:F4:18"
+          if ! echo "$CERT_OUT" | grep -qi "$EXPECTED_SHA256"; then
+            echo "::error::APK SHA-256 fingerprint does not match expected release certificate ($EXPECTED_SHA256)!"
+            exit 1
+          fi
+
+      - name: Clean Up Temporary Android Keystore
+        if: always()
+        run: |
+          rm -f "${{ runner.temp }}/party_game-release.jks" \
+                party_game_app/android/key.properties \
+                party_game_app/android/app/upload-keystore.jks
 
       - name: Stage Android Release Files
         env:
